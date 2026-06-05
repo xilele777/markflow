@@ -1,10 +1,13 @@
 // Sidebar —— 左侧导航（《菜单栏.md》）。宽 224、白底 + 右侧 hairline；三段：品牌 / 菜单 / 空间切换器。
 // 纯文字无图标、平铺不折叠、灰字分组、选中蓝 accent bar。
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { Dropdown } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
 import { palette, fonts, sizing } from '@/app/theme';
 import { useWorkspaceStore } from '@/shared/store/workspace';
+import { useAuthStore } from '@/shared/store/auth';
+import { getCurrentUser } from '@/features/auth/api';
 import { BrandMark } from './BrandMark';
 import { NAV, matchNav } from './nav';
 
@@ -41,7 +44,24 @@ function Brand() {
 }
 
 function WorkspaceSwitcher() {
-  const { spaceCode, workspaces, setSpace } = useWorkspaceStore();
+  const { spaceCode, workspaces, setSpace, setWorkspaces } = useWorkspaceStore();
+  const setUser = useAuthStore((s) => s.setUser);
+
+  // 切换空间后实时刷新当前用户（角色 / 空间可能随上下文变化）。
+  const refreshUser = useMutation({
+    mutationFn: getCurrentUser,
+    onSuccess: (me) => {
+      setUser(me);
+      setWorkspaces(me.workspaces);
+    },
+  });
+
+  const onSelectSpace = (key: string) => {
+    if (key === '__none__' || key === spaceCode) return;
+    setSpace(key);
+    refreshUser.mutate();
+  };
+
   const current = workspaces.find((w) => w.spaceCode === spaceCode);
   const name = current?.name ?? '未选择空间';
   const code = current?.spaceCode ?? '—';
@@ -59,7 +79,7 @@ function WorkspaceSwitcher() {
           items,
           selectable: true,
           selectedKeys: spaceCode ? [spaceCode] : [],
-          onClick: ({ key }) => key !== '__none__' && setSpace(key),
+          onClick: ({ key }) => onSelectSpace(key),
         }}
       >
         <div

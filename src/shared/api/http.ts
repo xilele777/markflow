@@ -64,6 +64,12 @@ export async function post<T>(url: string, data?: unknown): Promise<T> {
   return res.data.data;
 }
 
+/** GET：拆包络后返回 data（少数 GET 接口用，如 getCurrentUser）。 */
+export async function get<T>(url: string, params?: object): Promise<T> {
+  const res = await http.get<ApiResponse<T>>(url, { params });
+  return res.data.data;
+}
+
 /** 空间内 POST：自动带上当前 spaceCode（页面不重复传，《接口层.md》§五）。 */
 export function postScoped<T>(url: string, data?: object): Promise<T> {
   return post<T>(url, { spaceCode: getSpaceCode(), ...data });

@@ -2,6 +2,21 @@
 // 见 memory/dataset-upload-approach.md。上传成功返回 objectKey，作为 createDataset 的 ossPath。
 import { getUploadPreSignedUrl } from './api';
 
+// 浏览器禁止 JS 设置的请求头（设了会被忽略并告警）。TOS 预签名常把这些放进 signedHeaders，
+// 但实际签名通常只签 host（浏览器自动带），故这些可安全跳过。
+const FORBIDDEN_HEADERS = new Set([
+  'host',
+  'user-agent',
+  'content-length',
+  'connection',
+  'origin',
+  'referer',
+  'date',
+  'accept-encoding',
+  'accept-charset',
+  'cookie',
+]);
+
 /** 用 XHR PUT 把文件直传到预签名 URL，回报上传进度（0-100）。 */
 function putFile(
   url: string,
@@ -12,8 +27,10 @@ function putFile(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url, true);
-    // 携带后端要求的签名头（可能为空对象）。
-    Object.entries(headers ?? {}).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    // 携带后端要求的签名头（可能为空对象）；跳过浏览器禁止设置的头。
+    Object.entries(headers ?? {}).forEach(([k, v]) => {
+      if (!FORBIDDEN_HEADERS.has(k.toLowerCase())) xhr.setRequestHeader(k, v);
+    });
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
     };

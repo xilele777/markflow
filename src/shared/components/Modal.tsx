@@ -43,7 +43,7 @@ export function Modal({
       confirmLoading={confirmLoading}
       okButtonProps={{ disabled: okDisabled, danger }}
       width={width}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={false}
     >
       {children}

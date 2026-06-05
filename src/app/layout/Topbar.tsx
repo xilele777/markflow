@@ -1,12 +1,13 @@
 // Topbar —— 顶栏（《组件清单.md》一、《菜单栏.md》五）。高 56。
 // 左：面包屑（无页面大标题）；右：版本号(mono weak) + 头像(退出 / 修改密码)。
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Avatar, Breadcrumb, Dropdown } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { palette, fonts, sizing } from '@/app/theme';
 import { useAuthStore } from '@/shared/store/auth';
 import { useWorkspaceStore } from '@/shared/store/workspace';
-import { toast } from '@/shared/components';
+import { ChangePasswordModal } from '@/features/user/components/ChangePasswordModal';
 import { matchNav } from './nav';
 
 // TODO: 版本号接真实构建信息（import.meta.env / 接口）。
@@ -18,6 +19,7 @@ export function Topbar() {
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clear);
   const clearWorkspace = useWorkspaceStore((s) => s.clear);
+  const [pwdOpen, setPwdOpen] = useState(false);
 
   const { group, item } = matchNav(location.pathname);
   const crumbs = [group?.group, item?.label].filter(Boolean) as string[];
@@ -60,8 +62,7 @@ export function Topbar() {
             ],
             onClick: ({ key }) => {
               if (key === 'logout') onLogout();
-              // TODO: 修改密码弹窗（《工程结构.md》：头像菜单内弹窗，不单独占路由）。
-              if (key === 'pwd') toast.info('修改密码：待实现');
+              if (key === 'pwd') setPwdOpen(true);
             },
           }}
         >
@@ -74,6 +75,8 @@ export function Topbar() {
           </Avatar>
         </Dropdown>
       </div>
+
+      <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
     </header>
   );
 }

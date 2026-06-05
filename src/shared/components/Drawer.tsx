@@ -32,7 +32,7 @@ export function Drawer({ open, onClose, title, subtitle, width = 520, footer, ch
       title={head}
       width={width}
       footer={footer}
-      destroyOnClose
+      destroyOnHidden
     >
       {children}
     </AntDrawer>

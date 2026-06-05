@@ -10,6 +10,8 @@ export { Toolbar } from './Toolbar';
 export { SearchField } from './SearchField';
 export { FilterSelect } from './FilterSelect';
 export type { FilterOption } from './FilterSelect';
+export { RemoteSelect } from './RemoteSelect';
+export type { RemoteOption } from './RemoteSelect';
 export { Pagination } from './Pagination';
 export { SectionCard } from './SectionCard';
 export { FooterActionBar } from './FooterActionBar';
