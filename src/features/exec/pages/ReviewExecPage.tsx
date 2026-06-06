@@ -3,12 +3,12 @@
 // 提交按响应分流：成功切下一题、失败 toast 后端 message 不切。已完成(status=4)只读复看。
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { App, Button, Modal, Input } from 'antd';
+import { App, Button, Input } from 'antd';
 import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
-import { getTaskDetail, submitReviewTask } from '@/features/task/api';
+import { getTaskDetail, getTaskResult, submitReviewTask } from '@/features/task/api';
 import { getTaskListInGroup } from '@/features/taskgroup/api';
 import type { MyTaskGroupItem } from '@/features/taskgroup/types';
 
@@ -58,6 +58,14 @@ export default function ReviewExecPage() {
   const detailQ = useQuery({
     queryKey: ['task', 'detail', taskId],
     queryFn: () => getTaskDetail(taskId),
+    enabled: Number.isFinite(taskId),
+  });
+  // 质检意见草稿（sampleType=2）：getTaskResult 第二次调用，回显之前填过的 reviewComment 等。
+  // 渲染端只读拿 sampleType=1（标注结果）在子页 EmbedReviewPage 自己拉；
+  // 父页这一份只用于回显 / 同步质检意见框。
+  const reviewDraftQ = useQuery({
+    queryKey: ['task', 'result', taskId, 2],
+    queryFn: () => getTaskResult(taskId, 2),
     enabled: Number.isFinite(taskId),
   });
 
@@ -118,17 +126,30 @@ export default function ReviewExecPage() {
   const goPrev = () => goTo(cursor - 1);
   const goNext = () => goTo(cursor + 1);
 
-  // 不通过弹框
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectComment, setRejectComment] = useState('');
+  // 质检意见草稿（reviewComment 是非必填，通过/不通过都可填）。
+  // 进入新任务时清空；getTaskResult(sampleType=2) 拿回后回填一次。
+  const [reviewComment, setReviewComment] = useState('');
+  const lastHydratedTaskId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!taskId) return;
+    if (lastHydratedTaskId.current === taskId) return;
+    if (!reviewDraftQ.isSuccess) return;
+    const draft = reviewDraftQ.data;
+    const c =
+      draft?.hasResult && draft.result && typeof draft.result === 'object'
+        ? String((draft.result as Record<string, unknown>).reviewComment ?? '')
+        : '';
+    setReviewComment(c);
+    lastHydratedTaskId.current = taskId;
+  }, [taskId, reviewDraftQ.isSuccess, reviewDraftQ.data]);
 
   const submitMutation = useMutation({
     mutationFn: (vars: { taskId: number; reviewAction: number; reviewComment?: string }) =>
       submitReviewTask(vars),
     onSuccess: (_, vars) => {
       message.success(vars.reviewAction === REVIEW_PASS ? '已通过' : '已不通过 · 已打回重标');
-      setRejectOpen(false);
-      setRejectComment('');
+      setReviewComment('');
+      lastHydratedTaskId.current = null;
       advance();
     },
     onError: (e) => {
@@ -136,15 +157,14 @@ export default function ReviewExecPage() {
     },
   });
 
-  const onPass = () => {
+  const submitReview = (action: number) => {
     if (!taskId) return;
-    submitMutation.mutate({ taskId, reviewAction: REVIEW_PASS });
-  };
-  const onConfirmReject = () => {
-    if (!taskId) return;
-    const c = rejectComment.trim();
-    if (!c) return;
-    submitMutation.mutate({ taskId, reviewAction: REVIEW_REJECT, reviewComment: c });
+    const c = reviewComment.trim();
+    submitMutation.mutate({
+      taskId,
+      reviewAction: action,
+      reviewComment: c || undefined,
+    });
   };
 
   const backToGroup = () => {
@@ -252,14 +272,17 @@ export default function ReviewExecPage() {
                 loading={
                   submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_PASS
                 }
-                onClick={onPass}
+                onClick={() => submitReview(REVIEW_PASS)}
                 style={passBtnStyle}
               >
                 通过
               </Button>
               <Button
                 disabled={done || submitMutation.isPending}
-                onClick={() => setRejectOpen(true)}
+                loading={
+                  submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_REJECT
+                }
+                onClick={() => submitReview(REVIEW_REJECT)}
                 style={rejectBtnStyle}
               >
                 不通过
@@ -268,6 +291,31 @@ export default function ReviewExecPage() {
           )}
         </div>
       </header>
+
+      {/* 质检意见（非必填）：通过 / 不通过都可填；从 sampleType=2 草稿回显。 */}
+      {!done && !isDone && (
+        <div
+          style={{
+            flex: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 18px',
+            background: palette.surface,
+            borderBottom: `1px solid ${palette.hairline}`,
+          }}
+        >
+          <span style={{ fontSize: 12.5, color: palette.weak, flex: 'none' }}>质检意见</span>
+          <Input
+            placeholder="可选填，如：第 2 轮对话角色标注错误"
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            maxLength={500}
+            disabled={submitMutation.isPending}
+            style={{ flex: 1 }}
+          />
+        </div>
+      )}
 
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {done ? (
@@ -288,33 +336,6 @@ export default function ReviewExecPage() {
         )}
       </div>
 
-      {/* 不通过 · 填写质检意见 */}
-      <Modal
-        title="填写质检意见"
-        open={rejectOpen}
-        onOk={onConfirmReject}
-        onCancel={() => setRejectOpen(false)}
-        okText="确认不通过"
-        cancelText="取消"
-        okButtonProps={{
-          danger: true,
-          disabled: !rejectComment.trim() || submitMutation.isPending,
-          loading:
-            submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_REJECT,
-        }}
-      >
-        <div style={{ fontSize: 12.5, color: palette.sub, marginBottom: 10 }}>
-          不通过将打回上一阶段重标，请说明问题（必填）。
-        </div>
-        <Input.TextArea
-          autoFocus
-          value={rejectComment}
-          onChange={(e) => setRejectComment(e.target.value)}
-          rows={4}
-          placeholder="如：第 2 轮对话角色标注错误，用药剂量未抽取…"
-          maxLength={500}
-        />
-      </Modal>
     </div>
   );
 }
