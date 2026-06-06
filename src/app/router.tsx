@@ -21,6 +21,7 @@ import AiConfigListPage from '@/features/aiconfig/pages/AiConfigListPage';
 import LabelExecPage from '@/features/exec/pages/LabelExecPage';
 import ReviewExecPage from '@/features/exec/pages/ReviewExecPage';
 import EmbedLabelPage from '@/features/exec/pages/EmbedLabelPage';
+import EmbedReviewPage from '@/features/exec/pages/EmbedReviewPage';
 import LabelToolCreatePage from '@/features/labeltool/pages/LabelToolCreatePage';
 // 临时：Puck 搭建验收沙盒（正式创建走 /labeltool/new；沙盒后续可删）。
 import PuckDemo from '@/features/labeltool/puck/PuckDemo';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: '/exec/label/:taskId', element: <LabelExecPage /> },
       { path: '/exec/review/:taskId', element: <ReviewExecPage /> },
       { path: '/embed/label/:taskId', element: <EmbedLabelPage /> },
+      { path: '/embed/review/:taskId', element: <EmbedReviewPage /> },
       { path: '/labeltool/new', element: <LabelToolCreatePage /> },
       { path: '/labeltool/_demo', element: <PuckDemo /> },
     ],

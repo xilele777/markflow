@@ -1,6 +1,369 @@
-import { FullscreenPlaceholder } from '@/app/layout/PagePlaceholder';
+// 质检执行页（全屏，《页面模板.md》四）。ExecToolbar + iframe，结构对齐 LabelExecPage。
+// 区别：右侧操作 = 通过 / 不通过；不通过弹 RejectModal 收意见 → submitReviewTask({reviewAction:0|1, reviewComment})。
+// 提交按响应分流：成功切下一题、失败 toast 后端 message 不切。已完成(status=4)只读复看。
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { App, Button, Modal, Input } from 'antd';
+import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { ErrorState, LoadingState } from '@/shared/components';
+import { palette, fonts, sizing } from '@/app/theme';
+import { getTaskDetail, submitReviewTask } from '@/features/task/api';
+import { getTaskListInGroup } from '@/features/taskgroup/api';
+import type { MyTaskGroupItem } from '@/features/taskgroup/types';
 
-// 质检执行页（全屏，《页面模板.md》四：通过/不通过 + RejectModal）。待实现。
+interface ExecState {
+  taskIds?: number[];
+  taskGroupId?: number;
+  group?: MyTaskGroupItem;
+}
+
+const QUEUE_REFILL_THRESHOLD = 2;
+const REFILL_PAGE_SIZE = 20;
+
+/** reviewAction：0=驳回 1=通过。 */
+const REVIEW_PASS = 1;
+const REVIEW_REJECT = 0;
+
 export default function ReviewExecPage() {
-  return <FullscreenPlaceholder title="质检执行页" />;
+  const { taskId: taskIdParam } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = (location.state ?? {}) as ExecState;
+  const { message } = App.useApp();
+
+  const initialQueue = useMemo<number[]>(() => {
+    const cur = Number(taskIdParam);
+    const tail = (state.taskIds ?? []).filter((id) => id !== cur);
+    return Number.isFinite(cur) ? [cur, ...tail] : tail;
+  }, [taskIdParam, state.taskIds]);
+
+  const [queue, setQueue] = useState<number[]>(initialQueue);
+  const [cursor, setCursor] = useState(0);
+  const [done, setDone] = useState(false);
+  const taskId = queue[cursor];
+
+  useEffect(() => {
+    const cur = Number(taskIdParam);
+    if (Number.isFinite(cur) && queue[cursor] !== cur) {
+      setQueue((q) => {
+        const tail = q.filter((id) => id !== cur).slice(cursor);
+        return [cur, ...tail];
+      });
+      setCursor(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskIdParam]);
+
+  const detailQ = useQuery({
+    queryKey: ['task', 'detail', taskId],
+    queryFn: () => getTaskDetail(taskId),
+    enabled: Number.isFinite(taskId),
+  });
+
+  // 补货：拉一页 status=1 待办，append 没见过的。
+  const refilling = useRef(false);
+  useEffect(() => {
+    if (done) return;
+    const remaining = queue.length - cursor - 1;
+    if (remaining > QUEUE_REFILL_THRESHOLD) return;
+    if (!state.taskGroupId) return;
+    if (refilling.current) return;
+    refilling.current = true;
+    getTaskListInGroup({
+      taskGroupId: state.taskGroupId,
+      status: 1,
+      pageNum: 1,
+      pageSize: REFILL_PAGE_SIZE,
+    })
+      .then((res) => {
+        setQueue((q) => {
+          const seen = new Set(q);
+          const fresh = res.list.map((t) => t.taskId).filter((tid) => !seen.has(tid));
+          return fresh.length ? [...q, ...fresh] : q;
+        });
+      })
+      .catch(() => {})
+      .finally(() => {
+        refilling.current = false;
+      });
+  }, [queue.length, cursor, done, state.taskGroupId]);
+
+  const advance = useCallback(() => {
+    setQueue((q) => {
+      const nextCursor = cursor + 1;
+      if (nextCursor >= q.length) {
+        setDone(true);
+        return q;
+      }
+      const nextId = q[nextCursor];
+      setCursor(nextCursor);
+      navigate(`/exec/review/${nextId}`, {
+        replace: true,
+        state: { ...state, taskIds: q.slice(nextCursor + 1) },
+      });
+      return q;
+    });
+  }, [cursor, navigate, state]);
+
+  // 队列内手动浏览。
+  const goTo = (nextCursor: number) => {
+    if (nextCursor < 0 || nextCursor >= queue.length) return;
+    setCursor(nextCursor);
+    navigate(`/exec/review/${queue[nextCursor]}`, {
+      replace: true,
+      state: { ...state, taskIds: queue.slice(nextCursor + 1) },
+    });
+  };
+  const goPrev = () => goTo(cursor - 1);
+  const goNext = () => goTo(cursor + 1);
+
+  // 不通过弹框
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectComment, setRejectComment] = useState('');
+
+  const submitMutation = useMutation({
+    mutationFn: (vars: { taskId: number; reviewAction: number; reviewComment?: string }) =>
+      submitReviewTask(vars),
+    onSuccess: (_, vars) => {
+      message.success(vars.reviewAction === REVIEW_PASS ? '已通过' : '已不通过 · 已打回重标');
+      setRejectOpen(false);
+      setRejectComment('');
+      advance();
+    },
+    onError: (e) => {
+      message.error((e as Error)?.message || '提交失败');
+    },
+  });
+
+  const onPass = () => {
+    if (!taskId) return;
+    submitMutation.mutate({ taskId, reviewAction: REVIEW_PASS });
+  };
+  const onConfirmReject = () => {
+    if (!taskId) return;
+    const c = rejectComment.trim();
+    if (!c) return;
+    submitMutation.mutate({ taskId, reviewAction: REVIEW_REJECT, reviewComment: c });
+  };
+
+  const backToGroup = () => {
+    if (state.taskGroupId) {
+      navigate(`/my-groups/${state.taskGroupId}`, { state: state.group ? { group: state.group } : undefined });
+    } else {
+      navigate('/my-groups');
+    }
+  };
+
+  const total = queue.length;
+  const idx1 = Math.min(cursor + 1, total);
+  const detail = detailQ.data;
+  const bizId = detail?.bizId ?? '—';
+  const round = detail?.round ?? 1;
+  const isDone = detail?.status === 4;
+
+  const iframeSrc = useMemo(() => {
+    if (!detail) return null;
+    if (detail.labelTool.labelToolType === 1) {
+      return `/embed/review/${detail.taskId}`;
+    }
+    const u = detail.labelTool.labelToolUrl ?? '';
+    if (!u) return null;
+    const joiner = u.includes('?') ? '&' : '?';
+    return `${u}${joiner}taskId=${detail.taskId}&mode=review`;
+  }, [detail]);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        background: palette.canvas,
+        fontFamily: fonts.body,
+        color: palette.text,
+      }}
+    >
+      {/* 顶栏 */}
+      <header
+        style={{
+          flex: 'none',
+          height: 52,
+          background: palette.surface,
+          borderBottom: `1px solid ${palette.hairline}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 18px',
+          gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          <button onClick={backToGroup} title="退出" style={iconBtnStyle}>
+            <ArrowLeftOutlined style={{ fontSize: 14, color: palette.sub }} />
+          </button>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: palette.text,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: 240,
+            }}
+          >
+            {state.group?.name ?? '质检执行'}
+          </span>
+          <span style={vDivider} />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              fontFamily: fonts.mono,
+              fontSize: 12.5,
+              color: palette.weak,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ color: palette.sub, fontWeight: 500 }}>{bizId}</span>
+            <span>
+              第 {idx1} / {total} 题
+            </span>
+            <span>第 {round} 轮</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
+          <Button onClick={goPrev} disabled={done || cursor === 0}>
+            上一题
+          </Button>
+          <Button onClick={goNext} disabled={done || cursor >= queue.length - 1}>
+            下一题
+          </Button>
+          <span style={vDivider} />
+          {isDone ? (
+            <Button disabled>已完成</Button>
+          ) : (
+            <>
+              <Button
+                disabled={done || submitMutation.isPending}
+                loading={
+                  submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_PASS
+                }
+                onClick={onPass}
+                style={passBtnStyle}
+              >
+                通过
+              </Button>
+              <Button
+                disabled={done || submitMutation.isPending}
+                onClick={() => setRejectOpen(true)}
+                style={rejectBtnStyle}
+              >
+                不通过
+              </Button>
+            </>
+          )}
+        </div>
+      </header>
+
+      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        {done ? (
+          <DonePanel onBack={backToGroup} />
+        ) : detailQ.isLoading ? (
+          <LoadingState />
+        ) : detailQ.isError || !detail ? (
+          <ErrorState message="任务加载失败" onRetry={() => detailQ.refetch()} />
+        ) : iframeSrc ? (
+          <iframe
+            key={detail.taskId}
+            src={iframeSrc}
+            title="质检工具"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+          />
+        ) : (
+          <ErrorState message="标注工具未配置（labelToolUrl 为空）" />
+        )}
+      </div>
+
+      {/* 不通过 · 填写质检意见 */}
+      <Modal
+        title="填写质检意见"
+        open={rejectOpen}
+        onOk={onConfirmReject}
+        onCancel={() => setRejectOpen(false)}
+        okText="确认不通过"
+        cancelText="取消"
+        okButtonProps={{
+          danger: true,
+          disabled: !rejectComment.trim() || submitMutation.isPending,
+          loading:
+            submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_REJECT,
+        }}
+      >
+        <div style={{ fontSize: 12.5, color: palette.sub, marginBottom: 10 }}>
+          不通过将打回上一阶段重标，请说明问题（必填）。
+        </div>
+        <Input.TextArea
+          autoFocus
+          value={rejectComment}
+          onChange={(e) => setRejectComment(e.target.value)}
+          rows={4}
+          placeholder="如：第 2 轮对话角色标注错误，用药剂量未抽取…"
+          maxLength={500}
+        />
+      </Modal>
+    </div>
+  );
+}
+
+const iconBtnStyle: CSSProperties = {
+  width: 32,
+  height: 32,
+  flex: 'none',
+  borderRadius: sizing.radius,
+  border: `1px solid ${palette.border}`,
+  background: palette.surface,
+  display: 'grid',
+  placeItems: 'center',
+  cursor: 'pointer',
+};
+
+const vDivider: CSSProperties = {
+  width: 1,
+  height: 20,
+  background: palette.hairline,
+  flex: 'none',
+};
+
+// 通过=就绪绿；不通过=失败红。颜色取自配色规范的 STATUS。
+const passBtnStyle: CSSProperties = {
+  background: '#2c7a52',
+  borderColor: '#2c7a52',
+  color: '#fff',
+};
+const rejectBtnStyle: CSSProperties = {
+  borderColor: '#a8423a',
+  color: '#a8423a',
+};
+
+function DonePanel({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <CheckCircleFilled style={{ fontSize: 48, color: '#2c7a52' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 700, color: palette.text }}>
+            本组已全部处理完
+          </div>
+          <div style={{ marginTop: 6, fontSize: 13, color: palette.sub }}>可返回任务组查看进度。</div>
+        </div>
+        <Button type="primary" onClick={onBack}>
+          返回任务组
+        </Button>
+      </div>
+    </div>
+  );
 }

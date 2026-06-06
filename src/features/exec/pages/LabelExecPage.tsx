@@ -134,6 +134,18 @@ export default function LabelExecPage() {
     }
   };
 
+  // 队列内手动浏览：上一题 / 下一题。URL 用 replace 切换，state.taskIds 始终带「当前之后的尾巴」让刷新可重建。
+  const goTo = (nextCursor: number) => {
+    if (nextCursor < 0 || nextCursor >= queue.length) return;
+    setCursor(nextCursor);
+    navigate(`/exec/label/${queue[nextCursor]}`, {
+      replace: true,
+      state: { ...state, taskIds: queue.slice(nextCursor + 1) },
+    });
+  };
+  const goPrev = () => goTo(cursor - 1);
+  const goNext = () => goTo(cursor + 1);
+
   const total = queue.length;
   const idx1 = Math.min(cursor + 1, total);
   const detail = detailQ.data;
@@ -221,6 +233,13 @@ export default function LabelExecPage() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
+          <Button onClick={goPrev} disabled={done || cursor === 0}>
+            上一题
+          </Button>
+          <Button onClick={goNext} disabled={done || cursor >= queue.length - 1}>
+            下一题
+          </Button>
+          <span style={vDivider} />
           <Button
             disabled={done || isDone || submitMutation.isPending}
             loading={submitMutation.isPending}
