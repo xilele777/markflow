@@ -5,9 +5,13 @@ import type { PageResult } from '@/types/api';
 import type {
   CreateDatasetRequest,
   CreateDatasetResponse,
+  CreateDatasetVersionRequest,
+  CreateDatasetVersionResponse,
+  DatasetDetail,
   DatasetListItem,
   GetDatasetListRequest,
   GetUploadPreSignedUrlRequest,
+  GetVersionSamplePreviewResponse,
   UploadPreSignedUrl,
 } from './types';
 
@@ -26,4 +30,21 @@ export function getUploadPreSignedUrl(
 /** 创建数据集 · POST /api/dataset/createDataset（空间内）。 */
 export function createDataset(req: CreateDatasetRequest): Promise<CreateDatasetResponse> {
   return postScoped<CreateDatasetResponse>('/dataset/createDataset', req);
+}
+
+/** 创建数据集版本 · POST /api/dataset/createDatasetVersion（按 datasetId 定位，非空间内）。 */
+export function createDatasetVersion(
+  req: CreateDatasetVersionRequest,
+): Promise<CreateDatasetVersionResponse> {
+  return post<CreateDatasetVersionResponse>('/dataset/createDatasetVersion', req);
+}
+
+/** 数据集详情 · POST /api/dataset/getDatasetDetail。 */
+export function getDatasetDetail(datasetId: number): Promise<DatasetDetail> {
+  return post<DatasetDetail>('/dataset/getDatasetDetail', { datasetId });
+}
+
+/** 版本样本预览 · POST /api/dataset/getVersionSamplePreview（前 10 条，无分页）。 */
+export function getVersionSamplePreview(versionId: number): Promise<GetVersionSamplePreviewResponse> {
+  return post<GetVersionSamplePreviewResponse>('/dataset/getVersionSamplePreview', { versionId });
 }

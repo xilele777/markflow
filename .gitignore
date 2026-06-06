@@ -11,8 +11,9 @@ dist
 dist-ssr
 *.local
 
-# 批量导入测试样本（本地用，不入库）
+# 批量导入测试样本 / 标注样本测试文件（本地用，不入库）
 import-users-*.jsonl
+*.jsonl
 
 # Editor / OS
 .vscode/*

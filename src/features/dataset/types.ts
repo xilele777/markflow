@@ -57,3 +57,66 @@ export interface CreateDatasetResponse {
   versionId: number;
   versionNumber: number;
 }
+
+/** createDatasetVersion 入参（无 spaceCode，按 datasetId 定位）。 */
+export interface CreateDatasetVersionRequest {
+  datasetId: number;
+  /** 文件对象 key（= 上传得到的 objectKey）。 */
+  ossPath: string;
+  versionDesc?: string;
+}
+
+/** createDatasetVersion 出参。 */
+export interface CreateDatasetVersionResponse {
+  versionId: number;
+  versionNumber: number;
+}
+
+/** 解析统计 + 失败明细（parseExt）。未解析为 null。 */
+export interface ParseExt {
+  totalRowCount: number;
+  successRowCount: number;
+  skippedRowCount: number;
+  sampleErrors: { rowNumber: number; error: string }[];
+  parseFailureReason: string | null;
+}
+
+/** getDatasetDetail.versions[] 元素。 */
+export interface DatasetVersion {
+  versionId: number;
+  versionNumber: number;
+  versionDesc: string;
+  /** 解析状态：1=解析中, 2=已就绪, 3=解析失败（UPLOAD_STATUS）。 */
+  uploadStatus: number;
+  sampleCount: number;
+  creator: string;
+  createTime: number;
+  parseExt: ParseExt | null;
+}
+
+/** getDatasetDetail 出参。 */
+export interface DatasetDetail {
+  datasetId: number;
+  spaceCode: string;
+  datasetName: string;
+  datasetDesc: string;
+  labelToolCode: string;
+  latestVersionNumber: number;
+  creator: string;
+  createTime: number;
+  versions: DatasetVersion[];
+}
+
+/** getVersionSamplePreview list 元素（最多 10 条）。 */
+export interface VersionSample {
+  id: number;
+  /** 业务 id（可空）。 */
+  bizId: string | null;
+  /** 原始样本内容。 */
+  sampleData: unknown;
+}
+
+/** getVersionSamplePreview 出参。 */
+export interface GetVersionSamplePreviewResponse {
+  list: VersionSample[];
+}

@@ -1,5 +1,4 @@
 // 数据集列表（《页面模板.md》一：工具栏 → 表格 → 分页）。列字段对齐 getDatasetList（《接口文档.md》七）。
-// 脚手架阶段用 mock 数据驱动（经 react-query）；后端就绪后把 queryFn 换成 getDatasetList(params) 即可。
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -16,30 +15,16 @@ import {
   type ColumnDef,
 } from '@/shared/components';
 import { formatDate } from '@/shared/utils/format';
-import type { PageResult } from '@/types/api';
+import { useWorkspaceStore } from '@/shared/store/workspace';
 import type { DatasetListItem, GetDatasetListRequest } from '../types';
-// 后端就绪后改用：import { getDatasetList } from '../api';
-import { MOCK_DATASETS } from '../mock';
+import { getDatasetList } from '../api';
 
 const PAGE_SIZE = 10;
 
-// —— 脚手架 mock：本地按 keyword 过滤 + 分页，模拟 getDatasetList 的 PageResult —— //
-function mockFetchDatasets(req: GetDatasetListRequest): Promise<PageResult<DatasetListItem>> {
-  const kw = req.keyword?.trim();
-  const filtered = MOCK_DATASETS.filter(
-    (d) => !kw || d.datasetName.includes(kw) || d.datasetDesc.includes(kw) || d.creator.includes(kw),
-  );
-  const start = (req.pageNum - 1) * req.pageSize;
-  return Promise.resolve({
-    list: filtered.slice(start, start + req.pageSize),
-    total: filtered.length,
-    pageNum: req.pageNum,
-    pageSize: req.pageSize,
-  });
-}
-
 export default function DatasetListPage() {
   const navigate = useNavigate();
+  // 数据集是空间内的：spaceCode 进 queryKey，切换空间会重拉；未选空间则不请求、给提示。
+  const spaceCode = useWorkspaceStore((s) => s.spaceCode);
   const [keyword, setKeyword] = useState('');
   const [pageNum, setPageNum] = useState(1);
 
@@ -49,9 +34,9 @@ export default function DatasetListPage() {
   );
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dataset', 'list', params],
-    // 后端就绪后改为 () => getDatasetList(params)。
-    queryFn: () => mockFetchDatasets(params),
+    queryKey: ['dataset', 'list', spaceCode, params],
+    queryFn: () => getDatasetList(params),
+    enabled: !!spaceCode,
   });
 
   const columns: ColumnDef<DatasetListItem>[] = [
@@ -100,7 +85,9 @@ export default function DatasetListPage() {
         {newBtn}
       </Toolbar>
 
-      {isError ? (
+      {!spaceCode ? (
+        <EmptyState description="请先在左下角选择工作空间" />
+      ) : isError ? (
         <ErrorState message="数据集加载失败，请稍后重试" onRetry={() => refetch()} />
       ) : (
         <DataTable
@@ -112,7 +99,7 @@ export default function DatasetListPage() {
         />
       )}
 
-      {(data?.total ?? 0) > 0 && (
+      {!!spaceCode && (data?.total ?? 0) > 0 && (
         <Pagination
           current={pageNum}
           pageSize={PAGE_SIZE}

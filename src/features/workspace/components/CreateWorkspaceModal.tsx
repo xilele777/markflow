@@ -2,6 +2,7 @@
 import { Form, Input } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import { Modal, toast } from '@/shared/components';
+import { refreshCurrentUser } from '@/features/auth/session';
 import type { CreateWorkspaceRequest } from '../types';
 import { createWorkspace } from '../api';
 
@@ -20,6 +21,8 @@ export function CreateWorkspaceModal({ open, onClose, onCreated }: CreateWorkspa
     mutationFn: (req: CreateWorkspaceRequest) => createWorkspace(req),
     onSuccess: () => {
       toast.success('工作空间已创建');
+      // 刷新当前用户的可切换空间（让左下角切换器立刻能看到新空间，无需重新登录）。
+      void refreshCurrentUser();
       form.resetFields();
       onCreated();
       onClose();

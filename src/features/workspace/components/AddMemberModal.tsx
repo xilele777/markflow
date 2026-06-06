@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal, toast } from '@/shared/components';
 import { ROLE_TEXT } from '@/shared/constants';
 import { UserSelect } from '@/features/user/components/UserSelect';
+import { refreshCurrentUser } from '@/features/auth/session';
 import type { AddWorkspaceMemberRequest } from '../types';
 import { addWorkspaceMember } from '../api';
 
@@ -47,6 +48,8 @@ export function AddMemberModal({
       } else {
         toast.success('成员已添加');
       }
+      // 若把自己加进了某空间，刷新当前用户的可切换空间列表（切换器实时更新）。
+      void refreshCurrentUser();
       reset();
       onAdded();
       onClose();

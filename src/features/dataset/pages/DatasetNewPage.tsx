@@ -1,6 +1,5 @@
 // 新建数据集（独立表单页，《页面模板.md》三）：PageBackHeader + 基本信息 + 数据文件 + FooterActionBar。
 // 上传成功（拿到 objectKey）且必填齐全才可提交；spaceCode 走当前空间、表单不让选（文案规范）。
-// 联调进度：文件上传已走真实直传（uploadDatasetFile）；标注工具下拉 / createDataset 暂仍 mock。
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Row, Col } from 'antd';
@@ -12,12 +11,10 @@ import {
   UploadField,
   toast,
 } from '@/shared/components';
+import { getLabelToolList } from '@/features/labeltool/api';
 import type { CreateDatasetRequest } from '../types';
 import { uploadDatasetFile } from '../upload';
-import { MOCK_LABEL_TOOLS, mockCreateDataset } from '../mock';
-// 标注工具下拉 / createDataset 暂保持 mock；后端联调时再切：
-//   import { getLabelToolList } from '@/features/labeltool/api';
-//   import { createDataset } from '../api';
+import { createDataset } from '../api';
 
 interface FormValues {
   datasetName: string;
@@ -40,13 +37,11 @@ export default function DatasetNewPage() {
   // 标注工具下拉。
   const { data: tools, isLoading: toolsLoading } = useQuery({
     queryKey: ['labeltool', 'forSelect'],
-    // 后端就绪后改为 () => getLabelToolList({ pageNum: 1, pageSize: 100 }).then((r) => r.list)
-    queryFn: () => Promise.resolve(MOCK_LABEL_TOOLS),
+    queryFn: () => getLabelToolList({ pageNum: 1, pageSize: 100 }).then((r) => r.list),
   });
 
   const createMutation = useMutation({
-    // 后端就绪后改为 createDataset
-    mutationFn: (req: CreateDatasetRequest) => mockCreateDataset(req),
+    mutationFn: (req: CreateDatasetRequest) => createDataset(req),
     onSuccess: () => {
       toast.success('数据集创建成功，开始解析');
       queryClient.invalidateQueries({ queryKey: ['dataset', 'list'] });
