@@ -4,8 +4,10 @@ import { postPage } from '@/shared/api/http';
 import type { PageResult } from '@/types/api';
 import type {
   GetMyTaskGroupsRequest,
+  GetTaskGroupListRequest,
   GetTaskListInGroupRequest,
   MyTaskGroupItem,
+  TaskGroupItem,
   TaskGroupTaskItem,
 } from './types';
 
@@ -14,6 +16,14 @@ export function getMyTaskGroups(
   req: GetMyTaskGroupsRequest,
 ): Promise<PageResult<MyTaskGroupItem>> {
   return postPage<MyTaskGroupItem>('/taskgroup/getMyTaskGroups', req);
+}
+
+/** 任务组列表（管理员视角） · POST /api/taskgroup/getTaskGroupList（分页）。
+ *  鉴权：仅系统管理员；非管理员调用会失败，调用方需自行处理空态/错误提示。 */
+export function getTaskGroupList(
+  req: GetTaskGroupListRequest,
+): Promise<PageResult<TaskGroupItem>> {
+  return postPage<TaskGroupItem>('/taskgroup/getTaskGroupList', req);
 }
 
 /** 任务组内任务列表 · POST /api/task/getTaskListInGroup（分页）。 */

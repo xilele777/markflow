@@ -19,6 +19,8 @@ export const NAV: NavGroup[] = [
     items: [
       { label: '标注任务', path: '/case' },
       { label: '我的任务组', path: '/my-groups' },
+      // 任务进度：getTaskGroupList（仅系统管理员）；菜单先全员可见，进入后按角色降级为空态。
+      { label: '任务进度', path: '/task-progress' },
     ],
   },
   {

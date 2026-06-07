@@ -20,6 +20,8 @@ import { LABEL_TOOL_TYPE, metaOf } from '@/shared/constants';
 import type { GetLabelToolListRequest, LabelToolListItem } from '../types';
 import { getLabelToolList } from '../api';
 import { LabelToolDetailDrawer } from '../components/LabelToolDetailDrawer';
+import { LabelToolTypeChooserModal } from '../components/LabelToolTypeChooserModal';
+import { LabelToolIframeFormDrawer } from '../components/LabelToolIframeFormDrawer';
 
 const PAGE_SIZE = 10;
 
@@ -28,6 +30,8 @@ export default function LabelToolListPage() {
   const [keyword, setKeyword] = useState('');
   const [pageNum, setPageNum] = useState(1);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [iframeFormOpen, setIframeFormOpen] = useState(false);
 
   const params: GetLabelToolListRequest = useMemo(
     () => ({ keyword, pageNum, pageSize: PAGE_SIZE }),
@@ -69,7 +73,7 @@ export default function LabelToolListPage() {
           onChange={setKeyword}
           onSearch={() => setPageNum(1)}
         />
-        <Btn kind="primary" icon={<PlusOutlined />} onClick={() => navigate('/labeltool/new')}>
+        <Btn kind="primary" icon={<PlusOutlined />} onClick={() => setChooserOpen(true)}>
           创建标注工具
         </Btn>
       </Toolbar>
@@ -99,6 +103,21 @@ export default function LabelToolListPage() {
         labelToolId={detailId}
         open={detailId != null}
         onClose={() => setDetailId(null)}
+      />
+
+      <LabelToolTypeChooserModal
+        open={chooserOpen}
+        onCancel={() => setChooserOpen(false)}
+        onPick={(kind) => {
+          setChooserOpen(false);
+          if (kind === 'builtin') navigate('/labeltool/new');
+          else setIframeFormOpen(true);
+        }}
+      />
+
+      <LabelToolIframeFormDrawer
+        open={iframeFormOpen}
+        onClose={() => setIframeFormOpen(false)}
       />
     </>
   );

@@ -75,6 +75,16 @@ export const LABEL_TOOL_TYPE: EnumMap = {
   2: { label: 'IFRAME', tone: NEUTRAL },
 };
 
+/** 九 · 任务组类型（getTaskGroupList.type 1-6）—— Tag。个人组 vs 各种池。 */
+export const TASK_GROUP_TYPE: EnumMap = {
+  1: { label: '个人组', tone: NEUTRAL },
+  2: { label: 'AI 预标池', tone: CATEGORY.annotate },
+  3: { label: '人工标注池', tone: CATEGORY.annotate },
+  4: { label: 'AI 预审池', tone: CATEGORY.result },
+  5: { label: '初检池', tone: CATEGORY.result },
+  6: { label: '复检池', tone: CATEGORY.result },
+};
+
 /** 八 · 派发策略（strategy，纯文字，无色）。 */
 export const STRATEGY_TEXT: Record<number, string> = {
   1: '先到先得',

@@ -63,6 +63,59 @@ export function parseDataSource(text: string): ParsedDataSource {
   }
 }
 
+// ─── JSON Schema 推导 ────────────────────────────────────────────────────
+// 把粘贴样本对象转成 Draft-07 JSON Schema：顶层 = object，properties 列出每个字段的子 schema，
+// required 默认列出所有顶层字段名。后端 networknt 据此校验上传样本。
+
+type JsonSchemaNode =
+  | { type: 'string' }
+  | { type: 'number' }
+  | { type: 'integer' }
+  | { type: 'boolean' }
+  | { type: 'null' }
+  | {
+      type: 'object';
+      properties?: Record<string, JsonSchemaNode>;
+      required?: string[];
+    }
+  | { type: 'array'; items?: JsonSchemaNode };
+
+function inferNode(value: unknown): JsonSchemaNode {
+  if (value === null) return { type: 'null' };
+  if (Array.isArray(value)) {
+    if (value.length === 0) return { type: 'array' };
+    return { type: 'array', items: inferNode(value[0]) };
+  }
+  if (typeof value === 'object') {
+    const properties: Record<string, JsonSchemaNode> = {};
+    const required: string[] = [];
+    for (const k of Object.keys(value as Record<string, unknown>)) {
+      properties[k] = inferNode((value as Record<string, unknown>)[k]);
+      required.push(k);
+    }
+    const node: JsonSchemaNode = { type: 'object', properties };
+    if (required.length) (node as { required?: string[] }).required = required;
+    return node;
+  }
+  if (typeof value === 'number') return Number.isInteger(value) ? { type: 'integer' } : { type: 'number' };
+  if (typeof value === 'boolean') return { type: 'boolean' };
+  return { type: 'string' };
+}
+
+/** 把样本对象推导为 Draft-07 JSON Schema（顶层 object，关键字保留）。 */
+export function buildJsonSchema(sample: Record<string, unknown>): Record<string, unknown> {
+  const node = inferNode(sample);
+  // inferNode 一定返回 object 节点（因为入参就是对象），但显式断言以便 TS 收窄。
+  const root = node as Extract<JsonSchemaNode, { type: 'object' }>;
+  const schema: Record<string, unknown> = {
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    type: 'object',
+    properties: root.properties ?? {},
+  };
+  if (root.required && root.required.length) schema.required = root.required;
+  return schema;
+}
+
 /** 当前数据源字段（编辑端注入，供绑定下拉读取）。 */
 const DataSourceFieldsContext = createContext<FieldInfo[]>([]);
 

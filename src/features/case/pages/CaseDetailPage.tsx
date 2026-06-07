@@ -14,9 +14,19 @@ import {
   Tag,
   type MetaField,
 } from '@/shared/components';
-import { CASE_STATUS, DATA_SOURCE_TYPE, STAGE_TYPE, metaOf } from '@/shared/constants';
+import {
+  CASE_STATUS,
+  DATA_SOURCE_TYPE,
+  STAGE_TYPE,
+  TASK_GROUP_STATUS,
+  TASK_GROUP_TYPE,
+  metaOf,
+} from '@/shared/constants';
 import { formatDateTime } from '@/shared/utils/format';
 import { palette, fonts, sizing } from '@/app/theme';
+import { useAuthStore } from '@/shared/store/auth';
+import { getTaskGroupList } from '@/features/taskgroup/api';
+import type { TaskGroupItem } from '@/features/taskgroup/types';
 import { STAGE_TYPE_CODE, type AiStageConfig, type HumanStageConfig, type StageMember, type StageType } from '../types';
 import { getCaseDetail } from '../api';
 
@@ -53,6 +63,21 @@ export default function CaseDetailPage() {
     queryFn: () => getCaseDetail(caseId),
     enabled: Number.isFinite(caseId),
   });
+
+  // 仅系统管理员能查任务组（getTaskGroupList），一次拉 caseId 下全部任务组，再按 stage 分组。
+  // 上限 100 条；超过时阶段卡里给一个「去任务进度页查看全部」入口（含 caseId 预过滤）。
+  const isSystemAdmin = useAuthStore((s) => s.user?.isSystemAdmin ?? false);
+  const { data: groupsResp } = useQuery({
+    queryKey: ['taskgroup', 'forCase', caseId],
+    queryFn: () => getTaskGroupList({ caseId, pageNum: 1, pageSize: 100 }),
+    enabled: isSystemAdmin && Number.isFinite(caseId),
+  });
+  const groupsByStage: Record<number, TaskGroupItem[]> = (() => {
+    const m: Record<number, TaskGroupItem[]> = {};
+    for (const g of groupsResp?.list ?? []) (m[g.taskType] ??= []).push(g);
+    return m;
+  })();
+  const groupsTruncated = (groupsResp?.total ?? 0) > (groupsResp?.list.length ?? 0);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -201,6 +226,10 @@ export default function CaseDetailPage() {
                       done: 0,
                     }}
                     assignment={data.assignmentConfig[s.type]}
+                    caseId={data.caseId}
+                    groups={groupsByStage[STAGE_TYPE_CODE[s.type]] ?? []}
+                    groupsKnown={isSystemAdmin}
+                    groupsTruncated={groupsTruncated}
                   />
                 ))}
               </div>
@@ -226,9 +255,26 @@ interface StageRowProps {
   isLast: boolean;
   progress: { poolPending: number; personalDoing: number; done: number };
   assignment: AiStageConfig | HumanStageConfig | undefined;
+  /** 任务组列表（仅系统管理员）。非管理员时传空数组、groupsKnown=false。 */
+  caseId: number;
+  groups: TaskGroupItem[];
+  /** true 表示已成功拉到（含空数组）；false 表示无权或未拉。 */
+  groupsKnown: boolean;
+  /** 全 case 任务组超过 100 条时为 true，给一个去任务进度页的入口。 */
+  groupsTruncated: boolean;
 }
 
-function StageRow({ type, index, isLast, progress, assignment }: StageRowProps) {
+function StageRow({
+  type,
+  index,
+  isLast,
+  progress,
+  assignment,
+  caseId,
+  groups,
+  groupsKnown,
+  groupsTruncated,
+}: StageRowProps) {
   const [open, setOpen] = useState(false);
   const ai = IS_AI[type];
   const total = progress.poolPending + progress.personalDoing + progress.done;
@@ -353,10 +399,120 @@ function StageRow({ type, index, isLast, progress, assignment }: StageRowProps) 
             ) : (
               <HumanAssignmentChips cfg={assignment as HumanStageConfig} />
             )}
+
+            {groupsKnown && (
+              <StageGroupsBlock
+                caseId={caseId}
+                groups={groups}
+                truncated={groupsTruncated}
+              />
+            )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+/** 阶段卡展开区里的「任务组」轻量列表。每行：组类型 Tag + 组名 + 执行人 + 组状态 + 查看。 */
+function StageGroupsBlock({
+  caseId,
+  groups,
+  truncated,
+}: {
+  caseId: number;
+  groups: TaskGroupItem[];
+  truncated: boolean;
+}) {
+  const navigate = useNavigate();
+  return (
+    <>
+      <div
+        style={{
+          fontFamily: fonts.body,
+          fontSize: 12,
+          color: palette.weak,
+          margin: '14px 0 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <span>任务组（{groups.length}）</span>
+        {truncated && (
+          <a
+            onClick={() =>
+              navigate('/task-progress', { state: { presetCaseId: caseId } })
+            }
+            style={{ fontSize: 12, color: palette.accent, cursor: 'pointer' }}
+          >
+            去任务进度页查看全部 →
+          </a>
+        )}
+      </div>
+      {groups.length === 0 ? (
+        <span style={{ fontSize: 12.5, color: palette.weak }}>暂无任务组</span>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {groups.map((g) => {
+            const typeMeta = metaOf(TASK_GROUP_TYPE, g.type);
+            const statusMeta = metaOf(TASK_GROUP_STATUS, g.status);
+            return (
+              <div
+                key={g.taskGroupId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 12px',
+                  borderRadius: sizing.radius,
+                  background: palette.fill,
+                  minWidth: 0,
+                }}
+              >
+                <Tag tone={typeMeta.tone}>{typeMeta.label}</Tag>
+                <span
+                  style={{
+                    fontFamily: fonts.body,
+                    fontSize: 13,
+                    color: palette.text,
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {g.name}
+                </span>
+                <span
+                  style={{
+                    fontFamily: fonts.mono,
+                    fontSize: 12,
+                    color: palette.sub,
+                    flex: 'none',
+                  }}
+                >
+                  {g.annotator ?? '—'}
+                </span>
+                <StatusDot tone={statusMeta.tone}>{statusMeta.label}</StatusDot>
+                <a
+                  onClick={() =>
+                    navigate(`/groups/${g.taskGroupId}`, {
+                      state: { group: g, from: 'case-detail', caseId },
+                    })
+                  }
+                  style={{ fontSize: 12.5, color: palette.accent, cursor: 'pointer', flex: 'none' }}
+                >
+                  查看
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 

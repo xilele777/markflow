@@ -1,5 +1,7 @@
-// 我的任务组详情（组内任务列表，《页面模板.md》二）。字段对齐 getTaskListInGroup（《接口文档.md》九）。
-// 工作量汇总：在手 = status∈{2,3,5}（执行中/打回）；待办 = status=1（待领取）。脚手架阶段走 mock。
+// 任务组详情（组内任务列表，《页面模板.md》二）。字段对齐 getTaskListInGroup（《接口文档.md》九）。
+// 入口：① /my-groups/:gid（我的任务组）② /groups/:gid（任务进度 / case 详情）。
+// backTo 根据 location.state.from 切换；缺省回 /my-groups（兼容旧入口）。
+// 工作量汇总：在手 = status∈{2,3,5}（执行中/打回）；待办 = status=1（待领取）。
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +21,12 @@ import {
 import { STAGE_TYPE, TASK_STATUS, metaOf } from '@/shared/constants';
 import { formatDateTime } from '@/shared/utils/format';
 import { palette, fonts } from '@/app/theme';
-import type { GetTaskListInGroupRequest, MyTaskGroupItem, TaskGroupTaskItem } from '../types';
+import type {
+  GetTaskListInGroupRequest,
+  MyTaskGroupItem,
+  TaskGroupItem,
+  TaskGroupTaskItem,
+} from '../types';
 import { getTaskListInGroup } from '../api';
 
 const PAGE_SIZE = 10;
@@ -45,8 +52,22 @@ export default function GroupDetailPage() {
 
   // 接口文档里没有 getTaskGroupDetail：组基本信息（名/case 名/工具/类型）由列表页 navigate(state) 带过来。
   // 直接刷新或粘贴 URL 时 state 为空，仅展示组 id；后端补口后改为独立 useQuery 拉详情。
-  const group = (location.state as { group?: MyTaskGroupItem } | null)?.group;
+  // state.from 决定 backTo（my-groups / task-progress / case-detail），缺省回 my-groups。
+  const navState = (location.state as
+    | {
+        group?: MyTaskGroupItem | TaskGroupItem;
+        from?: 'my-groups' | 'task-progress' | 'case-detail';
+        caseId?: number;
+      }
+    | null) ?? null;
+  const group = navState?.group;
   const review = group ? isReviewStage(group.taskType) : false;
+  const backTo =
+    navState?.from === 'task-progress'
+      ? '/task-progress'
+      : navState?.from === 'case-detail' && navState.caseId
+        ? `/case/${navState.caseId}`
+        : '/my-groups';
 
   const [status, setStatus] = useState<number | undefined>(undefined);
   const [pageNum, setPageNum] = useState(1);
@@ -169,7 +190,7 @@ export default function GroupDetailPage() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <PageBackHeader
         title={group?.name ?? `任务组 #${taskGroupId}`}
-        backTo="/my-groups"
+        backTo={backTo}
       />
 
       {/* 组基本信息（caseName + 标注工具 + 类型 Tag） */}

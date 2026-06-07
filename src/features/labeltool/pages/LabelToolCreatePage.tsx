@@ -6,7 +6,7 @@ import { App, Button, Input } from 'antd';
 import type { Data } from '@measured/puck';
 import { palette, fonts } from '@/app/theme';
 import { LabelToolEditor, INITIAL, DEFAULT_DATASOURCE } from '../puck/PuckDemo';
-import { parseDataSource } from '../puck/datasource';
+import { buildJsonSchema, parseDataSource } from '../puck/datasource';
 import { createLabelTool } from '../api';
 
 const backBtn: CSSProperties = {
@@ -61,7 +61,8 @@ export default function LabelToolCreatePage() {
         labelToolCode: code.trim(),
         labelToolName: name.trim(),
         labelToolType: 1,
-        labelToolJsonSchema: ds.sampleData,
+        // 后端要求 Draft-07 JSON Schema（顶层 type/properties/required），不是原始样本。
+        labelToolJsonSchema: buildJsonSchema(ds.sampleData),
         labelToolPageSchema: data as unknown as Record<string, unknown>,
       });
       message.success(`创建成功（id=${res.labelToolId}）`);
