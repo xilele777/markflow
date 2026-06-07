@@ -48,7 +48,8 @@ export default function TaskProgressListPage() {
   const isSystemAdmin = useAuthStore((s) => s.user?.isSystemAdmin ?? false);
 
   const [keyword, setKeyword] = useState('');
-  const [type, setType] = useState<number | undefined>(undefined);
+  // 进页默认查「个人任务组」（type=1）；用户可改为其它池或全部。
+  const [type, setType] = useState<number | undefined>(1);
   const [status, setStatus] = useState<number | undefined>(undefined);
   const [labelToolCode, setLabelToolCode] = useState<string | undefined>(undefined);
   const [pageNum, setPageNum] = useState(1);

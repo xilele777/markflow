@@ -29,6 +29,7 @@ import { getTaskGroupList } from '@/features/taskgroup/api';
 import type { TaskGroupItem } from '@/features/taskgroup/types';
 import { STAGE_TYPE_CODE, type AiStageConfig, type HumanStageConfig, type StageMember, type StageType } from '../types';
 import { getCaseDetail } from '../api';
+import { ExportResultSection } from '../components/ExportResultSection';
 
 const STAGE_LABEL: Record<StageType, string> = {
   aiPreLabel: 'AI 预标注',
@@ -183,6 +184,13 @@ export default function CaseDetailPage() {
                 <div style={{ height: 1, background: palette.hairline, margin: '20px 0' }} />
                 <MetaGrid items={meta} columns={4} />
               </section>
+
+              {/* 结果导出（异步，详见《接口文档.md》Case 详情 ext.lastExport） */}
+              <ExportResultSection
+                caseId={data.caseId}
+                lastExport={data.ext?.lastExport ?? null}
+                refetchCaseDetail={refetch}
+              />
 
               {/* 流程进度 */}
               <div

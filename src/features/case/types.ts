@@ -83,6 +83,32 @@ export interface StageProgress {
   done: number;
 }
 
+/** 结果导出格式（exportCaseResult 入参 / ext.lastExport.format）。 */
+export type ExportFormat = 'csv' | 'jsonl';
+
+/** ext.lastExport.status —— 异步导出状态机。 */
+export type LastExportStatus = 'EXPORTING' | 'DONE' | 'FAILED';
+
+/** 最近一次结果导出（覆盖式更新）。NON_NULL 序列化，缺失字段整体省略：
+ *   - DONE：有 objectKey / downloadUrl / finishTime，没有 failureReason
+ *   - FAILED：有 failureReason / finishTime，没有 downloadUrl
+ *   - EXPORTING：只有 status / format / triggerTime
+ */
+export interface LastExport {
+  status: LastExportStatus;
+  format: ExportFormat;
+  triggerTime: number;
+  finishTime?: number;
+  objectKey?: string;
+  downloadUrl?: string;
+  failureReason?: string;
+}
+
+/** case.ext —— 业务扩展字段袋。整个 ext 当前可能不存在（未触发过任何 ext 业务时）。 */
+export interface CaseExt {
+  lastExport?: LastExport;
+}
+
 /** getCaseDetail 出参。 */
 export interface CaseDetail {
   caseId: number;
@@ -101,6 +127,14 @@ export interface CaseDetail {
   /** 结果集版本 id（首次写结果时 lazy 创建，可能为 null）。 */
   labelResultDatasetVersionId: number | null;
   stageProgress: StageProgress[];
+  /** 扩展字段。未触发过结果导出 / 未来其它 ext 业务时整个字段缺省。 */
+  ext?: CaseExt | null;
+}
+
+/** exportCaseResult 入参。 */
+export interface ExportCaseRequest {
+  caseId: number;
+  format: ExportFormat;
 }
 
 /** createCase 入参。 */

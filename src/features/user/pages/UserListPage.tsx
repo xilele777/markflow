@@ -1,6 +1,7 @@
 // 用户管理列表（《页面模板.md》一）。仅系统管理员可见（本期菜单不过滤）。
 // 添加：单个弹窗 / 批量导入。修改密码入口在顶栏头像菜单（本页不再放按钮）。
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusOutlined } from '@ant-design/icons';
 import {
@@ -11,6 +12,7 @@ import {
   Pagination,
   SearchField,
   StatusDot,
+  TextLink,
   Toolbar,
   type ColumnDef,
 } from '@/shared/components';
@@ -25,6 +27,7 @@ import { ImportUsersModal } from '../components/ImportUsersModal';
 const PAGE_SIZE = 10;
 
 export default function UserListPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState('');
   const [pageNum, setPageNum] = useState(1);
@@ -44,7 +47,18 @@ export default function UserListPage() {
   const refreshList = () => queryClient.invalidateQueries({ queryKey: ['user', 'list'] });
 
   const columns: ColumnDef<UserListItem>[] = [
-    { key: 'username', label: '用户名', width: 180, mono: true },
+    {
+      key: 'username',
+      label: '用户名',
+      width: 180,
+      mono: true,
+      // 点击 username 进入「成员贡献」代查页（SA 视角）。
+      render: (u) => (
+        <TextLink onClick={() => navigate(`/contribution?username=${encodeURIComponent(u.username)}`)}>
+          {u.username}
+        </TextLink>
+      ),
+    },
     { key: 'displayName', label: '显示名', flex: true },
     {
       key: 'isSystemAdmin',

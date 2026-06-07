@@ -56,11 +56,13 @@ export function Topbar() {
           trigger={['click']}
           menu={{
             items: [
+              { key: 'contribution', label: '我的贡献' },
               { key: 'pwd', label: '修改密码' },
               { type: 'divider' },
               { key: 'logout', label: '退出登录' },
             ],
             onClick: ({ key }) => {
+              if (key === 'contribution') navigate('/contribution');
               if (key === 'logout') onLogout();
               if (key === 'pwd') setPwdOpen(true);
             },

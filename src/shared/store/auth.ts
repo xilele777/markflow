@@ -7,12 +7,12 @@ const TOKEN_KEY = 'lingshu.token';
 /** 空间角色 code（成员分配等入参用）：1=标注员 2=审核员 3=标注管理员。 */
 export type RoleCode = 1 | 2 | 3;
 
-/** getCurrentUser.workspaces[]（《接口文档.md》三）。注意 roles 为角色**名**字符串列表。 */
+/** getCurrentUser.workspaces[]（《接口文档.md》三）。roles 为后端英文角色 code 列表。 */
 export interface UserWorkspace {
   workspaceId: number;
   spaceCode: string;
   name: string;
-  /** 角色名：标注员 / 审核员 / 标注管理员。 */
+  /** 角色 code：'LABELER' / 'REVIEWER' / 'LABEL_ADMIN'（与 shared/auth/permissions 常量一致）。 */
   roles: string[];
 }
 

@@ -8,8 +8,9 @@ import { palette, fonts, sizing } from '@/app/theme';
 import { useWorkspaceStore } from '@/shared/store/workspace';
 import { useAuthStore } from '@/shared/store/auth';
 import { getCurrentUser } from '@/features/auth/api';
+import { useCurrentRoles } from '@/shared/auth/permissions';
 import { BrandMark } from './BrandMark';
-import { NAV, matchNav } from './nav';
+import { filterNav, matchNav } from './nav';
 
 function Brand() {
   return (
@@ -138,6 +139,8 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { item: activeItem } = matchNav(location.pathname);
+  const perms = useCurrentRoles();
+  const visibleNav = filterNav(perms);
 
   return (
     <aside
@@ -154,7 +157,7 @@ export function Sidebar() {
       <Brand />
 
       <nav style={{ flex: 1, padding: '6px 12px', overflowY: 'auto' }}>
-        {NAV.map((g) => (
+        {visibleNav.map((g) => (
           <div key={g.group} style={{ marginBottom: 18 }}>
             <div
               style={{

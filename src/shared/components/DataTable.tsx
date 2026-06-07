@@ -3,11 +3,11 @@
 // 操作列=文字链接(TextLink)、不用「…」；ID/编号/版本/数字=mono；分页用独立 <Pagination/>，此处关闭内置分页。
 //
 // 列宽 & 截断：tableLayout=fixed；所有列默认 ellipsis（含 mono），长内容截断 + hover 显示
-// 完整文本，避免某列内容超长把相邻列挤掉（如长 labelToolCode `buyer_recommend_position_v2`）。
-import type { ReactNode } from 'react';
+// 完整文本（自检测 td 是否溢出 → 仅溢出时浮动提示，零延迟；不溢出无提示）。
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { fonts } from '@/app/theme';
+import { palette, fonts } from '@/app/theme';
 import { EmptyState } from './EmptyState';
 
 export interface ColumnDef<T> {
@@ -34,14 +34,11 @@ interface DataTableProps<T> {
   empty?: ReactNode;
 }
 
-/** 试着从单元格内容里抽一个 string 用作 title（hover 全文）。
- *  原值是 string/number → 直接转字符串；render 返回的 ReactNode → 一律不推（不准）。
- */
-function inferTitle(rawValue: unknown): string | undefined {
-  if (rawValue == null) return undefined;
-  if (typeof rawValue === 'string') return rawValue;
-  if (typeof rawValue === 'number') return String(rawValue);
-  return undefined;
+interface HoverTip {
+  text: string;
+  /** 锚点（td 屏幕坐标），渲染时定位到它下方。 */
+  left: number;
+  top: number;
 }
 
 export function DataTable<T extends object>({
@@ -51,27 +48,43 @@ export function DataTable<T extends object>({
   loading,
   empty,
 }: DataTableProps<T>) {
+  // 自定义浮动提示：仅在 td 实际溢出时显示（不溢出无 hover），零延迟。
+  // 比原生 title 快得多、也避免给每个 cell 都挂 title 导致的"无意义 hover"。
+  const [tip, setTip] = useState<HoverTip | null>(null);
+
   const antColumns: ColumnsType<T> = columns.map((c) => ({
     key: c.key,
     title: c.label,
     dataIndex: (c.dataIndex ?? c.key) as string,
     width: c.flex ? undefined : c.width,
     align: c.align ?? 'left',
-    // 所有列都开 ellipsis；纯字符串内容 AntD 会自动挂 title。
-    // 操作列禁掉 ellipsis（按钮 / 链接群不需要被截）。
-    ellipsis: c.key === 'op' ? false : { showTitle: true },
-    onCell: (row: T) => {
-      // 自定义 render 的列 AntD 无法推 title；这里兜底：拿原始 dataIndex 值推一次。
-      if (c.key === 'op') return {};
-      const raw = (row as Record<string, unknown>)[(c.dataIndex ?? c.key) as string];
-      const title = inferTitle(raw);
-      return title ? { title } : {};
-    },
+    // ellipsis 给 td 套 CSS（overflow:hidden + nowrap + text-overflow:ellipsis）；
+    // showTitle:false 关掉原生 title（500ms 延迟太慢），改走我们的浮动提示。
+    ellipsis: c.key === 'op' ? false : { showTitle: false },
+    onCell: c.key === 'op'
+      ? undefined
+      : () => ({
+          onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+            const td = e.currentTarget;
+            // 判断是否真的截断：td 自身溢出，或者它的直接子元素溢出（mono span 自带 overflow:hidden
+            // 会吞掉 td 的 scrollWidth，需要单独看子元素）。
+            const overflow =
+              td.scrollWidth > td.clientWidth + 1 ||
+              Array.from(td.children).some(
+                (ch) => (ch as HTMLElement).scrollWidth > (ch as HTMLElement).clientWidth + 1,
+              );
+            if (!overflow) return;
+            const text = td.innerText?.trim();
+            if (!text) return;
+            const r = td.getBoundingClientRect();
+            setTip({ text, left: r.left + 8, top: r.bottom + 4 });
+          },
+          onMouseLeave: () => setTip(null),
+        }),
     render: (value: unknown, row: T) => {
       const content = c.render ? c.render(row) : (value as ReactNode);
       if (c.mono) {
         // ID / 编号 / 版本 / 编码 等 mono 内容：nowrap + 截断（避免横向溢出盖列）。
-        // 不写 nowrap 时 AntD 的 ellipsis 仍会按行截，但 mono 编码常单行更易读。
         return (
           <span
             style={{
@@ -93,14 +106,40 @@ export function DataTable<T extends object>({
   }));
 
   return (
-    <Table<T>
-      columns={antColumns}
-      dataSource={data}
-      rowKey={rowKey as never}
-      loading={loading}
-      pagination={false}
-      tableLayout="fixed"
-      locale={{ emptyText: empty ?? <EmptyState /> }}
-    />
+    <>
+      <Table<T>
+        columns={antColumns}
+        dataSource={data}
+        rowKey={rowKey as never}
+        loading={loading}
+        pagination={false}
+        tableLayout="fixed"
+        locale={{ emptyText: empty ?? <EmptyState /> }}
+      />
+      {tip && <OverflowTip {...tip} />}
+    </>
   );
+}
+
+const tipStyle = (left: number, top: number): CSSProperties => ({
+  position: 'fixed',
+  left,
+  top,
+  zIndex: 1500,
+  maxWidth: 480,
+  padding: '6px 10px',
+  borderRadius: 6,
+  background: palette.text,
+  color: '#fff',
+  fontFamily: fonts.body,
+  fontSize: 12.5,
+  lineHeight: 1.5,
+  boxShadow: '0 4px 14px rgba(0,0,0,.16)',
+  pointerEvents: 'none',
+  wordBreak: 'break-all',
+  whiteSpace: 'normal',
+});
+
+function OverflowTip({ text, left, top }: HoverTip) {
+  return <div style={tipStyle(left, top)}>{text}</div>;
 }

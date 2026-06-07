@@ -50,7 +50,14 @@ export default function VersionNewPage() {
           form={form}
           layout="vertical"
           onFinish={onFinish}
-          style={{ maxWidth: 840, display: 'flex', flexDirection: 'column', gap: 16 }}
+          style={{
+            width: '100%',
+            maxWidth: 840,
+            alignSelf: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
         >
           <SectionCard step={1} title="数据文件">
             <UploadField uploadFn={uploadDatasetFile} onChange={setObjectKey} />

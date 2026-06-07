@@ -234,7 +234,14 @@ export default function CaseNewPage() {
 
         <Form
           layout="vertical"
-          style={{ maxWidth: 880, display: 'flex', flexDirection: 'column', gap: 16 }}
+          style={{
+            width: '100%',
+            maxWidth: 880,
+            alignSelf: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
         >
           {/* ① 基本信息 */}
           <SectionCard step={1} title="基本信息">

@@ -70,7 +70,14 @@ export default function DatasetNewPage() {
           layout="vertical"
           requiredMark
           onFinish={onFinish}
-          style={{ maxWidth: 840, display: 'flex', flexDirection: 'column', gap: 16 }}
+          style={{
+            width: '100%',
+            maxWidth: 840,
+            alignSelf: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
         >
           <SectionCard step={1} title="基本信息">
             <Row gutter={18}>

@@ -7,6 +7,7 @@ import type {
   CaseListItem,
   CreateCaseRequest,
   CreateCaseResponse,
+  ExportCaseRequest,
   GetCaseListRequest,
 } from './types';
 
@@ -23,4 +24,11 @@ export function getCaseDetail(caseId: number): Promise<CaseDetail> {
 /** 创建 Case · POST /api/case/createCase（空间内）。 */
 export function createCase(req: CreateCaseRequest): Promise<CreateCaseResponse> {
   return postScoped<CreateCaseResponse>('/case/createCase', req);
+}
+
+/** 触发结果导出 · POST /api/case/exportCaseResult（异步，仅系统管理员 / 空间 LABEL_ADMIN）。
+ *  接口立即返回；实际渲染 + 上传 TOS 在后端 MQ 消费侧异步执行，
+ *  状态写入 case.ext.lastExport，前端通过 getCaseDetail 拉取。 */
+export function exportCaseResult(req: ExportCaseRequest): Promise<void> {
+  return post<void>('/case/exportCaseResult', req);
 }

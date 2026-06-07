@@ -16,12 +16,15 @@ import {
   type FilterOption,
 } from '@/shared/components';
 import { palette, fonts } from '@/app/theme';
+import { useCurrentRoles } from '@/shared/auth/permissions';
 import { getLabelToolList } from '@/features/labeltool/api';
 import type { AiConfigListItem } from '../types';
 import { getAiConfigList } from '../api';
 import { AiConfigFormDrawer, type AiConfigFormMode } from '../components/AiConfigFormDrawer';
 
 export default function AiConfigListPage() {
+  // AI 配置：SA + LABEL_ADMIN 都能进，但写操作仅 SA（密钥不回显，标注管理员只读）。
+  const { canWriteAiConfig } = useCurrentRoles();
   const [labelToolCode, setLabelToolCode] = useState<string | undefined>(undefined);
   const [keyword, setKeyword] = useState('');
 
@@ -98,15 +101,21 @@ export default function AiConfigListPage() {
       label: '操作',
       width: 96,
       align: 'right',
-      render: (c) => <TextLink onClick={() => openEdit(c)}>编辑</TextLink>,
+      render: (c) =>
+        canWriteAiConfig ? (
+          <TextLink onClick={() => openEdit(c)}>编辑</TextLink>
+        ) : (
+          <span style={{ color: palette.weak, fontSize: 12.5 }}>只读</span>
+        ),
     },
   ];
 
-  const newBtn = (
+  // 仅 SA 显示新建按钮；LABEL_ADMIN 进得来但是只读视角。
+  const newBtn = canWriteAiConfig ? (
     <Btn kind="primary" icon={<PlusOutlined />} onClick={openCreate}>
       新建 AI 配置
     </Btn>
-  );
+  ) : null;
 
   return (
     <>
