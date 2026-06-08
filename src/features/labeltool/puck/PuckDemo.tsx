@@ -231,12 +231,14 @@ function PreviewMode({
   sampleData,
   result,
   setField,
+  resetResult,
   onBack,
 }: {
   data: Data;
   sampleData: Record<string, unknown>;
   result: AnnotationResult;
   setField: (key: string, value: unknown) => void;
+  resetResult: () => void;
   onBack: () => void;
 }) {
   const { message } = App.useApp();
@@ -258,6 +260,9 @@ function PreviewMode({
       <div style={{ position: 'absolute', top: 14, right: 18, display: 'flex', gap: 8, zIndex: 10 }}>
         <button onClick={() => setShowResult(true)} style={headerBtn}>
           查看结果
+        </button>
+        <button onClick={resetResult} style={headerBtn} title="清空当前模拟的标注结果">
+          重置数据
         </button>
         <button onClick={onBack} style={headerBtn}>
           返回编辑
@@ -377,6 +382,7 @@ export function LabelToolEditor({ data, onDataChange, dsText, onDsTextChange, he
           sampleData={ds.sampleData}
           result={result}
           setField={setField}
+          resetResult={() => setResult({})}
           onBack={() => setPreviewing(false)}
         />
       ) : (
@@ -398,7 +404,15 @@ export function LabelToolEditor({ data, onDataChange, dsText, onDsTextChange, he
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               {headerRight}
               <ZoomControls zoom={zoom} onZoomChange={setZoom} />
-              <button onClick={() => setPreviewing(true)} style={headerBtn}>
+              <button
+                onClick={() => {
+                  // 进预览前清空 result，避免历史脏数据残留（编辑期画布共享同一个 result state，
+                  // 修复前曾因 resultKey 按键中间态被脏写过的 key 会留下来）。
+                  setResult({});
+                  setPreviewing(true);
+                }}
+                style={headerBtn}
+              >
                 预览
               </button>
             </div>
