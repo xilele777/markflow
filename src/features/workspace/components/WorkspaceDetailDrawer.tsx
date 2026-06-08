@@ -12,9 +12,10 @@ import {
   LoadingState,
   MetaGrid,
   StatusDot,
+  Tag,
   type ColumnDef,
 } from '@/shared/components';
-import { ROLE_TEXT, USER_STATUS, metaOf } from '@/shared/constants';
+import { ROLE_META, USER_STATUS, metaOf } from '@/shared/constants';
 import { formatDate } from '@/shared/utils/format';
 import { palette, fonts } from '@/app/theme';
 import type { WorkspaceMember } from '../types';
@@ -26,8 +27,6 @@ interface WorkspaceDetailDrawerProps {
   open: boolean;
   onClose: () => void;
 }
-
-const rolesText = (roles: number[]) => roles.map((r) => ROLE_TEXT[r] ?? '—').join('、');
 
 export function WorkspaceDetailDrawer({ workspaceId, open, onClose }: WorkspaceDetailDrawerProps) {
   const [addOpen, setAddOpen] = useState(false);
@@ -52,7 +51,29 @@ export function WorkspaceDetailDrawer({ workspaceId, open, onClose }: WorkspaceD
         </div>
       ),
     },
-    { key: 'roles', label: '角色', width: 200, render: (m) => rolesText(m.roles) },
+    {
+      key: 'roles',
+      label: '角色',
+      width: 220,
+      // 多角色用 Tag flex wrap 排（不同色相区分），关掉默认 ellipsis 让超出自然换行而不是被截。
+      noEllipsis: true,
+      render: (m) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {m.roles.length === 0 ? (
+            <span style={{ color: palette.weak }}>—</span>
+          ) : (
+            m.roles.map((r) => {
+              const meta = metaOf(ROLE_META, r);
+              return (
+                <Tag key={r} tone={meta.tone}>
+                  {meta.label}
+                </Tag>
+              );
+            })
+          )}
+        </div>
+      ),
+    },
     {
       key: 'status',
       label: '状态',

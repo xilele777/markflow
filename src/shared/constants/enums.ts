@@ -91,11 +91,19 @@ export const STRATEGY_TEXT: Record<number, string> = {
   2: '固定分配',
 };
 
-/** 八 · 空间角色（role，纯文字，无色）。 */
+/** 八 · 空间角色（role，纯文字，无色，给 Select 之类的下拉用）。 */
 export const ROLE_TEXT: Record<number, string> = {
   1: '标注员',
   2: '审核员',
   3: '标注管理员',
+};
+
+/** 九 · 空间角色 Tag 元数据（label + tone），给成员列表 / 头像角色 chip 这类 Tag 渲染用。
+ *  色相分配：标注员=分类蓝紫（最基础）、审核员=分类绿（跟审核通过语义贴）、标注管理员=分类紫（最显眼）。 */
+export const ROLE_META: EnumMap = {
+  1: { label: '标注员', tone: CATEGORY.annotate },
+  2: { label: '审核员', tone: CATEGORY.stream },
+  3: { label: '标注管理员', tone: CATEGORY.result },
 };
 
 /** 兜底取值：未知 code 时返回中性「—」，避免页面崩。 */

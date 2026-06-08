@@ -23,6 +23,9 @@ export interface ColumnDef<T> {
   mono?: boolean;
   /** 自定义单元格；不传则取 dataIndex 原值。 */
   render?: (row: T) => ReactNode;
+  /** 关掉本列的 CSS 截断；用于多 Tag flex wrap 这类需要多行展示的列。
+   *  关掉后 hover 浮动提示也不再触发。 */
+  noEllipsis?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -60,8 +63,9 @@ export function DataTable<T extends object>({
     align: c.align ?? 'left',
     // ellipsis 给 td 套 CSS（overflow:hidden + nowrap + text-overflow:ellipsis）；
     // showTitle:false 关掉原生 title（500ms 延迟太慢），改走我们的浮动提示。
-    ellipsis: c.key === 'op' ? false : { showTitle: false },
-    onCell: c.key === 'op'
+    // 操作列 + 显式 noEllipsis 的列（如多 Tag 列）跳过。
+    ellipsis: c.key === 'op' || c.noEllipsis ? false : { showTitle: false },
+    onCell: c.key === 'op' || c.noEllipsis
       ? undefined
       : () => ({
           onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
