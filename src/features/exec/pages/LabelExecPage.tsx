@@ -5,11 +5,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { App, Button } from 'antd';
-import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  CheckCircleFilled,
+  DownOutlined,
+  ExclamationCircleFilled,
+} from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
-import { getTaskDetail, submitLabelTask } from '@/features/task/api';
+import { getTaskDetail, getTaskResult, submitLabelTask } from '@/features/task/api';
 import { getTaskListInGroup } from '@/features/taskgroup/api';
 import type { MyTaskGroupItem } from '@/features/taskgroup/types';
 
@@ -65,6 +70,23 @@ export default function LabelExecPage() {
     queryFn: () => getTaskDetail(taskId),
     enabled: Number.isFinite(taskId),
   });
+
+  // 被打回的任务（status===5）：拉质检结果（sampleType=2）回显上一轮的「打回原因」给标注员看。
+  // 内置 / 外部工具子页都不感知；父框架统一在 iframe 上方挂一个 banner。
+  const isRebound = detailQ.data?.status === 5;
+  const reviewResultQ = useQuery({
+    queryKey: ['task', 'result', taskId, 2],
+    queryFn: () => getTaskResult(taskId, 2),
+    enabled: Number.isFinite(taskId) && isRebound,
+  });
+  const reboundComment = useMemo<string | null>(() => {
+    if (!isRebound) return null;
+    const r = reviewResultQ.data;
+    if (!r?.hasResult || !r.result) return null;
+    // 质检结果 schema：{ reviewAction: 0=驳回 1=通过, reviewComment?: string }
+    const v = (r.result as { reviewComment?: unknown }).reviewComment;
+    return typeof v === 'string' ? v : '';
+  }, [isRebound, reviewResultQ.data]);
 
   // 当剩余 ≤ 阈值时补货：拉一页 status=1 待办，append 没见过的。
   const refilling = useRef(false);
@@ -252,6 +274,11 @@ export default function LabelExecPage() {
         </div>
       </header>
 
+      {/* 打回原因 banner（仅 status=5 被打回任务）；放在顶栏与 iframe 之间。 */}
+      {isRebound && reboundComment !== null && (
+        <ReboundBanner comment={reboundComment} round={round} />
+      )}
+
       {/* 主体：iframe / 加载 / 完结终态 */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {done ? (
@@ -293,6 +320,71 @@ const vDivider: CSSProperties = {
   background: palette.hairline,
   flex: 'none',
 };
+
+/** 顶栏与 iframe 之间的「打回原因」提醒条。可折叠，默认展开。
+ *  样式参考 STATUS.failed tone（浅红底 + 深红字）保持全站状态色一致。 */
+function ReboundBanner({ comment, round }: { comment: string; round: number }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div
+      style={{
+        flex: 'none',
+        background: '#fbe9e7',
+        borderBottom: `1px solid #f3c2bd`,
+        padding: '10px 18px',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
+        color: '#a8423a',
+        fontFamily: fonts.body,
+        fontSize: 13,
+      }}
+    >
+      <ExclamationCircleFilled style={{ fontSize: 15, marginTop: 2, flex: 'none' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span style={{ fontWeight: 600 }}>打回原因</span>
+          <span style={{ fontFamily: fonts.mono, fontSize: 12, opacity: 0.75 }}>
+            第 {Math.max(round - 1, 1)} 轮
+          </span>
+          <DownOutlined
+            style={{
+              fontSize: 10,
+              marginLeft: 'auto',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform .2s',
+            }}
+          />
+        </div>
+        {open && (
+          <div
+            style={{
+              marginTop: 6,
+              color: palette.text,
+              fontSize: 13,
+              lineHeight: 1.65,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {comment.trim() || (
+              <span style={{ color: palette.weak }}>（质检员未填写理由）</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function DonePanel({ onBack }: { onBack: () => void }) {
   return (
