@@ -5,9 +5,18 @@ import { useNavigate } from 'react-router-dom';
 import { App, Button, Input } from 'antd';
 import type { Data } from '@measured/puck';
 import { palette, fonts } from '@/app/theme';
-import { LabelToolEditor, INITIAL, DEFAULT_DATASOURCE } from '../puck/PuckDemo';
+import { LabelToolEditor } from '../puck/PuckDemo';
 import { buildJsonSchema, parseDataSource } from '../puck/datasource';
 import { createLabelTool } from '../api';
+
+// 空白起手：保留默认两栏布局（避免 root.props 缺字段时配置面板出错），但所有 zones 清空。
+// 数据源也清空，用户必须先在「数据源」tab 粘贴样本 JSON。
+// 注：沙盒 PuckDemo 自带「商品质检」示例模板，那是演示用的；正式创建页不带任何模板。
+const EMPTY_DATA = {
+  root: { props: { layout: 'two', leftWidth: '60%' } },
+  content: [],
+  zones: {},
+} as unknown as Data;
 
 const backBtn: CSSProperties = {
   height: 30,
@@ -31,8 +40,8 @@ const titleStyle: CSSProperties = {
 export default function LabelToolCreatePage() {
   const navigate = useNavigate();
   const { message } = App.useApp();
-  const [data, setData] = useState<Data>(INITIAL);
-  const [dsText, setDsText] = useState(DEFAULT_DATASOURCE);
+  const [data, setData] = useState<Data>(EMPTY_DATA);
+  const [dsText, setDsText] = useState('');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
