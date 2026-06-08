@@ -1,4 +1,8 @@
 // 输入类 · 布尔开关：AntD Switch，写入标注结果（true/false）。
+// 跟 SegmentInput 同类问题：Switch 在 checked=undefined→Boolean→false 时视觉显示「关」，
+// 但 result 里没字段、提交后该 key 缺失（undefined ≠ false 在 JSON 上有区别）。
+// 挂载后若无值，自动写入 false 让视觉=数据。
+import { useEffect } from 'react';
 import type { ComponentConfig } from '@measured/puck';
 import { Switch } from 'antd';
 import { palette, fonts } from '@/app/theme';
@@ -22,7 +26,17 @@ export const BooleanInput: ComponentConfig<BooleanInputProps> = {
   defaultProps: { label: '开关', resultKey: '', onText: '是', offText: '否' },
   render: ({ label, resultKey, onText, offText }) => {
     const { result, setField, mode } = useRuntime();
-    const value = resultKey ? Boolean(result[resultKey]) : false;
+    const raw = resultKey ? result[resultKey] : undefined;
+    const value = Boolean(raw);
+
+    // 视觉=数据：标注模式下挂载时若 result 里还没该字段（raw === undefined），自动写 false。
+    // review 模式（只读回显）不写；resultKey 空时不写。
+    useEffect(() => {
+      if (mode === 'review') return;
+      if (!resultKey || raw !== undefined) return;
+      setField(resultKey, false);
+    }, [mode, resultKey, raw, setField]);
+
     return (
       <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 12, color: palette.weak, fontFamily: fonts.body }}>
