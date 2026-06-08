@@ -5,13 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>灵枢</title>
-    <!-- IBM Plex 全家族（display: Sans / body: Sans SC / mono: Mono），见 配色规范.md -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+SC:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- IBM Plex 字体改为 main.tsx 里同源自托管（@fontsource/...），
+         之前从 fonts.googleapis.com 拉会在国内被墙、阻塞首屏数十秒。 -->
   </head>
   <body>
     <div id="root"></div>

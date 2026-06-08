@@ -16,16 +16,19 @@ import { PropsPanel } from './PropsPanel';
 import { CanvasStage, clampZoom } from './CanvasStage';
 import type { AnnotationResult } from './types';
 
+// 沙盒示例样本。曾用 picsum.photos / mdn.github.io 占位，国内访问不通；
+// 换成内联 SVG dataURL（图）+ 空字符串（视频，VideoView 自带空态兜底），零外链。
+const placeholderImg = (n: number) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><rect width="640" height="480" fill="#eef0f3"/><text x="320" y="240" fill="#9aa0ab" font-family="sans-serif" font-size="32" text-anchor="middle" dominant-baseline="central">占位图 ${n}</text></svg>`,
+  )}`;
+
 export const DEFAULT_DATASOURCE = JSON.stringify(
   {
     productTitle: '夏季纯棉短袖 T 恤 圆领宽松百搭男女同款',
     attributes: '颜色=白色  尺码=L  材质=纯棉  风格=简约',
-    videoUrl: 'https://mdn.github.io/shared-assets/videos/flower.mp4',
-    images: [
-      'https://picsum.photos/seed/tee1/640/480',
-      'https://picsum.photos/seed/tee2/640/480',
-      'https://picsum.photos/seed/tee3/640/480',
-    ],
+    videoUrl: '',
+    images: [placeholderImg(1), placeholderImg(2), placeholderImg(3)],
   },
   null,
   2,
