@@ -1,7 +1,9 @@
 // B 型「画板漂浮」画布：灰底点阵背景 + 居中固定宽白色画板，支持缩放（Ctrl/⌘+滚轮、按钮）与平移（中键拖拽）。
 // 缩放用 transform: scale + 外层「测量盒」撑出滚动区（避免 transform 不产生滚动条）；
 // 画板内容（含 Puck 选中蓝框）整体一起缩放，保证对齐。
+// 行为：点击画板**外**（灰底空白处）→ 清空 Puck 选中（让属性面板回到 Root），符合操作习惯。
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePuck } from '@measured/puck';
 import { palette } from '@/app/theme';
 
 /** 画板宽度（模拟标注时的容器宽度）。 */
@@ -27,6 +29,15 @@ export function CanvasStage({
   const [contentH, setContentH] = useState(600);
   const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
   const [panning, setPanning] = useState(false);
+
+  // 点击画板外（灰底）→ 清空 Puck 选中。
+  // click 在 mouseup 时触发，所以拖拽期间不会误触；缩放（ctrl+wheel）也不触发。
+  const { dispatch } = usePuck();
+  const onStageClick = (e: React.MouseEvent) => {
+    if (innerRef.current && !innerRef.current.contains(e.target as Node)) {
+      dispatch({ type: 'setUi', ui: { itemSelector: null } });
+    }
+  };
 
   // 测量画板未缩放时的高度，用于撑出缩放后的滚动盒。
   useEffect(() => {
@@ -81,6 +92,7 @@ export function CanvasStage({
         onPointerMove={onPointerMove}
         onPointerUp={endPan}
         onPointerLeave={endPan}
+        onClick={onStageClick}
         style={{
           position: 'absolute',
           inset: 0,
