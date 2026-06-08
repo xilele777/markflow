@@ -134,7 +134,18 @@ export default function CaseNewPage() {
     queryFn: () => getWorkspaceDetail(currentWorkspaceId!),
     enabled: currentWorkspaceId != null,
   });
-  const memberOptions = workspaceDetail?.members ?? [];
+  const allMembers = workspaceDetail?.members ?? [];
+
+  // 按 stage 所需角色过滤成员（RoleCode：1=标注员 2=审核员 3=标注管理员）：
+  //   label   人工标注 → 仅含标注员（1）的成员
+  //   review  人工初检 → 仅含审核员（2）的成员
+  //   recheck 人工复检 → 仅含审核员（2）的成员
+  // 双重身份的人会自动出现在对应卡里。
+  const membersForStage = (stageType: StageType) => {
+    const required = stageType === 'label' ? 1 : stageType === 'review' || stageType === 'recheck' ? 2 : null;
+    if (required == null) return allMembers;
+    return allMembers.filter((m) => (m.roles ?? []).includes(required));
+  };
 
   const enabledStages = STAGES.filter((s) => enabled[s.type]);
   const stageConstraint = enabled.aiPreLabel || enabled.label;
@@ -378,7 +389,7 @@ export default function CaseNewPage() {
                       key={s.type}
                       stage={s}
                       cfg={cfg[s.type] as HumanCfgDraft}
-                      memberOptions={memberOptions}
+                      memberOptions={membersForStage(s.type)}
                       onPatch={(p) => patchHuman(s.type, p)}
                     />
                   ),
