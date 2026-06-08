@@ -6,7 +6,7 @@
 //   3) DONE：下载（公共读 TOS 链接，直接 <a download>）+ 重导（覆盖确认 Modal）。
 //   4) FAILED：展示 failureReason + 重导。
 // 触发接口仅系统管理员 / 空间 LABEL_ADMIN 可调；非该角色按钮仍展示，调失败由全局 toast 提示。
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Select } from 'antd';
 import {

@@ -3,7 +3,7 @@
 //   /contribution                  → 自查（用当前登录用户 username）
 //   /contribution?username=alice   → 代查（SA / 当前空间 LABEL_ADMIN；后端兜底返 PERMISSION_DENIED）
 // 视觉分三块：用户头条 / 数字大卡片区 / 近 30 天柱状图。
-import { useMemo, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar } from 'antd';
