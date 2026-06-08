@@ -29,10 +29,10 @@ export const BooleanInput: ComponentConfig<BooleanInputProps> = {
     const raw = resultKey ? result[resultKey] : undefined;
     const value = Boolean(raw);
 
-    // 视觉=数据：标注模式下挂载时若 result 里还没该字段（raw === undefined），自动写 false。
-    // review 模式（只读回显）不写；resultKey 空时不写。
+    // 视觉=数据：只在真实标注模式（mode='label'）下、result 里没该字段时自动写 false。
+    // 'edit'（画布预览）/ 'review'（只读回显）都不写，避免画布改 resultKey 时写入中间脏 key、或污染历史结果。
     useEffect(() => {
-      if (mode === 'review') return;
+      if (mode !== 'label') return;
       if (!resultKey || raw !== undefined) return;
       setField(resultKey, false);
     }, [mode, resultKey, raw, setField]);

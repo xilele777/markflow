@@ -36,10 +36,12 @@ export const SegmentInput: ComponentConfig<SegmentInputProps> = {
     const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
     const firstOpt = options[0]?.label;
 
-    // 视觉=数据：标注模式下挂载时若 result 里还没值且有可选项，自动把第一项写入。
-    // review 模式（只读回显）不写，避免污染历史结果；resultKey 空时不写。
+    // 视觉=数据：只在真实标注模式（mode='label'）下、result 里没值时自动把第一项写入。
+    // - 'edit'（Puck 画布预览）：搭建者在右侧改 resultKey 时每次按键都触发本 effect，
+    //   会把「优秀」写到所有中间 key（'s'/'so'/'sta'/.../'status'）造成脏数据。画布只是预览，不写。
+    // - 'review'（只读回显）：不写，避免污染历史结果。
     useEffect(() => {
-      if (mode === 'review') return;
+      if (mode !== 'label') return;
       if (!resultKey || value !== undefined || firstOpt == null) return;
       setField(resultKey, firstOpt);
     }, [mode, resultKey, value, firstOpt, setField]);
