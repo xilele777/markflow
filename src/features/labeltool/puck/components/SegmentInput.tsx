@@ -1,4 +1,7 @@
 // 选择类 · 分段单选：AntD Segmented 风格的单选，写入标注结果。用于「优秀/合格/不合格」这类评级。
+// 注意 AntD Segmented 受控特性：value=undefined 时视觉上**默认高亮第一项**（但 result 里没值，
+// 用户不点的话提交时该字段缺失）。所以挂载后若无值，自动把第一项写进 result，让视觉=数据。
+import { useEffect } from 'react';
 import type { ComponentConfig } from '@measured/puck';
 import { Segmented } from 'antd';
 import { palette, fonts } from '@/app/theme';
@@ -31,6 +34,16 @@ export const SegmentInput: ComponentConfig<SegmentInputProps> = {
   render: ({ label, resultKey, options }) => {
     const { result, setField, mode } = useRuntime();
     const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
+    const firstOpt = options[0]?.label;
+
+    // 视觉=数据：标注模式下挂载时若 result 里还没值且有可选项，自动把第一项写入。
+    // review 模式（只读回显）不写，避免污染历史结果；resultKey 空时不写。
+    useEffect(() => {
+      if (mode === 'review') return;
+      if (!resultKey || value !== undefined || firstOpt == null) return;
+      setField(resultKey, firstOpt);
+    }, [mode, resultKey, value, firstOpt, setField]);
+
     return (
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
