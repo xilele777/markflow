@@ -6,7 +6,9 @@ export const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 30_000,
+      // 切 tab / 重新挂载组件都视为 stale，直接拉新。
+      // 缓存仍然保留（gcTime 默认 5min），所以 isLoading 时短，会先用上次数据兜底再静默刷新。
+      staleTime: 0,
     },
   },
 });
