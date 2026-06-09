@@ -39,9 +39,10 @@ const STATUS_OPTIONS: FilterOption<number>[] = [
   { label: '打回重标中', value: 5 },
 ];
 
-/** taskType 是质检类（initial review / recheck）→ 操作按钮文案走「质检」。 */
+/** taskType 是质检类（aiPreReview / review / recheck）→ 操作按钮文案走「质检」、路由走 /exec/review。
+ *  注意 3=aiPreReview 也是质检语义（AI 在审核标注结果），管理员代查时走只读质检视图，不能错判成标注。 */
 function isReviewStage(taskType: number): boolean {
-  return taskType === 4 || taskType === 5;
+  return taskType === 3 || taskType === 4 || taskType === 5;
 }
 
 export default function GroupDetailPage() {
