@@ -12,6 +12,11 @@ import type { OutboxService } from '../../infra/outbox.js';
 import { QUEUE_NAMES } from '../../infra/queue.js';
 import type { DatasetSampleRepository } from '../dataset/dataset-sample.repo.js';
 import type { DatasetVersionRepository } from '../dataset/dataset-version.repo.js';
+import {
+  NotificationRefType,
+  NotificationType,
+  type NotificationService,
+} from '../notification/notification.service.js';
 import type { CaseRepository } from './case.repo.js';
 import {
   activeExecutors,
@@ -38,9 +43,19 @@ import type { TaskGroupRepository } from './task-group.repo.js';
 import type { TaskRepository } from './task.repo.js';
 
 export const DEFAULT_PRE_DISPATCH_SIZE = 3;
+/** 通知文案用的阶段中文名。 */
+export const STAGE_DESC: Record<string, string> = {
+  aiPreLabel: 'AI 预标',
+  label: '标注',
+  aiPreReview: 'AI 预审',
+  review: '初检',
+  recheck: '复检',
+};
 const RATIO_TOTAL = 100;
 const DISPATCH_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
 const INIT_ROUND = 1;
+/** 可入池的 case 状态：运行中 / 已暂停。 */
+const ENQUEUEABLE_STATUSES: readonly number[] = [CaseStatus.RUNNING, CaseStatus.PAUSED];
 export const SYSTEM_OPERATOR = 'SYSTEM';
 
 export interface DispatchEngineDeps {
@@ -52,6 +67,7 @@ export interface DispatchEngineDeps {
   versions: DatasetVersionRepository;
   lock: RedisLock;
   outbox: OutboxService;
+  notifications: NotificationService;
   logger: Logger;
 }
 
@@ -107,8 +123,10 @@ export class DispatchEngine {
 
     const caseRow = await cases.selectById(caseId);
     if (!caseRow) throw ServiceError.of(CaseErrorCode.CASE_NOT_FOUND);
-    if (caseRow.status !== CaseStatus.RUNNING)
+    // 暂停中仍允许入池（在手任务提交后下一阶段样本不能丢），只是不派发；已结束拒绝。
+    if (!ENQUEUEABLE_STATUSES.includes(caseRow.status)) {
       throw ServiceError.of(CaseErrorCode.CASE_NOT_RUNNING);
+    }
     const result: EnqueueResult = { inserted: 0, reopened: 0 };
     const distinct = [...new Set(sampleIds.filter((id) => typeof id === 'number'))];
     if (distinct.length === 0) return result;
@@ -120,11 +138,15 @@ export class DispatchEngine {
     const now = Date.now();
     let seq = await tasks.maxSeqInGroup(pool.id);
 
+    const touchedGroups: number[] = [];
     for (const t of existing) {
       if (t.status !== TaskStatus.DONE) continue;
       seq += 1;
-      result.reopened += await tasks.reopenToPool(t.id, pool.id, seq, operator, now);
+      const n = await tasks.reopenToPool(t.id, pool.id, seq, operator, now);
+      if (n > 0) touchedGroups.push(t.taskGroupId);
+      result.reopened += n;
     }
+    await groups.refreshPersonalGroupStats(touchedGroups, now);
 
     const fresh = distinct.filter((id) => !existingBySample.has(id));
     if (fresh.length === 0) return result;
@@ -180,6 +202,7 @@ export class DispatchEngine {
       CaseErrorCode.OPERATION_CONFLICT,
       async () => {
         const caseRow = await this.requireRunningCase(caseId);
+        if (caseRow === null) return 0;
         const assignment = readAssignment(caseRow.assignmentConfig);
         let total = 0;
         for (const executor of activeExecutors(assignment, stage)) {
@@ -199,6 +222,7 @@ export class DispatchEngine {
       CaseErrorCode.OPERATION_CONFLICT,
       async () => {
         const caseRow = await this.requireRunningCase(caseId);
+        if (caseRow === null) return 0;
         return this.doDispatchToMember(
           caseRow,
           readAssignment(caseRow.assignmentConfig),
@@ -230,9 +254,14 @@ export class DispatchEngine {
     }
   }
 
+  /** 运行中返回 case；已暂停返回 null（派发直接返回 0）；其余状态 CASE_NOT_RUNNING。 */
   private async requireRunningCase(caseId: number) {
     const caseRow = await this.deps.cases.selectById(caseId);
     if (!caseRow) throw ServiceError.of(CaseErrorCode.CASE_NOT_FOUND);
+    if (caseRow.status === CaseStatus.PAUSED) {
+      this.deps.logger.debug({ caseId }, 'dispatch skipped: case paused');
+      return null;
+    }
     if (caseRow.status !== CaseStatus.RUNNING)
       throw ServiceError.of(CaseErrorCode.CASE_NOT_RUNNING);
     return caseRow;
@@ -240,7 +269,12 @@ export class DispatchEngine {
 
   /** 无锁内部派题：调用方须已持 case+pool 锁。返回派出数。 */
   private async doDispatchToMember(
-    caseRow: { id: number; name: string; labelToolCode: string; datasetVersionId: number | null },
+    caseRow: {
+      id: number;
+      name: string;
+      labelToolCode: string;
+      datasetVersionId: number | null;
+    },
     assignment: AssignmentConfig | null,
     stage: StageDef,
     executor: string,
@@ -337,6 +371,22 @@ export class DispatchEngine {
             },
           }),
         );
+      }
+      if (dispatched > 0) {
+        await groups.refreshPersonalGroupStats([personalId], now);
+        if (!stage.ai) {
+          // 站内通知（M5）：人工阶段派题后通知执行者；AI 阶段不通知。
+          await this.deps.notifications.notify(trx, [
+            {
+              username: executor,
+              type: NotificationType.TASK_DISPATCHED,
+              title: `「${caseRow.name}」派发了 ${dispatched} 条${STAGE_DESC[stage.type] ?? stage.type}任务`,
+              content: `任务组：${caseRow.name}-${executor}-${stage.type}`,
+              refType: NotificationRefType.TASK_GROUP,
+              refId: personalId,
+            },
+          ]);
+        }
       }
       return { dispatched, outboxIds } satisfies DispatchResult;
     });

@@ -2,7 +2,7 @@
 import express, { type Express } from 'express';
 import cors, { type CorsOptions } from 'cors';
 import type { AppContext } from './context.js';
-import { createAuthMiddleware } from './middleware/auth.js';
+import { createAuthMiddleware, UserStatusCache } from './middleware/auth.js';
 import { createErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { createRateLimit } from './middleware/rate-limit.js';
 import { createRequestLogger } from './middleware/request-logger.js';
@@ -12,6 +12,8 @@ import { createDatasetRouter } from '../modules/dataset/dataset.routes.js';
 import { createHealthRouter } from '../modules/health/health.routes.js';
 import { createLabelToolRouter } from '../modules/labeltool/labeltool.routes.js';
 import { createMonitoringRouters } from '../modules/monitoring/monitoring.routes.js';
+import { createNotificationRouter } from '../modules/notification/notification.routes.js';
+import { UserRepository } from '../modules/user/user.repo.js';
 import { createTaskModule, type TaskModule } from '../modules/task/module.js';
 import {
   createCaseRouter,
@@ -70,9 +72,14 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Expr
   const monitoring = createMonitoringRouters(ctx);
   app.use('/api/monitoring', monitoring.publicRouter);
 
-  const requireAuth = createAuthMiddleware(ctx.sysConfig);
+  const userStatusCache = new UserStatusCache();
+  const requireAuth = createAuthMiddleware(
+    ctx.sysConfig,
+    new UserRepository(ctx.db),
+    userStatusCache,
+  );
   app.use('/api/monitoring', requireAuth, monitoring.adminRouter);
-  app.use('/api/user', requireAuth, createUserRouter(ctx));
+  app.use('/api/user', requireAuth, createUserRouter(ctx, { userStatusCache }));
   app.use('/api/workspace', requireAuth, createWorkspaceRouter(ctx));
   app.use('/api/labeltool', requireAuth, createLabelToolRouter(ctx));
   app.use('/api/aiconfig', requireAuth, createAiConfigRouter(ctx));
@@ -80,6 +87,11 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Expr
   app.use('/api/case', requireAuth, createCaseRouter(ctx, taskModule));
   app.use('/api/task', requireAuth, createTaskRouter(ctx, taskModule));
   app.use('/api/taskgroup', requireAuth, createTaskGroupRouter(ctx, taskModule));
+  app.use(
+    '/api/notification',
+    requireAuth,
+    createNotificationRouter(ctx, taskModule.notificationService),
+  );
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));

@@ -97,7 +97,8 @@ describe('GET /api/user/getCurrentUser', () => {
     });
   });
 
-  it('token 有效但账号已禁用 → HTTP 200 USER_DISABLED', async () => {
+  // M5 起鉴权中间件查库：禁用 / 不存在的账号在中间件层即 401（禁用即时生效）。
+  it('token 有效但账号已禁用 → HTTP 401 UNAUTHORIZED', async () => {
     const username = uniq('dis');
     const userId = await createUser(h.ctx, { username, password: 'pass123456' });
     const token = await loginToken(h.app, username, 'pass123456');
@@ -107,14 +108,14 @@ describe('GET /api/user/getCurrentUser', () => {
       .where('id', '=', userId)
       .execute();
     const res = await get(`Bearer ${token}`);
-    expect(res.status).toBe(200);
-    expect(res.body.code).toBe('USER_DISABLED');
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('UNAUTHORIZED');
   });
 
-  it('token 指向不存在的用户 → USER_INVALID', async () => {
+  it('token 指向不存在的用户 → HTTP 401 UNAUTHORIZED', async () => {
     const token = signToken({ userId: 999999999, username: 'ghost' }, secret, 60);
     const res = await get(`Bearer ${token}`);
-    expect(res.status).toBe(200);
-    expect(res.body.code).toBe('USER_INVALID');
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('UNAUTHORIZED');
   });
 });

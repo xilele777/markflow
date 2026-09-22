@@ -71,6 +71,19 @@ export class UserRepository {
       .execute();
   }
 
+  async updateStatus(
+    userId: number,
+    status: number,
+    operator: string,
+    updateTime: number,
+  ): Promise<void> {
+    await this.db
+      .updateTable('sys_user')
+      .set({ status, operator, updateTime })
+      .where('id', '=', userId)
+      .execute();
+  }
+
   private withKeyword<O>(query: UserQuery<O>, keyword: Maybe<string>): UserQuery<O> {
     if (!hasText(keyword)) return query;
     const pattern = likePattern(keyword);

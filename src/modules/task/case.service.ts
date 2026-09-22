@@ -25,9 +25,15 @@ import type { UserRepository } from '../user/user.repo.js';
 import { WorkspaceErrorCode } from '../workspace/error-codes.js';
 import type { MembershipRepository } from '../workspace/membership.repo.js';
 import type { WorkspaceRepository } from '../workspace/workspace.repo.js';
+import {
+  NotificationRefType,
+  NotificationType,
+  type NotificationService,
+} from '../notification/notification.service.js';
 import { DELETED_NO, type CaseRepository } from './case.repo.js';
 import {
   isMemberActive,
+  planStages,
   readCaseExt,
   readTaskPlan,
   type AiStageConfig,
@@ -63,6 +69,16 @@ const DESCRIPTION_MAX_LENGTH = 1024;
 const RATIO_TOTAL = 100;
 const CREATE_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
 const DOWNLOAD_URL_EXPIRES_SECONDS = 3600;
+const STATUS_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
+/** 截止前多久发一次提醒。 */
+export const DEADLINE_REMINDER_AHEAD_MS = 24 * 60 * 60 * 1000;
+const DEADLINE_SCAN_LIMIT = 500;
+/** 手工可切换的目标状态与允许的来源状态。 */
+const STATUS_TRANSITIONS: Record<number, readonly number[]> = {
+  [CaseStatus.RUNNING]: [CaseStatus.PAUSED],
+  [CaseStatus.PAUSED]: [CaseStatus.RUNNING],
+  [CaseStatus.FINISHED]: [CaseStatus.RUNNING, CaseStatus.PAUSED],
+};
 const POOL_PENDING_STATUSES: readonly number[] = [TaskStatus.PENDING_DISPATCH, TaskStatus.REWORK];
 const PERSONAL_DOING_STATUSES: readonly number[] = [
   TaskStatus.LABELING,
@@ -88,6 +104,8 @@ export interface CreateCaseInput {
     review?: Maybe<HumanStageInput>;
     recheck?: Maybe<HumanStageInput>;
   }>;
+  /** 截止时间（毫秒，M5）；可省略。 */
+  deadline?: Maybe<number>;
 }
 
 export interface AiStageInput {
@@ -114,6 +132,8 @@ export interface CaseListItem {
   labelToolCode: string;
   creator: string | null;
   createTime: number;
+  /** 截止时间（毫秒），未设置为 null。 */
+  deadline: number | null;
 }
 
 export interface StageProgress {
@@ -160,7 +180,10 @@ export interface CaseServiceDeps {
   lock: RedisLock;
   outbox: OutboxService;
   storage: ObjectStorage;
+  notifications: NotificationService;
   logger: Logger;
+  /** 截止时间文案用的 IANA 时区。 */
+  timeZone: string;
 }
 
 export class CaseService {
@@ -186,6 +209,7 @@ export class CaseService {
     }
     const stages = validateTaskPlan(plan);
     await this.validateAssignment(assignment, stages, labelTool, workspace.id);
+    const deadline = validateDeadline(input.deadline);
 
     const spaceCode = workspace.spaceCode;
     const lockName = `case:create:${spaceCode.toLowerCase()}:${name.toLowerCase()}`;
@@ -212,7 +236,7 @@ export class CaseService {
             status: CaseStatus.RUNNING,
             version: 0,
             deleted: DELETED_NO,
-            ext: null,
+            ext: deadline === null ? null : JSON.stringify({ deadline }),
             creator: operator.username,
             operator: operator.username,
             createTime: now,
@@ -289,6 +313,7 @@ export class CaseService {
         labelToolCode: c.labelToolCode,
         creator: c.creator,
         createTime: c.createTime,
+        deadline: readCaseExt(c.ext).deadline ?? null,
       })),
       total,
       pageNum: page.pageNum,
@@ -353,7 +378,143 @@ export class CaseService {
     await this.deps.outbox.deliver([outboxId]);
   }
 
+  /**
+   * 状态控制（M5）：RUNNING ⇄ PAUSED，RUNNING / PAUSED → FINISHED；FINISHED 为终态。
+   * 暂停后派发引擎直接返回 0、已在手任务仍可提交；恢复后对流程内每个池补一次派发。
+   */
+  async updateCaseStatus(
+    operator: Operator,
+    input: { caseId?: Maybe<number>; status?: Maybe<number> },
+  ): Promise<{ caseId: number; status: number }> {
+    const target = input.status;
+    if (typeof target !== 'number' || !(target in STATUS_TRANSITIONS)) {
+      throw ServiceError.of(CaseErrorCode.CASE_STATUS_INVALID);
+    }
+    const caseRow = await this.requireActiveCase(input.caseId);
+    await this.requireManageableWorkspace(operator.userId, caseRow.spaceCode);
+    const allowedFrom = STATUS_TRANSITIONS[target] as readonly number[];
+    await this.deps.lock.withLock(
+      `case:status:${caseRow.id}`,
+      CaseErrorCode.OPERATION_CONFLICT,
+      async () => {
+        const fresh = await this.requireActiveCase(caseRow.id);
+        if (fresh.status === target) return;
+        if (!allowedFrom.includes(fresh.status)) {
+          throw ServiceError.of(CaseErrorCode.CASE_STATUS_TRANSITION_INVALID);
+        }
+        const affected = await this.deps.cases.updateStatus(
+          fresh.id,
+          allowedFrom,
+          target,
+          operator.username,
+          Date.now(),
+        );
+        if (affected === 0) throw ServiceError.of(CaseErrorCode.OPERATION_CONFLICT);
+        this.deps.logger.info(
+          { caseId: fresh.id, from: fresh.status, to: target, operator: operator.username },
+          'case status updated',
+        );
+      },
+      STATUS_LOCK,
+    );
+    if (target === CaseStatus.RUNNING) {
+      for (const stage of planStages(readTaskPlan(caseRow.taskPlanConfig))) {
+        await this.deps.dispatch.dispatchPoolQuietly(caseRow.id, stage.poolType);
+      }
+    }
+    return { caseId: caseRow.id, status: target };
+  }
+
+  /** 设置 / 清除截止时间（M5）：deadline 为 null 清除；重设后提醒 / 逾期标记清零。 */
+  async updateCaseDeadline(
+    operator: Operator,
+    input: { caseId?: Maybe<number>; deadline?: Maybe<number> },
+  ): Promise<{ caseId: number; deadline: number | null }> {
+    const deadline = validateDeadline(input.deadline);
+    const caseRow = await this.requireActiveCase(input.caseId);
+    await this.requireManageableWorkspace(operator.userId, caseRow.spaceCode);
+    if (caseRow.status === CaseStatus.FINISHED) throw ServiceError.of(CaseErrorCode.CASE_FINISHED);
+    await this.deps.cases.updateExt(
+      caseRow.id,
+      { deadline, deadlineReminderAt: null, deadlineOverdueAt: null },
+      operator.username,
+      Date.now(),
+    );
+    return { caseId: caseRow.id, deadline };
+  }
+
+  /**
+   * 截止扫描（定时器每分钟调一次）：运行中且设了 deadline 的 case，
+   * 距截止 ≤ 24h 且未提醒过 → CASE_DEADLINE「即将到期」；已过截止且未通知过 → CASE_DEADLINE「已逾期」。
+   * 收件人：case 创建人 + 该空间全部 LABEL_ADMIN（去重）。返回发出的通知条数。
+   */
+  async scanDeadlines(now = Date.now()): Promise<number> {
+    const rows = await this.deps.cases.selectRunningWithDeadline(DEADLINE_SCAN_LIMIT);
+    let sent = 0;
+    for (const caseRow of rows) {
+      const ext = readCaseExt(caseRow.ext);
+      const deadline = ext.deadline;
+      if (typeof deadline !== 'number') continue;
+      let kind: 'reminder' | 'overdue' | null = null;
+      if (now >= deadline && !ext.deadlineOverdueAt) kind = 'overdue';
+      else if (
+        now < deadline &&
+        deadline - now <= DEADLINE_REMINDER_AHEAD_MS &&
+        !ext.deadlineReminderAt
+      ) {
+        kind = 'reminder';
+      }
+      if (kind === null) continue;
+      try {
+        const recipients = await this.deadlineRecipients(caseRow);
+        const when = formatDeadline(deadline, this.deps.timeZone);
+        const title =
+          kind === 'overdue'
+            ? `「${caseRow.name}」已于 ${when} 截止，仍有任务未完成`
+            : `「${caseRow.name}」将于 ${when} 截止`;
+        await this.deps.db.transaction().execute(async (trx) => {
+          await this.deps.notifications.notify(
+            trx,
+            recipients.map((username) => ({
+              username,
+              type: NotificationType.CASE_DEADLINE,
+              title,
+              content: kind === 'overdue' ? '请尽快处理或调整截止时间' : '请关注剩余任务进度',
+              refType: NotificationRefType.CASE,
+              refId: caseRow.id,
+            })),
+          );
+          await this.deps.cases
+            .withDb(trx)
+            .updateExt(
+              caseRow.id,
+              kind === 'overdue' ? { deadlineOverdueAt: now } : { deadlineReminderAt: now },
+              'SYSTEM',
+              now,
+            );
+        });
+        sent += recipients.length;
+      } catch (err) {
+        this.deps.logger.error({ err, caseId: caseRow.id }, 'deadline notify failed');
+      }
+    }
+    return sent;
+  }
+
   // ---- 内部 ----
+
+  private async deadlineRecipients(caseRow: CaseRow): Promise<string[]> {
+    const names = new Set<string>();
+    if (hasText(caseRow.creator)) names.add(caseRow.creator.toLowerCase());
+    const workspace = await this.deps.workspaces.selectBySpaceCode(caseRow.spaceCode);
+    if (workspace) {
+      const ships = await this.deps.memberships.selectByWorkspaceId(workspace.id);
+      const adminIds = ships.filter((s) => s.roleInSpace === 3).map((s) => s.userId);
+      const users = await this.deps.users.selectByIds([...new Set(adminIds)]);
+      for (const u of users) names.add(u.username.toLowerCase());
+    }
+    return [...names];
+  }
 
   private async buildStageProgress(caseRow: CaseRow): Promise<StageProgress[]> {
     const plan = readTaskPlan(caseRow.taskPlanConfig);
@@ -492,6 +653,28 @@ export class CaseService {
     }
     return out;
   }
+}
+
+/** 截止时间：缺省 / null → null；否则须为毫秒整数且晚于当前时间。 */
+function validateDeadline(raw: Maybe<number>): number | null {
+  if (raw === null || raw === undefined) return null;
+  if (!Number.isSafeInteger(raw) || raw <= Date.now()) {
+    throw ServiceError.of(CaseErrorCode.DEADLINE_INVALID, '截止时间需晚于当前时间');
+  }
+  return raw;
+}
+
+function formatDeadline(ms: number, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(ms));
+  return parts.replace(/\//g, '-');
 }
 
 function validateBasic(input: CreateCaseInput): string {

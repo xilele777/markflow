@@ -10,4 +10,5 @@ export const UserErrorCode = defineErrorCodes({
   USER_DISABLED: '账号已被禁用',
   USER_INVALID: '用户不存在',
   WRONG_PASSWORD: '原密码错误',
+  CANNOT_DISABLE_SELF: '不能禁用当前登录账号',
 });

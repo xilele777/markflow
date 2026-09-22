@@ -63,7 +63,10 @@ const createCaseBody = z.object({
     })
     .nullable()
     .optional(),
+  deadline: optionalInt,
 });
+const caseStatusBody = z.object({ caseId: optionalInt, status: optionalInt });
+const caseDeadlineBody = z.object({ caseId: optionalInt, deadline: optionalInt });
 
 const caseListBody = z.object({
   spaceCode: optionalString,
@@ -125,6 +128,12 @@ export function createCaseRouter(_ctx: AppContext, mod: TaskModule): Router {
   router.post('/exportCaseResult', validateBody(exportBody), async (req, res) => {
     await service.exportCaseResult(requireUser(req), req.body);
     res.json(ok());
+  });
+  router.post('/updateCaseStatus', validateBody(caseStatusBody), async (req, res) => {
+    res.json(ok(await service.updateCaseStatus(requireUser(req), req.body)));
+  });
+  router.post('/updateCaseDeadline', validateBody(caseDeadlineBody), async (req, res) => {
+    res.json(ok(await service.updateCaseDeadline(requireUser(req), req.body)));
   });
   return router;
 }

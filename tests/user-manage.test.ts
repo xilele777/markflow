@@ -245,7 +245,7 @@ describe('/api/user 用户管理', () => {
       expect(row.operator).toBe(user.username);
     });
 
-    it('已禁用用户 → USER_DISABLED', async () => {
+    it('已禁用用户 → 鉴权层 401', async () => {
       const user = await createUserAndLogin(h.ctx, h.app, 'dis');
       await h.ctx.db
         .updateTable('sys_user')
@@ -256,7 +256,75 @@ describe('/api/user 用户管理', () => {
         oldPassword: DEFAULT_PASSWORD,
         newPassword: 'newpass1',
       });
-      expect(res.body.code).toBe('USER_DISABLED');
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe('UNAUTHORIZED');
+    });
+  });
+
+  describe('POST /updateStatus（M5 禁用 / 启用）', () => {
+    it('非系统管理员 → 403；status 非法 / userId 缺失 → INVALID_PARAM；不能禁用自己', async () => {
+      const target = await createUserAndLogin(h.ctx, h.app, 'ust');
+      expect(
+        (await post('/api/user/updateStatus', labeler.token, { userId: target.userId, status: 1 }))
+          .status,
+      ).toBe(403);
+      expect(
+        (await post('/api/user/updateStatus', admin, { userId: target.userId, status: 2 })).body
+          .code,
+      ).toBe('INVALID_PARAM');
+      expect((await post('/api/user/updateStatus', admin, { status: 1 })).body.code).toBe(
+        'INVALID_PARAM',
+      );
+      const me = await request(h.app)
+        .get('/api/user/getCurrentUser')
+        .set('Authorization', bearer(admin));
+      expect(
+        (await post('/api/user/updateStatus', admin, { userId: me.body.data.userId, status: 1 }))
+          .body.code,
+      ).toBe('CANNOT_DISABLE_SELF');
+      expect(
+        (await post('/api/user/updateStatus', admin, { userId: 999999999, status: 1 })).body.code,
+      ).toBe('USER_INVALID');
+    });
+
+    it('禁用后：旧 token 立即 401、登录 USER_DISABLED、列表 status=1；启用后恢复', async () => {
+      const target = await createUserAndLogin(h.ctx, h.app, 'usd');
+      const disabled = await post('/api/user/updateStatus', admin, {
+        userId: target.userId,
+        status: 1,
+      });
+      expect(disabled.body).toMatchObject({
+        success: true,
+        data: { userId: target.userId, status: 1 },
+      });
+      const withOld = await request(h.app)
+        .get('/api/user/getCurrentUser')
+        .set('Authorization', bearer(target.token));
+      expect(withOld.status).toBe(401);
+      const relogin = await login(h.app, target.username, target.password);
+      expect(relogin.body.code).toBe('USER_DISABLED');
+      const list = await post('/api/user/getUserList', admin, { keyword: target.username });
+      expect(list.body.data[0]).toMatchObject({ userId: target.userId, status: 1 });
+      const row = await h.ctx.db
+        .selectFrom('sys_user')
+        .select(['operator'])
+        .where('id', '=', target.userId)
+        .executeTakeFirstOrThrow();
+      expect(row.operator).toBe('admin');
+
+      // 幂等：再禁用一次仍成功。
+      expect(
+        (await post('/api/user/updateStatus', admin, { userId: target.userId, status: 1 })).body
+          .success,
+      ).toBe(true);
+      // 启用：可重新登录。
+      await post('/api/user/updateStatus', admin, { userId: target.userId, status: 0 });
+      const token = await loginToken(h.app, target.username, target.password);
+      const me = await request(h.app)
+        .get('/api/user/getCurrentUser')
+        .set('Authorization', bearer(token));
+      expect(me.status).toBe(200);
+      expect(me.body.data.userId).toBe(target.userId);
     });
   });
 });

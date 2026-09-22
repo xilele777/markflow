@@ -1,4 +1,4 @@
-import type { SelectQueryBuilder } from 'kysely';
+import { sql, type SelectQueryBuilder } from 'kysely';
 import type { CaseRow, Database, NewCase } from '../../db/schema.js';
 import type { Db } from '../../infra/db.js';
 import { hasText, likePattern, type Maybe } from '../common/strings.js';
@@ -75,17 +75,54 @@ export class CaseRepository {
       .execute();
   }
 
-  /** 覆盖式更新 ext（整段重写）。 */
+  /**
+   * 合并式更新 ext：顶层键按 patch 覆盖（jsonb ||），未给的键保留。
+   * lastExport / deadline 等各自独立写入互不覆盖；要删除某键给 null。
+   */
   async updateExt(
     caseId: number,
-    ext: CaseExt,
+    patch: CaseExt,
     operator: string,
     updateTime: number,
   ): Promise<void> {
     await this.db
       .updateTable('label_case')
-      .set({ ext: JSON.stringify(ext), operator, updateTime })
+      .set({
+        ext: sql`COALESCE(ext, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`,
+        operator,
+        updateTime,
+      })
       .where('id', '=', caseId)
+      .execute();
+  }
+
+  /** 条件更新状态（仅当当前为 fromStatus 之一）；返回影响行数，0 表示状态已变（竞态）。 */
+  async updateStatus(
+    caseId: number,
+    fromStatuses: readonly number[],
+    toStatus: number,
+    operator: string,
+    updateTime: number,
+  ): Promise<number> {
+    const result = await this.db
+      .updateTable('label_case')
+      .set({ status: toStatus, version: sql`version + 1`, operator, updateTime })
+      .where('id', '=', caseId)
+      .where('status', 'in', [...fromStatuses])
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows);
+  }
+
+  /** 运行中且 ext.deadline 已设置的未删除 case（截止扫描用）。 */
+  selectRunningWithDeadline(limit: number): Promise<CaseRow[]> {
+    return this.db
+      .selectFrom('label_case')
+      .selectAll()
+      .where('status', '=', 2)
+      .where('deleted', '=', DELETED_NO)
+      .where(sql`ext ? 'deadline'`, '=', sql`true`)
+      .orderBy('id')
+      .limit(limit)
       .execute();
   }
 

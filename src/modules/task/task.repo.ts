@@ -252,6 +252,19 @@ export class TaskRepository {
     return Number(result.numUpdatedRows);
   }
 
+  /** 某 case 下 task 总数与未完成数（case 自动结束判定）。 */
+  async countCaseProgress(caseId: number): Promise<{ total: number; notDone: number }> {
+    const row = await this.db
+      .selectFrom('label_task')
+      .select(({ fn }) => [
+        fn.countAll<number>().as('total'),
+        sql<number>`COUNT(*) FILTER (WHERE status <> ${sql.lit(TaskStatus.DONE)})`.as('notDone'),
+      ])
+      .where('caseId', '=', caseId)
+      .executeTakeFirstOrThrow();
+    return { total: Number(row.total), notDone: Number(row.notDone) };
+  }
+
   /** 覆盖 ext（AI 失败记录等）。 */
   async updateExt(taskId: number, ext: unknown, now: number): Promise<void> {
     await this.db

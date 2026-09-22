@@ -188,6 +188,19 @@ export interface WebVitalsTable {
   createTime: number;
 }
 
+/** 站内通知（迁移 0005）。username 为收件人；read_time 为 null 表示未读。 */
+export interface SysNotificationTable {
+  id: Generated<number>;
+  username: string;
+  type: string;
+  title: string;
+  content: string | null;
+  refType: string | null;
+  refId: number | null;
+  readTime: number | null;
+  createTime: number;
+}
+
 export interface Database {
   sys_user: SysUserTable;
   workspace: WorkspaceTable;
@@ -202,6 +215,7 @@ export interface Database {
   label_task: LabelTaskTable;
   mq_outbox: MqOutboxTable;
   web_vitals: WebVitalsTable;
+  sys_notification: SysNotificationTable;
 }
 
 export type SysUserRow = Selectable<SysUserTable>;
@@ -229,3 +243,5 @@ export type MqOutboxRow = Selectable<MqOutboxTable>;
 export type NewMqOutbox = Insertable<MqOutboxTable>;
 export type WebVitalsRow = Selectable<WebVitalsTable>;
 export type NewWebVitals = Insertable<WebVitalsTable>;
+export type NotificationRow = Selectable<SysNotificationTable>;
+export type NewNotification = Insertable<SysNotificationTable>;

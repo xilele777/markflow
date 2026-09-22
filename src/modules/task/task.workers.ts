@@ -64,7 +64,11 @@ export function createTaskCompletedWorker(
         ctx.logger.warn({ jobId: job.id, data }, 'task-completed job invalid');
         return;
       }
-      if (data.nextStageType === null || data.nextStageType === undefined) return;
+      if (data.nextStageType === null || data.nextStageType === undefined) {
+        // 末阶段完成：提交路径已尝试过一次自动结束，这里兜底（提交进程崩溃 / 重投时）。
+        await mod.taskService.finishCaseIfDone(data.caseId);
+        return;
+      }
       const next = stageByType(data.nextStageType);
       if (!next) {
         ctx.logger.warn({ jobId: job.id, data }, 'task-completed: unknown nextStageType');
@@ -110,6 +114,44 @@ export function createCaseExportWorker(ctx: AppContext, mod: TaskModule): Worker
   });
   worker.on('error', (err) => ctx.logger.warn({ err }, 'case-export worker error'));
   return worker;
+}
+
+const DEADLINE_INTERVAL_MS = 60_000;
+const DEADLINE_LOCK = 'schedule:case_deadline';
+
+/** 截止扫描：每分钟一次，锁 schedule:case_deadline，拿不到就跳过（多实例只跑一份）。 */
+export function startDeadlineScheduler(
+  ctx: AppContext,
+  mod: TaskModule,
+  intervalMs = DEADLINE_INTERVAL_MS,
+): AutoRecycleScheduler {
+  let running: Promise<unknown> = Promise.resolve();
+  const lockName = `${ctx.config.queue.prefix}:${DEADLINE_LOCK}`;
+  const runOnce = async (): Promise<number> => {
+    const token = await ctx.lock.tryLock(lockName, AUTO_RECYCLE_LOCK_OPTIONS);
+    if (token === null) return 0;
+    try {
+      const sent = await mod.caseService.scanDeadlines();
+      if (sent > 0) ctx.logger.info({ sent }, 'deadline scan done');
+      return sent;
+    } catch (err) {
+      ctx.logger.error({ err }, 'deadline scan failed');
+      return 0;
+    } finally {
+      await ctx.lock.unlock(lockName, token).catch(() => undefined);
+    }
+  };
+  const timer = setInterval(() => {
+    running = runOnce();
+  }, intervalMs);
+  timer.unref();
+  return {
+    runOnce,
+    async stop() {
+      clearInterval(timer);
+      await running;
+    },
+  };
 }
 
 export interface AutoRecycleScheduler {

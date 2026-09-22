@@ -13,7 +13,7 @@ import type {
   MembershipRepository,
   MembershipWithWorkspace,
 } from '../workspace/membership.repo.js';
-import { UserStatus } from './enums.js';
+import { isUserStatusCode, UserStatus } from './enums.js';
 import { UserErrorCode } from './error-codes.js';
 import type { UserRepository } from './user.repo.js';
 
@@ -66,6 +66,8 @@ export interface UserServiceDeps {
   memberships: MembershipRepository;
   permissions: PermissionService;
   lock: RedisLock;
+  /** 状态变更后的回调（让鉴权缓存失效）。 */
+  onStatusChanged?: (userId: number) => void;
 }
 
 /** 关系行 → 按空间聚合、角色按 code 升序（selectWithWorkspaceByUserId 已排序）。getCurrentUser 与我的贡献共用。 */
@@ -156,6 +158,30 @@ export class UserService {
       pageNum: page.pageNum,
       pageSize: page.pageSize,
     };
+  }
+
+  /** 禁用 / 启用（M5）：系统管理员；不能禁用自己；status 只接受 0 / 1；幂等。 */
+  async updateUserStatus(
+    operator: Operator,
+    input: { userId?: Maybe<number>; status?: Maybe<number> },
+  ): Promise<{ userId: number; status: number }> {
+    await this.deps.permissions.checkIsSystemAdmin(operator.userId);
+    if (!isUserStatusCode(input.status)) {
+      throw ServiceError.of(UserErrorCode.INVALID_PARAM, 'status 只能为 0（正常）或 1（禁用）');
+    }
+    if (typeof input.userId !== 'number') {
+      throw ServiceError.of(UserErrorCode.INVALID_PARAM, 'userId 不能为空');
+    }
+    if (input.userId === operator.userId && input.status === UserStatus.DISABLED) {
+      throw ServiceError.of(UserErrorCode.CANNOT_DISABLE_SELF);
+    }
+    const user = await this.deps.users.selectById(input.userId);
+    if (!user) throw ServiceError.of(UserErrorCode.USER_INVALID);
+    if (user.status !== input.status) {
+      await this.deps.users.updateStatus(user.id, input.status, operator.username, Date.now());
+      this.deps.onStatusChanged?.(user.id);
+    }
+    return { userId: user.id, status: input.status };
   }
 
   /** 改自己的密码：oldPassword 非空、newPassword ≥ 6；用户不存在 / 禁用 / 原密码错各自报码。 */

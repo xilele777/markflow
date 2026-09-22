@@ -8,6 +8,8 @@ import { DatasetVersionRepository } from '../dataset/dataset-version.repo.js';
 import { DatasetRepository } from '../dataset/dataset.repo.js';
 import { LabelToolRepository } from '../labeltool/labeltool.repo.js';
 import { UserRepository } from '../user/user.repo.js';
+import { NotificationRepository } from '../notification/notification.repo.js';
+import { NotificationService } from '../notification/notification.service.js';
 import { MembershipRepository } from '../workspace/membership.repo.js';
 import { WorkspaceRepository } from '../workspace/workspace.repo.js';
 import { AiTaskExecutor } from './ai-task-executor.js';
@@ -31,6 +33,7 @@ export interface TaskModule {
   taskGroupService: TaskGroupService;
   aiExecutor: AiTaskExecutor;
   exportService: CaseExportService;
+  notificationService: NotificationService;
 }
 
 export interface TaskModuleOptions {
@@ -50,6 +53,10 @@ export function createTaskModule(ctx: AppContext, options: TaskModuleOptions = {
   const memberships = new MembershipRepository(ctx.db);
   const users = new UserRepository(ctx.db);
   const permissions = new PermissionService(ctx.db);
+  const notificationService = new NotificationService({
+    db: ctx.db,
+    notifications: new NotificationRepository(ctx.db),
+  });
   const aiConfigs = new AiConfigService({
     sysConfig: ctx.sysConfig,
     secretBox: ctx.secretBox,
@@ -66,6 +73,7 @@ export function createTaskModule(ctx: AppContext, options: TaskModuleOptions = {
     versions,
     lock: ctx.lock,
     outbox: ctx.outbox,
+    notifications: notificationService,
     logger: ctx.logger,
   });
   const taskService = new TaskService({
@@ -82,6 +90,7 @@ export function createTaskModule(ctx: AppContext, options: TaskModuleOptions = {
     dispatch,
     lock: ctx.lock,
     outbox: ctx.outbox,
+    notifications: notificationService,
     logger: ctx.logger,
   });
   const caseService = new CaseService({
@@ -101,7 +110,9 @@ export function createTaskModule(ctx: AppContext, options: TaskModuleOptions = {
     lock: ctx.lock,
     outbox: ctx.outbox,
     storage: ctx.storage,
+    notifications: notificationService,
     logger: ctx.logger,
+    timeZone: ctx.config.server.timeZone,
   });
   const taskGroupService = new TaskGroupService({ groups, cases, permissions });
   const aiExecutor = new AiTaskExecutor({
@@ -131,5 +142,6 @@ export function createTaskModule(ctx: AppContext, options: TaskModuleOptions = {
     taskGroupService,
     aiExecutor,
     exportService,
+    notificationService,
   };
 }

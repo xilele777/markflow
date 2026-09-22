@@ -20,18 +20,25 @@ import { LabelToolErrorCode } from '../labeltool/error-codes.js';
 import type { LabelToolRepository } from '../labeltool/labeltool.repo.js';
 import { UserErrorCode } from '../user/error-codes.js';
 import type { WorkspaceRepository } from '../workspace/workspace.repo.js';
+import {
+  NotificationRefType,
+  NotificationType,
+  type NotificationService,
+} from '../notification/notification.service.js';
 import type { CaseRepository } from './case.repo.js';
 import {
   autoRecycleMinutesOf,
   isExecutorActiveInStage,
   nextStageInPlan,
+  planStages,
   prevStageInPlan,
   readAssignment,
   readTaskPlan,
   sameName,
 } from './config.js';
-import { DispatchEngine, SYSTEM_OPERATOR } from './dispatch-engine.js';
+import { DispatchEngine, STAGE_DESC, SYSTEM_OPERATOR } from './dispatch-engine.js';
 import {
+  CaseStatus,
   isAnnotationTaskType,
   isTaskStatusCode,
   ReviewAction,
@@ -67,6 +74,7 @@ export interface TaskServiceDeps {
   dispatch: DispatchEngine;
   lock: RedisLock;
   outbox: OutboxService;
+  notifications: NotificationService;
   logger: Logger;
 }
 
@@ -236,8 +244,7 @@ export class TaskService {
     sampleType: SampleTypeCode,
     result: unknown,
   ): Promise<void> {
-    const caseRow = await this.deps.cases.selectById(task.caseId);
-    if (!caseRow) throw ServiceError.of(CaseErrorCode.CASE_NOT_FOUND);
+    const caseRow = await this.requireWritableCase(task.caseId);
     await this.writeResultSample(this.deps.db, task, caseRow, sampleType, result);
   }
 
@@ -252,8 +259,7 @@ export class TaskService {
       throw ServiceError.of(TaskErrorCode.TASK_TYPE_INVALID);
     if (task.status === TaskStatus.DONE)
       throw ServiceError.of(TaskErrorCode.TASK_ALREADY_COMPLETED);
-    const caseRow = await this.deps.cases.selectById(task.caseId);
-    if (!caseRow) throw ServiceError.of(CaseErrorCode.CASE_NOT_FOUND);
+    const caseRow = await this.requireWritableCase(task.caseId);
     const versionId = caseRow.labelResultDatasetVersionId;
     const labelResult =
       versionId === null
@@ -269,7 +275,10 @@ export class TaskService {
       const outboxId = await this.enqueueTaskCompleted(trx, task, currentStage, nextStage, now);
       return {
         outboxIds: [outboxId],
-        after: [() => this.refillQuietly(task, currentStage)],
+        after: [
+          () => this.refillQuietly(task, currentStage),
+          () => this.finishCaseIfDoneQuietly(caseRow, nextStage),
+        ],
       } satisfies SubmitOutcome;
     });
     await this.finish(outcome);
@@ -296,8 +305,7 @@ export class TaskService {
     if (isAnnotationTaskType(task.taskType)) throw ServiceError.of(TaskErrorCode.TASK_TYPE_INVALID);
     if (task.status === TaskStatus.DONE)
       throw ServiceError.of(TaskErrorCode.TASK_ALREADY_COMPLETED);
-    const caseRow = await this.deps.cases.selectById(task.caseId);
-    if (!caseRow) throw ServiceError.of(CaseErrorCode.CASE_NOT_FOUND);
+    const caseRow = await this.requireWritableCase(task.caseId);
     const plan = readTaskPlan(caseRow.taskPlanConfig);
     const currentStage = requireStageByCode(task.taskType);
     const review = { reviewAction, reviewComment };
@@ -311,7 +319,10 @@ export class TaskService {
         const outboxId = await this.enqueueTaskCompleted(trx, task, currentStage, nextStage, now);
         return {
           outboxIds: [outboxId],
-          after: [() => this.refillQuietly(task, currentStage)],
+          after: [
+            () => this.refillQuietly(task, currentStage),
+            () => this.finishCaseIfDoneQuietly(caseRow, nextStage),
+          ],
         } satisfies SubmitOutcome;
       });
       await this.finish(outcome);
@@ -337,8 +348,23 @@ export class TaskService {
       const operator = operatorOf(task);
       const outboxIds: number[] = [];
       const after: Array<() => Promise<void>> = [];
+      const groups = this.deps.groups.withDb(trx);
       if (originActive) {
         await tasks.rejectKeepInGroup(target.id, operator, now);
+        await groups.refreshPersonalGroupStats([target.taskGroupId], now);
+        if (!prevStage.ai && target.annotator !== null) {
+          // 站内通知（M5）：驳回给原标注 / 审核人，任务留在其个人组。
+          await this.deps.notifications.notify(trx, [
+            {
+              username: target.annotator,
+              type: NotificationType.TASK_REJECTED,
+              title: `「${caseRow.name}」有 1 条${STAGE_DESC[prevStage.type] ?? prevStage.type}任务被打回`,
+              content: rejectContent(target, reviewComment),
+              refType: NotificationRefType.TASK_GROUP,
+              refId: target.taskGroupId,
+            },
+          ]);
+        }
         if (prevStage.ai && target.annotator !== null) {
           // 规则表 5.6：AI 阶段的 target 留在 AI 个人组时重新触发 AI 执行。
           outboxIds.push(
@@ -357,11 +383,11 @@ export class TaskService {
           );
         }
       } else {
-        const groups = this.deps.groups.withDb(trx);
         const prevPool = await groups.selectPoolByCaseAndType(task.caseId, prevStage.poolType);
         if (!prevPool) throw ServiceError.of(CaseErrorCode.POOL_NOT_FOUND);
         const seq = (await tasks.maxSeqInGroup(prevPool.id)) + 1;
         await tasks.rejectToPool(target.id, prevPool.id, seq, operator, now);
+        await groups.refreshPersonalGroupStats([target.taskGroupId], now);
         after.push(() => this.deps.dispatch.dispatchPoolQuietly(task.caseId, prevStage.poolType));
       }
       after.push(() => this.refillQuietly(task, currentStage));
@@ -417,6 +443,7 @@ export class TaskService {
           now,
         );
         if (affected === 0) continue;
+        await this.deps.groups.refreshPersonalGroupStats([task.taskGroupId], now);
         recycled += 1;
         this.deps.logger.info(
           {
@@ -587,6 +614,69 @@ export class TaskService {
       .withDb(trx)
       .updateToCompleted(task.id, costTime, operatorOf(task), now);
     if (affected === 0) throw ServiceError.of(TaskErrorCode.TASK_ALREADY_COMPLETED);
+    await this.deps.groups.withDb(trx).refreshPersonalGroupStats([task.taskGroupId], now);
+  }
+
+  /** case 存在且未结束；已结束的 case 拒绝保存 / 提交（CASE_FINISHED）。 */
+  private async requireWritableCase(caseId: number): Promise<CaseRow> {
+    const caseRow = await this.deps.cases.selectById(caseId);
+    if (!caseRow) throw ServiceError.of(CaseErrorCode.CASE_NOT_FOUND);
+    if (caseRow.status === CaseStatus.FINISHED) throw ServiceError.of(CaseErrorCode.CASE_FINISHED);
+    return caseRow;
+  }
+
+  /**
+   * case 状态机（规则表 0004 §10 · 9.8，M5 补）：末阶段任务完成后检查——
+   * 末阶段 DONE 数 = 首阶段任务数（即每个样本都走完了）且全 case 无未完成 task → RUNNING → FINISHED。
+   * 中间阶段完成时下一阶段 task 尚未入池，不会误判；驳回与完成同事务，也不会误判。
+   */
+  async finishCaseIfDone(caseId: number): Promise<boolean> {
+    const caseRow = await this.deps.cases.selectById(caseId);
+    if (!caseRow || caseRow.status !== CaseStatus.RUNNING) return false;
+    const stages = planStages(readTaskPlan(caseRow.taskPlanConfig));
+    const first = stages[0];
+    const last = stages[stages.length - 1];
+    if (!first || !last) return false;
+    const rows = await this.deps.tasks.aggregateProgress(caseId);
+    let firstTotal = 0;
+    let lastDone = 0;
+    let notDone = 0;
+    for (const r of rows) {
+      if (r.taskType === first.code) firstTotal += r.cnt;
+      if (r.taskType === last.code && r.status === TaskStatus.DONE) lastDone += r.cnt;
+      if (r.status !== TaskStatus.DONE) notDone += r.cnt;
+    }
+    if (firstTotal === 0 || lastDone < firstTotal || notDone > 0) return false;
+    const now = Date.now();
+    const affected = await this.deps.db.transaction().execute(async (trx) => {
+      const n = await this.deps.cases
+        .withDb(trx)
+        .updateStatus(caseId, [CaseStatus.RUNNING], CaseStatus.FINISHED, SYSTEM_OPERATOR, now);
+      if (n > 0 && hasText(caseRow.creator)) {
+        await this.deps.notifications.notify(trx, [
+          {
+            username: caseRow.creator,
+            type: NotificationType.CASE_FINISHED,
+            title: `「${caseRow.name}」全部任务已完成，标注任务已自动结束`,
+            content: null,
+            refType: NotificationRefType.CASE,
+            refId: caseId,
+          },
+        ]);
+      }
+      return n;
+    });
+    if (affected > 0) this.deps.logger.info({ caseId }, 'case auto-finished');
+    return affected > 0;
+  }
+
+  private async finishCaseIfDoneQuietly(caseRow: CaseRow, nextStage: StageDef | null) {
+    if (nextStage !== null) return;
+    try {
+      await this.finishCaseIfDone(caseRow.id);
+    } catch (err) {
+      this.deps.logger.warn({ err, caseId: caseRow.id }, 'finishCaseIfDone failed (ignored)');
+    }
   }
 
   private enqueueTaskCompleted(
@@ -625,4 +715,16 @@ export class TaskService {
 
 export function operatorOf(task: Pick<TaskRow, 'annotator'>): string {
   return task.annotator ?? SYSTEM_OPERATOR;
+}
+
+const REJECT_COMMENT_MAX = 200;
+
+function rejectContent(target: Pick<TaskRow, 'bizId' | 'round'>, comment: string | null): string {
+  const parts = [`样本 ${target.bizId ?? '—'}`, `第 ${target.round + 1} 轮`];
+  if (hasText(comment)) {
+    const c =
+      comment.length > REJECT_COMMENT_MAX ? `${comment.slice(0, REJECT_COMMENT_MAX)}…` : comment;
+    parts.push(`意见：${c}`);
+  }
+  return parts.join(' · ');
 }

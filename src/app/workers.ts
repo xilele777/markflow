@@ -8,6 +8,7 @@ import {
   createTaskCompletedWorker,
   createTaskDispatchedWorker,
   startAutoRecycleScheduler,
+  startDeadlineScheduler,
 } from '../modules/task/task.workers.js';
 import type { AppContext } from './context.js';
 
@@ -25,11 +26,12 @@ export function startWorkers(ctx: AppContext, taskModule?: TaskModule): RunningW
     createCaseExportWorker(ctx, mod),
   ];
   const recycler = startAutoRecycleScheduler(ctx, mod);
+  const deadlines = startDeadlineScheduler(ctx, mod);
   const republisher = ctx.outbox.startRepublisher();
   ctx.logger.info({ workers: workers.map((w) => w.name) }, 'queue workers started');
   return {
     async close() {
-      await Promise.all([recycler.stop(), republisher.stop()]);
+      await Promise.all([recycler.stop(), deadlines.stop(), republisher.stop()]);
       await Promise.all(workers.map((w) => w.close()));
     },
   };

@@ -2,7 +2,7 @@ import { sql, type SelectQueryBuilder } from 'kysely';
 import type { Database, NewTaskGroup, TaskGroupRow } from '../../db/schema.js';
 import type { Db } from '../../infra/db.js';
 import { hasText, likePattern, type Maybe } from '../common/strings.js';
-import { TaskGroupType } from './enums.js';
+import { TaskGroupStatus, TaskGroupType, TaskStatus } from './enums.js';
 
 type GroupQuery<O> = SelectQueryBuilder<Database, 'label_task_group', O>;
 
@@ -64,6 +64,35 @@ export class TaskGroupRepository {
       .set({ totalCount: sql`total_count + ${delta}`, updateTime: now })
       .where('id', '=', groupId)
       .execute();
+  }
+
+  /**
+   * 重算个人组统计（规则表 0004 §10 · 9.8，M5 补）：total_count = 组内 task 数、done_count = 已完成数，
+   * status = 有 task 且全完成 → DONE(3)，否则 RUNNING(2)。只作用于个人组（type=1），池子不动。
+   * 调用方在移动 / 完成 / 驳回 / 回收 task 的同一事务内传入受影响的组 id。
+   */
+  async refreshPersonalGroupStats(groupIds: readonly number[], now: number): Promise<void> {
+    const ids = [...new Set(groupIds)];
+    if (ids.length === 0) return;
+    await sql`
+      UPDATE label_task_group g
+      SET total_count = s.total,
+          done_count = s.done,
+          status = CASE WHEN s.total > 0 AND s.done = s.total
+                        THEN ${sql.lit(TaskGroupStatus.DONE)}
+                        ELSE ${sql.lit(TaskGroupStatus.RUNNING)} END,
+          update_time = ${now}
+      FROM (
+        SELECT gg.id AS group_id,
+               COUNT(t.id)::int AS total,
+               COUNT(t.id) FILTER (WHERE t.status = ${sql.lit(TaskStatus.DONE)})::int AS done
+        FROM label_task_group gg
+        LEFT JOIN label_task t ON t.task_group_id = gg.id
+        WHERE gg.id IN (${sql.join(ids)})
+        GROUP BY gg.id
+      ) s
+      WHERE g.id = s.group_id AND g.type = ${sql.lit(TaskGroupType.PERSONAL)}
+    `.execute(this.db);
   }
 
   async countMyTaskGroups(

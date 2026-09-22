@@ -57,6 +57,12 @@ export interface LastExport {
 
 export interface CaseExt {
   lastExport?: LastExport;
+  /** 截止时间（毫秒）；null 表示清除。 */
+  deadline?: number | null;
+  /** 截止前提醒已发出的时间；重设 deadline 时清零。 */
+  deadlineReminderAt?: number | null;
+  /** 逾期通知已发出的时间；重设 deadline 时清零。 */
+  deadlineOverdueAt?: number | null;
 }
 
 /** AI 执行失败记录（规则表 6.9）。 */
@@ -142,17 +148,26 @@ export function readAssignment(raw: unknown): AssignmentConfig | null {
 
 export function readCaseExt(raw: unknown): CaseExt {
   if (!isRecord(raw)) return {};
+  const ext: CaseExt = {};
   const le = raw['lastExport'];
-  if (!isRecord(le) || typeof le['status'] !== 'string') return {};
-  const out: LastExport = {
-    status: le['status'] as CaseExportStatusName,
-    format: typeof le['format'] === 'string' ? le['format'] : '',
-  };
-  if (typeof le['objectKey'] === 'string') out.objectKey = le['objectKey'];
-  if (typeof le['triggerTime'] === 'number') out.triggerTime = le['triggerTime'];
-  if (typeof le['finishTime'] === 'number') out.finishTime = le['finishTime'];
-  if (typeof le['failureReason'] === 'string') out.failureReason = le['failureReason'];
-  return { lastExport: out };
+  if (isRecord(le) && typeof le['status'] === 'string') {
+    const out: LastExport = {
+      status: le['status'] as CaseExportStatusName,
+      format: typeof le['format'] === 'string' ? le['format'] : '',
+    };
+    if (typeof le['objectKey'] === 'string') out.objectKey = le['objectKey'];
+    if (typeof le['triggerTime'] === 'number') out.triggerTime = le['triggerTime'];
+    if (typeof le['finishTime'] === 'number') out.finishTime = le['finishTime'];
+    if (typeof le['failureReason'] === 'string') out.failureReason = le['failureReason'];
+    ext.lastExport = out;
+  }
+  if (typeof raw['deadline'] === 'number') ext.deadline = raw['deadline'];
+  if (typeof raw['deadlineReminderAt'] === 'number') {
+    ext.deadlineReminderAt = raw['deadlineReminderAt'];
+  }
+  if (typeof raw['deadlineOverdueAt'] === 'number')
+    ext.deadlineOverdueAt = raw['deadlineOverdueAt'];
+  return ext;
 }
 
 export function readTaskExt(raw: unknown): TaskExt {

@@ -80,7 +80,13 @@ describe('派发引擎与自动回收', () => {
     await expect(
       h.ctx.db.transaction().execute((trx) => h.mod.dispatch.enqueueToPool(trx, caseId, 6, [1])),
     ).rejects.toMatchObject({ code: 'POOL_NOT_FOUND' });
+    // 已暂停：入池放行（样本不丢），派发直接返回 0；已结束：两者都拒绝。
     await h.ctx.db.updateTable('label_case').set({ status: 3 }).where('id', '=', caseId).execute();
+    await expect(
+      h.ctx.db.transaction().execute((trx) => h.mod.dispatch.enqueueToPool(trx, caseId, 3, [])),
+    ).resolves.toEqual({ inserted: 0, reopened: 0 });
+    await expect(h.mod.dispatch.dispatchPool(caseId, 3)).resolves.toBe(0);
+    await h.ctx.db.updateTable('label_case').set({ status: 4 }).where('id', '=', caseId).execute();
     await expect(
       h.ctx.db.transaction().execute((trx) => h.mod.dispatch.enqueueToPool(trx, caseId, 3, [1])),
     ).rejects.toMatchObject({ code: 'CASE_NOT_RUNNING' });
