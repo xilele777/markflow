@@ -37,17 +37,24 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 
 ## 已实现接口
 
-| 模块 | 端点（均在 `/api` 下；除登录外需 `Authorization: Bearer <jwt>`） |
+| 模块 | 端点（均在 `/api` 下；除登录与性能上报外需 `Authorization: Bearer <jwt>`） |
 |---|---|
 | health | `GET /health` |
 | auth | `POST /auth/login` |
-| user | `POST /user/create`、`POST /user/getUserList`、`GET /user/getCurrentUser`、`POST /user/changePassword`、`POST /user/getMyContribution` |
+| user | `POST /user/create`、`getUserList`、`GET /user/getCurrentUser`、`POST /user/changePassword`、`updateStatus`（禁用 / 启用）、`getMyContribution` |
 | workspace | `POST /workspace/createWorkspace`、`getWorkspaceList`、`addWorkspaceMember`、`getWorkspaceDetail` |
 | labeltool | `POST /labeltool/createLabelTool`、`getLabelToolList`、`getLabelToolDetail` |
 | aiconfig | `POST /aiconfig/createAiConfig`、`updateAiConfig`、`getAiConfigList` |
 | dataset | `POST /dataset/getUploadPreSignedUrl`、`createDataset`、`createDatasetVersion`、`getDatasetList`、`getDatasetDetail`、`getVersionSamplePreview` |
+| case | `POST /case/createCase`、`getCaseList`、`getCaseDetail`、`exportCaseResult`、`updateCaseStatus`（暂停 / 恢复 / 结束）、`updateCaseDeadline` |
+| task | `POST /task/getTaskListInGroup`、`getTaskDetail`、`getSampleData`、`getTaskResult`、`saveTaskResult`、`submitLabelTask`、`submitReviewTask` |
+| taskgroup | `POST /taskgroup/getMyTaskGroups`、`getTaskGroupList` |
+| notification | `POST /notification/getUnreadCount`、`getNotificationList`、`markRead`（只作用于本人） |
+| monitoring | `POST /monitoring/reportWebVitals`（公开、限流）、`getWebVitalsSummary`（系统管理员） |
 
-入参出参与权限规则见 `../docs/reference/0002-*` §3；case / task / taskgroup 在后续里程碑。
+入参出参与权限规则见 `../docs/reference/0002-*` §3、派发 / 提交规则见 `../docs/reference/0004-*`。
+
+定时器（与 API 同进程，Redis 锁保证多实例只跑一份）：任务自动回收（每分钟）、case 截止扫描（每分钟：截止前 24h 提醒一次、逾期通知一次）、outbox 重投（30s）。
 
 数据集上传链路：前端 `getUploadPreSignedUrl` 取预签名 PUT URL → 浏览器直传对象存储（不经后端）→ `createDataset` / `createDatasetVersion` 落库并向 BullMQ `dataset-parse` 队列投递 `{versionId}` → 同进程的消费者从对象存储流式读取 jsonl，按标注工具的 JSON Schema 逐行校验，每 1000 行一批写入 `lingshu_dataset_sample`，最后回写 `upload_status`（2 就绪 / 3 解析失败）与 `ext` 统计（总行数、成功、跳过、前 100 条错误明细或整体失败原因）。
 
@@ -86,7 +93,8 @@ src/
   modules/common/    分页、字符串、zod 片段、操作者类型、权限判定
   modules/<domain>/  路由 + 服务 + 仓储 + 枚举 + 错误码
                      （auth / user / workspace / labeltool / aiconfig / dataset(含解析服务与消费者) /
-                      task(仅统计仓储) / health）
+                      task(case / task / taskgroup / 派发引擎 / AI 执行器 / 导出 / 消费者与定时器) /
+                      notification / monitoring / health）
 tests/               vitest + supertest；global-setup 重建 lingshu_test 并清测试队列；helpers/ 造数据
 deploy/              docker-compose.yml（pg / redis / minio）
 ```
