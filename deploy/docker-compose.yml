@@ -1,0 +1,88 @@
+# 本地中间件：PostgreSQL 16 / Redis 7 / MinIO。用法（仓库根目录）：
+#   docker compose --env-file .env -f deploy/docker-compose.yml up -d --wait
+# 口令全部来自 .env（缺失即报错），不在本文件写默认口令。
+name: lingshu
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lingshu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${LINGSHU_PG_USER:-lingshu}
+      POSTGRES_PASSWORD: ${LINGSHU_PG_PASSWORD:?缺少 LINGSHU_PG_PASSWORD}
+      POSTGRES_DB: ${LINGSHU_PG_DB:-lingshu}
+    ports:
+      - '${LINGSHU_PG_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 首次初始化时额外建 lingshu_test 库（vitest 用）。
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${LINGSHU_PG_USER:-lingshu} -d ${LINGSHU_PG_DB:-lingshu}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: lingshu-redis
+    restart: unless-stopped
+    command: >
+      redis-server --requirepass ${LINGSHU_REDIS_PASSWORD:?缺少 LINGSHU_REDIS_PASSWORD}
+      --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    ports:
+      - '${LINGSHU_REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+    environment:
+      REDIS_PASSWORD: ${LINGSHU_REDIS_PASSWORD}
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: lingshu-minio
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${LINGSHU_MINIO_ROOT_USER:-lingshu-minio}
+      MINIO_ROOT_PASSWORD: ${LINGSHU_MINIO_ROOT_PASSWORD:?缺少 LINGSHU_MINIO_ROOT_PASSWORD}
+    ports:
+      - '${LINGSHU_MINIO_PORT:-9000}:9000'
+      - '${LINGSHU_MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'mc ready local || curl -sf http://127.0.0.1:9000/minio/health/live']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # 一次性任务：建桶（幂等）。M2 再补 CORS 规则。
+  minio-init:
+    image: quay.io/minio/mc:latest
+    container_name: lingshu-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${LINGSHU_MINIO_ROOT_USER:-lingshu-minio} ${LINGSHU_MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/${LINGSHU_S3_BUCKET:-lingshu} &&
+      echo bucket-ready"
+    restart: 'no'
+
+volumes:
+  pgdata:
+    name: lingshu_pgdata
+  redisdata:
+    name: lingshu_redisdata
+  miniodata:
+    name: lingshu_miniodata
