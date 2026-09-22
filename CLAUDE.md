@@ -35,7 +35,7 @@ lint / typecheck / test / build 是每次改动后的常规验证动作，直接
 ## 目录约定
 
 - `src/app/`：`router.tsx`（路由表 + 懒加载）、`layout/`（AppShell / Sidebar / nav.ts 菜单 / RequireAuth / RequireRole）、`theme.ts`。
-- `src/features/<模块>/`：`api.ts`（typed 接口函数，函数名与后端接口同名）、`types.ts`、`pages/`、`components/`。模块：auth、dataset、case、taskgroup、task、exec（执行页 + 嵌入页）、labeltool（含 puck）、aiconfig、workspace、user、contribution、monitoring、external（IFRAME 工具示范）。
+- `src/features/<模块>/`：`api.ts`（typed 接口函数，函数名与后端接口同名）、`types.ts`、`pages/`、`components/`。模块：auth、dataset、case、taskgroup、task、exec（执行页 + 嵌入页）、labeltool（含 puck）、aiconfig、workspace、user、contribution、monitoring、notification（通知铃铛 + 通知中心）、external（IFRAME 工具示范）。
 - `src/shared/`：`api/`、`auth/permissions.ts`（角色派生能力，纯函数 `computeRoles` / `pickHomePath`）、`store/`、`components/`、`constants/`、`hooks/`、`monitoring/webVitals.ts`、`utils/`。
 - 测试文件与源码同目录（`*.test.ts(x)`）；`src/test/setup.ts` 是 vitest 全局 setup。
 - `e2e/`：无头 Chrome + CDP 验收脚本；`scripts/`：构建门禁脚本。

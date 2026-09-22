@@ -9,6 +9,8 @@ import type {
   CreateCaseResponse,
   ExportCaseRequest,
   GetCaseListRequest,
+  UpdateCaseDeadlineRequest,
+  UpdateCaseStatusRequest,
 } from './types';
 
 /** Case 列表 · POST /api/case/getCaseList（空间内，分页）。 */
@@ -31,4 +33,18 @@ export function createCase(req: CreateCaseRequest): Promise<CreateCaseResponse> 
  *  状态写入 case.ext.lastExport，前端通过 getCaseDetail 拉取。 */
 export function exportCaseResult(req: ExportCaseRequest): Promise<void> {
   return post<void>('/case/exportCaseResult', req);
+}
+
+/** 状态控制 · POST /api/case/updateCaseStatus（暂停 / 恢复 / 结束；系统管理员或空间 LABEL_ADMIN，M5）。 */
+export function updateCaseStatus(
+  req: UpdateCaseStatusRequest,
+): Promise<{ caseId: number; status: number }> {
+  return post('/case/updateCaseStatus', req);
+}
+
+/** 截止时间 · POST /api/case/updateCaseDeadline（deadline=null 清除，M5）。 */
+export function updateCaseDeadline(
+  req: UpdateCaseDeadlineRequest,
+): Promise<{ caseId: number; deadline: number | null }> {
+  return post('/case/updateCaseDeadline', req);
 }

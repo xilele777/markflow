@@ -8,6 +8,7 @@ import { palette, fonts, sizing } from '@/app/theme';
 import { useAuthStore } from '@/shared/store/auth';
 import { useWorkspaceStore } from '@/shared/store/workspace';
 import { ChangePasswordModal } from '@/features/user/components/ChangePasswordModal';
+import { NotificationBell } from '@/features/notification/components/NotificationBell';
 import { matchNav } from './nav';
 
 // TODO: 版本号接真实构建信息（import.meta.env / 接口）。
@@ -52,6 +53,7 @@ export function Topbar() {
         <span style={{ fontFamily: fonts.mono, fontSize: 11.5, color: palette.weak }}>
           {APP_VERSION}
         </span>
+        <NotificationBell />
         <Dropdown
           trigger={['click']}
           menu={{

@@ -407,7 +407,7 @@ try {
 
   await step('任务列表：新任务「进行中」→ 详情：进度 人工标注 3 在做 / 人工初检 0', async () => {
     await waitFor(
-      `[...document.querySelectorAll('.ant-table-row')].some(r => r.innerText.includes(${JSON.stringify(CASE.name)}) && r.innerText.includes('进行中'))`,
+      `[...document.querySelectorAll('.ant-table-row')].some(r => r.innerText.includes(${JSON.stringify(CASE.name)}) && r.innerText.includes('运行中'))`,
       'case row',
     );
     await clickRowAction(CASE.name, '查看详情');

@@ -27,9 +27,16 @@ import { palette, fonts, sizing } from '@/app/theme';
 import { useAuthStore } from '@/shared/store/auth';
 import { getTaskGroupList } from '@/features/taskgroup/api';
 import type { TaskGroupItem } from '@/features/taskgroup/types';
-import { STAGE_TYPE_CODE, type AiStageConfig, type HumanStageConfig, type StageMember, type StageType } from '../types';
+import {
+  STAGE_TYPE_CODE,
+  type AiStageConfig,
+  type HumanStageConfig,
+  type StageMember,
+  type StageType,
+} from '../types';
 import { getCaseDetail } from '../api';
 import { ExportResultSection } from '../components/ExportResultSection';
+import { CaseControls } from '../components/CaseControls';
 
 const STAGE_LABEL: Record<StageType, string> = {
   aiPreLabel: 'AI 预标注',
@@ -141,7 +148,9 @@ export default function CaseDetailPage() {
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
+                    >
                       <h1
                         style={{
                           margin: 0,
@@ -155,7 +164,7 @@ export default function CaseDetailPage() {
                         {data.name}
                       </h1>
                       <Tag tone={sourceMeta.tone}>{sourceMeta.label}</Tag>
-                      <StatusDot tone={statusMeta.tone} />
+                      <StatusDot tone={statusMeta.tone}>{statusMeta.label}</StatusDot>
                     </div>
                     {data.description && (
                       <p
@@ -172,14 +181,12 @@ export default function CaseDetailPage() {
                       </p>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 10, flex: 'none' }}>
-                    <Btn kind="ghost" disabled>
-                      暂停任务
-                    </Btn>
-                    <Btn kind="ghost" disabled>
-                      编辑信息
-                    </Btn>
-                  </div>
+                  <CaseControls
+                    caseId={data.caseId}
+                    status={data.status}
+                    deadline={data.ext?.deadline ?? null}
+                    refetchCaseDetail={refetch}
+                  />
                 </div>
                 <div style={{ height: 1, background: palette.hairline, margin: '20px 0' }} />
                 <MetaGrid items={meta} columns={4} />
@@ -214,7 +221,9 @@ export default function CaseDetailPage() {
                 </h2>
                 <span style={{ fontFamily: fonts.body, fontSize: 12.5, color: palette.sub }}>
                   全流程已完成{' '}
-                  <span style={{ fontFamily: fonts.mono, color: palette.text }}>{fmt(grandDone)}</span>
+                  <span style={{ fontFamily: fonts.mono, color: palette.text }}>
+                    {fmt(grandDone)}
+                  </span>
                   <span style={{ color: palette.weak }}> / {fmt(grandTotal)}</span>
                 </span>
               </div>
@@ -226,13 +235,15 @@ export default function CaseDetailPage() {
                     type={s.type}
                     index={i}
                     isLast={i === data.taskPlanConfig.stages.length - 1}
-                    progress={data.stageProgress.find((p) => p.stageType === s.type) ?? {
-                      stageType: s.type,
-                      taskType: STAGE_TYPE_CODE[s.type],
-                      poolPending: 0,
-                      personalDoing: 0,
-                      done: 0,
-                    }}
+                    progress={
+                      data.stageProgress.find((p) => p.stageType === s.type) ?? {
+                        stageType: s.type,
+                        taskType: STAGE_TYPE_CODE[s.type],
+                        poolPending: 0,
+                        personalDoing: 0,
+                        done: 0,
+                      }
+                    }
                     assignment={data.assignmentConfig[s.type]}
                     caseId={data.caseId}
                     groups={groupsByStage[STAGE_TYPE_CODE[s.type]] ?? []}
@@ -371,8 +382,10 @@ function StageRow({
               </span>
               <span style={{ fontFamily: fonts.body, fontSize: 12.5, color: palette.weak }}>
                 已完成{' '}
-                <span style={{ fontFamily: fonts.mono, color: palette.sub }}>{fmt(progress.done)}</span> /{' '}
-                {fmt(total)}
+                <span style={{ fontFamily: fonts.mono, color: palette.sub }}>
+                  {fmt(progress.done)}
+                </span>{' '}
+                / {fmt(total)}
               </span>
             </div>
             <DownOutlined
@@ -397,7 +410,14 @@ function StageRow({
         {open && (
           <div style={{ padding: '0 18px 16px' }}>
             <div style={{ height: 1, background: palette.hairline, marginBottom: 14 }} />
-            <div style={{ fontFamily: fonts.body, fontSize: 12, color: palette.weak, marginBottom: 10 }}>
+            <div
+              style={{
+                fontFamily: fonts.body,
+                fontSize: 12,
+                color: palette.weak,
+                marginBottom: 10,
+              }}
+            >
               {ai ? 'AI 配置' : '人员分配'}
             </div>
             {!assignment ? (
@@ -409,11 +429,7 @@ function StageRow({
             )}
 
             {groupsKnown && (
-              <StageGroupsBlock
-                caseId={caseId}
-                groups={groups}
-                truncated={groupsTruncated}
-              />
+              <StageGroupsBlock caseId={caseId} groups={groups} truncated={groupsTruncated} />
             )}
           </div>
         )}
@@ -449,9 +465,7 @@ function StageGroupsBlock({
         <span>任务组（{groups.length}）</span>
         {truncated && (
           <a
-            onClick={() =>
-              navigate('/task-progress', { state: { presetCaseId: caseId } })
-            }
+            onClick={() => navigate('/task-progress', { state: { presetCaseId: caseId } })}
             style={{ fontSize: 12, color: palette.accent, cursor: 'pointer' }}
           >
             去任务进度页查看全部 →
@@ -567,7 +581,9 @@ function Chip({ k, v }: { k: string; v: string | number }) {
       }}
     >
       <span style={{ fontFamily: fonts.body, fontSize: 12, color: palette.weak }}>{k}</span>
-      <span style={{ fontFamily: fonts.body, fontSize: 12.5, color: palette.text, fontWeight: 500 }}>
+      <span
+        style={{ fontFamily: fonts.body, fontSize: 12.5, color: palette.text, fontWeight: 500 }}
+      >
         {v}
       </span>
     </span>
@@ -597,9 +613,13 @@ function MemberPill({ m, showRatio }: { m: StageMember; showRatio: boolean }) {
           background: m.active ? SEG_DONE : palette.weak,
         }}
       />
-      <span style={{ fontFamily: fonts.body, fontSize: 12.5, color: palette.text }}>{m.username}</span>
+      <span style={{ fontFamily: fonts.body, fontSize: 12.5, color: palette.text }}>
+        {m.username}
+      </span>
       {showRatio && m.active && (
-        <span style={{ fontFamily: fonts.mono, fontSize: 12, color: palette.sub }}>{m.ratio ?? 0}%</span>
+        <span style={{ fontFamily: fonts.mono, fontSize: 12, color: palette.sub }}>
+          {m.ratio ?? 0}%
+        </span>
       )}
     </span>
   );
@@ -622,7 +642,11 @@ function HumanAssignmentChips({ cfg }: { cfg: HumanStageConfig }) {
       <Chip k="分配策略" v={STRATEGY_LABEL[cfg.strategy] ?? '—'} />
       <Chip k="预派发" v={fmt(cfg.preDispatchSize)} />
       <Chip k="自动回收" v={`${cfg.autoRecycleMinutes} 分钟`} />
-      <span style={{ width: 1, height: 18, background: palette.hairline, margin: '0 3px' } as CSSProperties} />
+      <span
+        style={
+          { width: 1, height: 18, background: palette.hairline, margin: '0 3px' } as CSSProperties
+        }
+      />
       {cfg.members.map((m) => (
         <MemberPill key={m.username} m={m} showRatio={showRatio} />
       ))}

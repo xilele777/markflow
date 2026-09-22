@@ -22,7 +22,7 @@ describe('filterNav', () => {
     const all = filterNav(computeRoles(user({ isSystemAdmin: true }), null));
     expect(labels(all)).toEqual([
       ['资产', ['数据集']],
-      ['任务', ['标注任务', '我的任务组', '我的贡献', '任务进度']],
+      ['任务', ['标注任务', '我的任务组', '我的贡献', '通知中心', '任务进度']],
       ['系统', ['工作空间', '用户管理', '标注工具', 'AI 配置', '前端性能']],
     ]);
   });
@@ -36,7 +36,7 @@ describe('filterNav', () => {
     );
     expect(labels(filterNav(perms))).toEqual([
       ['资产', ['数据集']],
-      ['任务', ['标注任务', '我的任务组', '我的贡献']],
+      ['任务', ['标注任务', '我的任务组', '我的贡献', '通知中心']],
     ]);
   });
 
@@ -45,12 +45,12 @@ describe('filterNav', () => {
       user({ workspaces: [{ workspaceId: 1, spaceCode: 'A', name: 'A', roles: [ROLE_LABELER] }] }),
       'A',
     );
-    expect(labels(filterNav(perms))).toEqual([['任务', ['我的任务组', '我的贡献']]]);
+    expect(labels(filterNav(perms))).toEqual([['任务', ['我的任务组', '我的贡献', '通知中心']]]);
   });
 
   it('未登录：仍保留全员可见项，不抛错', () => {
     expect(labels(filterNav(computeRoles(null, null)))).toEqual([
-      ['任务', ['我的任务组', '我的贡献']],
+      ['任务', ['我的任务组', '我的贡献', '通知中心']],
     ]);
   });
 

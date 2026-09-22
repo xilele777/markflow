@@ -18,8 +18,9 @@ import {
   type ColumnDef,
   type FilterOption,
 } from '@/shared/components';
-import { CASE_STATUS, DATA_SOURCE_TYPE, metaOf } from '@/shared/constants';
-import { formatDate } from '@/shared/utils/format';
+import { CASE_STATUS, DATA_SOURCE_TYPE, STATUS, metaOf } from '@/shared/constants';
+import { formatDate, formatDateTime } from '@/shared/utils/format';
+import { palette } from '@/app/theme';
 import { useWorkspaceStore } from '@/shared/store/workspace';
 import type { CaseListItem, GetCaseListRequest } from '../types';
 import { getCaseList } from '../api';
@@ -83,10 +84,28 @@ export default function CaseListPage() {
       width: 110,
       render: (r) => {
         const m = metaOf(CASE_STATUS, r.status);
-        return <StatusDot tone={m.tone} />;
+        return <StatusDot tone={m.tone}>{m.label}</StatusDot>;
       },
     },
     { key: 'creator', label: '创建人', width: 100 },
+    {
+      key: 'deadline',
+      label: '截止时间',
+      width: 140,
+      mono: true,
+      render: (r) =>
+        r.deadline == null ? (
+          <span style={{ color: palette.weak }}>—</span>
+        ) : (
+          <span
+            style={{
+              color: r.deadline < Date.now() && r.status === 2 ? STATUS.failed.fg : undefined,
+            }}
+          >
+            {formatDateTime(r.deadline)}
+          </span>
+        ),
+    },
     { key: 'createTime', label: '创建时间', width: 124, render: (r) => formatDate(r.createTime) },
     {
       key: 'op',

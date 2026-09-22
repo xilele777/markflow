@@ -33,6 +33,8 @@ export const NAV: NavGroup[] = [
       { label: '我的任务组', path: '/my-groups' },
       // 「我的贡献」全员可见（自查自己；管理员从用户列表跳带 username 参数代查）。
       { label: '我的贡献', path: '/contribution' },
+      // 「通知中心」全员可见（M5：派发 / 驳回 / 截止 / 结束）。
+      { label: '通知中心', path: '/notifications' },
       // 「任务进度」仅 SA（getTaskGroupList 鉴权仅系统管理员）。
       { label: '任务进度', path: '/task-progress', visible: onlySA },
     ],
@@ -53,9 +55,10 @@ export const NAV: NavGroup[] = [
 
 /** 按权限过滤菜单，去掉空分组。 */
 export function filterNav(perms: CurrentRoles): NavGroup[] {
-  return NAV
-    .map((g) => ({ ...g, items: g.items.filter((it) => !it.visible || it.visible(perms)) }))
-    .filter((g) => g.items.length > 0);
+  return NAV.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => !it.visible || it.visible(perms)),
+  })).filter((g) => g.items.length > 0);
 }
 
 /** 按当前 pathname 找到所属分组 + 菜单项（顶栏面包屑 / 侧栏选中态用）。取最长前缀匹配。 */

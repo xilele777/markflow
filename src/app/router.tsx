@@ -29,6 +29,9 @@ const UserListPage = lazy(() => import('@/features/user/pages/UserListPage'));
 const LabelToolListPage = lazy(() => import('@/features/labeltool/pages/LabelToolListPage'));
 const AiConfigListPage = lazy(() => import('@/features/aiconfig/pages/AiConfigListPage'));
 const WebVitalsPage = lazy(() => import('@/features/monitoring/pages/WebVitalsPage'));
+const NotificationListPage = lazy(
+  () => import('@/features/notification/pages/NotificationListPage'),
+);
 // 执行页与内置工具页依赖 @measured/puck，按需加载。
 const LabelExecPage = lazy(() => import('@/features/exec/pages/LabelExecPage'));
 const ReviewExecPage = lazy(() => import('@/features/exec/pages/ReviewExecPage'));
@@ -112,6 +115,8 @@ export const router = createBrowserRouter([
           { path: 'groups/:gid', element: suspend(<GroupDetailPage />) },
           // 我的贡献：/contribution 自查；/contribution?username=xxx 代查（后端兜底鉴权）。
           { path: 'contribution', element: suspend(<ContributionPage />) },
+          // 通知中心（M5，全员）。
+          { path: 'notifications', element: suspend(<NotificationListPage />) },
 
           // ③ 任务进度（仅 SA）
           {

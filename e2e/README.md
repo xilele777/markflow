@@ -19,6 +19,7 @@
 | `e2e-m2.mjs` | M2：数据集直传 / 解析 / 预览 / 失败原因 | `node e2e/e2e-m2.mjs [baseUrl] [apiBase] [browserExe]` |
 | `e2e-m3.mjs` | M3：建 case → 标注 → 驳回 → 重标 → 通过 → 导出 | `node e2e/e2e-m3.mjs [baseUrl] [apiBase] [browserExe]` |
 | `e2e-m4.mjs` | M4：懒加载页面、内置工具自动保存、提交前校验、离线状态条、数据集轮询、前端性能页 | `node e2e/e2e-m4.mjs [baseUrl] [apiBase] [browserExe]` |
+| `e2e-m5.mjs` | M5：通知铃铛 / 通知中心、截止时间显示与清除、截止提醒（等后端定时器 ≤ 90s）、暂停 / 恢复 / 结束、用户禁用 / 启用 | `node e2e/e2e-m5.mjs [baseUrl] [apiBase] [browserExe]` |
 
 `lib/cdp.mjs` 是公共库（启动浏览器、`evaluate` / `waitFor` / `fill` / `clickByText` / `pickSelect` / `login` / `setOffline` 等）。
 新脚本从它 import；M0–M3 脚本是早期独立版本，各自内置了同一套原语，保持原样可独立运行。
@@ -33,3 +34,5 @@
 - antd Select 下拉用 input 的 `aria-controls` 定位，避免多个 Select 串台。
 - 上传用 `Page.setFileInputFiles`（e2e-m2）。
 - 断网用 `Network.emulateNetworkConditions` 并同时派发 `offline` / `online` 事件（无头模式下 `navigator.onLine` 不一定跟着变）。
+- 在 Git Bash 里直接 `node e2e/xxx.mjs` 可能只打印 `stdin is not a tty` 就退出（winpty 问题）；用 `cmd //c "node e2e\xxx.mjs"` 或在 PowerShell / cmd 里跑。
+- antd `Modal.confirm`（`confirmModal`）的确认按钮在 `.ant-modal-confirm` 内，用 `clickByText('.ant-modal-confirm, .ant-modal', text, 'button')` 定位。

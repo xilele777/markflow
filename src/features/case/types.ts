@@ -64,6 +64,8 @@ export interface CaseListItem {
   labelToolCode: string;
   creator: string;
   createTime: number;
+  /** 截止时间（毫秒），未设置为 null（M5）。 */
+  deadline: number | null;
 }
 
 export interface GetCaseListRequest extends PageRequest {
@@ -107,6 +109,11 @@ export interface LastExport {
 /** case.ext —— 业务扩展字段袋。整个 ext 当前可能不存在（未触发过任何 ext 业务时）。 */
 export interface CaseExt {
   lastExport?: LastExport;
+  /** 截止时间（毫秒）；未设置或已清除时缺省 / null（M5）。 */
+  deadline?: number | null;
+  /** 截止前提醒 / 逾期通知已发出的时间（后端内部标记，前端只读）。 */
+  deadlineReminderAt?: number | null;
+  deadlineOverdueAt?: number | null;
 }
 
 /** getCaseDetail 出参。 */
@@ -148,8 +155,24 @@ export interface CreateCaseRequest {
   labelTool: string;
   taskPlanConfig: TaskPlanConfig;
   assignmentConfig: AssignmentConfig;
+  /** 截止时间（毫秒），可选；须晚于当前时间（M5）。 */
+  deadline?: number;
 }
 
 export interface CreateCaseResponse {
   caseId: number;
+}
+
+/** updateCaseStatus 目标状态：2 运行中 / 3 已暂停 / 4 已结束（M5）。 */
+export type CaseTargetStatus = 2 | 3 | 4;
+
+export interface UpdateCaseStatusRequest {
+  caseId: number;
+  status: CaseTargetStatus;
+}
+
+export interface UpdateCaseDeadlineRequest {
+  caseId: number;
+  /** null 表示清除。 */
+  deadline: number | null;
 }

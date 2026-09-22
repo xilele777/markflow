@@ -3,17 +3,10 @@
 // 脚手架阶段走 mock。
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Checkbox, Form, Input, InputNumber, Radio, Select } from 'antd';
+import { Checkbox, DatePicker, Form, Input, InputNumber, Radio, Select } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Btn,
-  FooterActionBar,
-  PageBackHeader,
-  SectionCard,
-  Tag,
-  toast,
-} from '@/shared/components';
+import { Btn, FooterActionBar, PageBackHeader, SectionCard, Tag, toast } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
 import { useAuthStore } from '@/shared/store/auth';
 import { useWorkspaceStore } from '@/shared/store/workspace';
@@ -100,6 +93,9 @@ export default function CaseNewPage() {
   const [dataSourceType, setDataSourceType] = useState<number>(1);
   const [datasetId, setDatasetId] = useState<number | undefined>(undefined);
   const [datasetVersionId, setDatasetVersionId] = useState<number | undefined>(undefined);
+  // 截止时间（毫秒；可空，M5）。
+  const [deadline, setDeadline] = useState<number | undefined>(undefined);
+  const deadlineOk = deadline == null || deadline > Date.now();
 
   // 流程编排
   const [enabled, setEnabled] = useState<Record<StageType, boolean>>(INITIAL_ENABLED);
@@ -142,7 +138,8 @@ export default function CaseNewPage() {
   //   recheck 人工复检 → 仅含审核员（2）的成员
   // 双重身份的人会自动出现在对应卡里。
   const membersForStage = (stageType: StageType) => {
-    const required = stageType === 'label' ? 1 : stageType === 'review' || stageType === 'recheck' ? 2 : null;
+    const required =
+      stageType === 'label' ? 1 : stageType === 'review' || stageType === 'recheck' ? 2 : null;
     if (required == null) return allMembers;
     return allMembers.filter((m) => (m.roles ?? []).includes(required));
   };
@@ -166,7 +163,14 @@ export default function CaseNewPage() {
     return true;
   });
 
-  const canSubmit = !!(name.trim() && labelTool && datasetOk && stageConstraint && stagesOk);
+  const canSubmit = !!(
+    name.trim() &&
+    labelTool &&
+    datasetOk &&
+    stageConstraint &&
+    stagesOk &&
+    deadlineOk
+  );
 
   // 数据集版本：只列已就绪（uploadStatus=2）。
   const versionOptions = (datasetDetail?.versions ?? [])
@@ -235,6 +239,7 @@ export default function CaseNewPage() {
         stages: enabledStages.map((s) => ({ stage: STAGE_TYPE_CODE[s.type], type: s.type })),
       },
       assignmentConfig,
+      deadline,
     });
   };
 
@@ -285,6 +290,24 @@ export default function CaseNewPage() {
                   maxLength={200}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                />
+              </Form.Item>
+              <Form.Item
+                label="截止时间"
+                style={{ marginBottom: 0 }}
+                validateStatus={deadlineOk ? undefined : 'error'}
+                help={
+                  deadlineOk
+                    ? '可选；到期前 24 小时与逾期时通知创建人和空间标注管理员'
+                    : '截止时间需晚于当前时间'
+                }
+              >
+                <DatePicker
+                  showTime={{ format: 'HH:mm' }}
+                  format="YYYY-MM-DD HH:mm"
+                  placeholder="不设置"
+                  style={{ width: 260 }}
+                  onChange={(d) => setDeadline(d ? d.valueOf() : undefined)}
                 />
               </Form.Item>
               <Form.Item label="数据源" required style={{ marginBottom: 0 }}>
@@ -356,11 +379,7 @@ export default function CaseNewPage() {
           </SectionCard>
 
           {/* ③ 人员 / AI 分配 */}
-          <SectionCard
-            step={3}
-            title="人员 / AI 分配"
-            desc="仅对已启用的阶段逐个配置。"
-          >
+          <SectionCard step={3} title="人员 / AI 分配" desc="仅对已启用的阶段逐个配置。">
             {enabledStages.length === 0 ? (
               <div
                 style={{
@@ -448,7 +467,13 @@ function StageStep({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Checkbox checked={on} onClick={(e) => e.stopPropagation()} onChange={onToggle} />
-          <span style={{ fontFamily: fonts.mono, fontSize: 11.5, color: on ? palette.sub : palette.weak }}>
+          <span
+            style={{
+              fontFamily: fonts.mono,
+              fontSize: 11.5,
+              color: on ? palette.sub : palette.weak,
+            }}
+          >
             {stage.code}
           </span>
           <span style={{ marginLeft: 'auto' }}>
@@ -487,7 +512,12 @@ function StageStep({
 
 function KindTag({ kind, dim }: { kind: 'ai' | 'human'; dim?: boolean }) {
   const ai = kind === 'ai';
-  if (dim) return <Tag tone={{ fg: palette.weak, bg: palette.fill, label: ai ? 'AI' : '人工' }}>{ai ? 'AI' : '人工'}</Tag>;
+  if (dim)
+    return (
+      <Tag tone={{ fg: palette.weak, bg: palette.fill, label: ai ? 'AI' : '人工' }}>
+        {ai ? 'AI' : '人工'}
+      </Tag>
+    );
   return ai ? (
     <Tag tone={{ fg: palette.accent, bg: palette.accentSoft, label: 'AI' }}>AI</Tag>
   ) : (
@@ -530,7 +560,9 @@ function StageCardHeader({ stage }: { stage: StageMeta }) {
       >
         {stage.code}
       </span>
-      <span style={{ fontFamily: fonts.display, fontSize: 14, fontWeight: 600, color: palette.text }}>
+      <span
+        style={{ fontFamily: fonts.display, fontSize: 14, fontWeight: 600, color: palette.text }}
+      >
         {stage.label}
       </span>
       <KindTag kind={stage.kind} />
@@ -609,15 +641,16 @@ function HumanStageCard({
       members: cfg.members.map((m, j) => (j === i ? { ...m, ...patch } : m)),
     });
   const addMember = () => onPatch({ members: [...cfg.members, emptyMember()] });
-  const removeMember = (i: number) =>
-    onPatch({ members: cfg.members.filter((_, j) => j !== i) });
+  const removeMember = (i: number) => onPatch({ members: cfg.members.filter((_, j) => j !== i) });
 
   return (
     <div style={stageCard}>
       <StageCardHeader stage={stage} />
       <div style={stageBody}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 24px', alignItems: 'flex-end' }}>
+          <div
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 24px', alignItems: 'flex-end' }}
+          >
             <Form.Item label="派发策略" style={{ marginBottom: 0 }}>
               <Radio.Group
                 value={cfg.strategy}
@@ -652,7 +685,9 @@ function HumanStageCard({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8 }}>
               <div style={{ flex: 1, fontSize: 12, color: palette.weak }}>成员</div>
-              <div style={{ width: 64, textAlign: 'center', fontSize: 12, color: palette.weak }}>启用</div>
+              <div style={{ width: 64, textAlign: 'center', fontSize: 12, color: palette.weak }}>
+                启用
+              </div>
               {fixed && <div style={{ width: 96, fontSize: 12, color: palette.weak }}>比例</div>}
               <div style={{ width: 32, flex: 'none' }} />
             </div>
@@ -740,8 +775,8 @@ function HumanStageCard({
                     color: ratioSum === 100 ? '#2c7a52' : '#a8423a',
                   }}
                 >
-                  启用成员比例合计{' '}
-                  <span style={{ fontFamily: fonts.mono }}>{ratioSum}%</span> / 100%
+                  启用成员比例合计 <span style={{ fontFamily: fonts.mono }}>{ratioSum}%</span> /
+                  100%
                 </span>
               )}
             </div>

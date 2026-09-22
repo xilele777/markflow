@@ -54,13 +54,12 @@ export default function GroupDetailPage() {
   // 接口文档里没有 getTaskGroupDetail：组基本信息（名/case 名/工具/类型）由列表页 navigate(state) 带过来。
   // 直接刷新或粘贴 URL 时 state 为空，仅展示组 id；后端补口后改为独立 useQuery 拉详情。
   // state.from 决定 backTo（my-groups / task-progress / case-detail），缺省回 my-groups。
-  const navState = (location.state as
-    | {
-        group?: MyTaskGroupItem | TaskGroupItem;
-        from?: 'my-groups' | 'task-progress' | 'case-detail';
-        caseId?: number;
-      }
-    | null) ?? null;
+  const navState =
+    (location.state as {
+      group?: MyTaskGroupItem | TaskGroupItem;
+      from?: 'my-groups' | 'task-progress' | 'case-detail' | 'notification';
+      caseId?: number;
+    } | null) ?? null;
   const group = navState?.group;
   const review = group ? isReviewStage(group.taskType) : false;
   const backTo =
@@ -68,7 +67,9 @@ export default function GroupDetailPage() {
       ? '/task-progress'
       : navState?.from === 'case-detail' && navState.caseId
         ? `/case/${navState.caseId}`
-        : '/my-groups';
+        : navState?.from === 'notification'
+          ? '/notifications'
+          : '/my-groups';
 
   const [status, setStatus] = useState<number | undefined>(undefined);
   const [pageNum, setPageNum] = useState(1);
@@ -124,7 +125,9 @@ export default function GroupDetailPage() {
       width: 280,
       render: (t) =>
         t.bizId ? (
-          <span style={{ fontFamily: fonts.mono, fontSize: 13, color: palette.text }}>{t.bizId}</span>
+          <span style={{ fontFamily: fonts.mono, fontSize: 13, color: palette.text }}>
+            {t.bizId}
+          </span>
         ) : (
           <span style={{ color: palette.weak }}>—</span>
         ),
@@ -189,10 +192,7 @@ export default function GroupDetailPage() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <PageBackHeader
-        title={group?.name ?? `任务组 #${taskGroupId}`}
-        backTo={backTo}
-      />
+      <PageBackHeader title={group?.name ?? `任务组 #${taskGroupId}`} backTo={backTo} />
 
       {/* 组基本信息（caseName + 标注工具 + 类型 Tag） */}
       {group && (

@@ -25,6 +25,12 @@ export interface CreateUserRequest {
   isSystemAdmin?: boolean;
 }
 
+/** updateStatus 入参：0 启用 / 1 禁用（系统管理员，M5）。 */
+export interface UpdateUserStatusRequest {
+  userId: number;
+  status: 0 | 1;
+}
+
 /** changePassword 入参（改当前登录用户自己的密码）。 */
 export interface ChangePasswordRequest {
   oldPassword: string;
