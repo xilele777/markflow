@@ -1,0 +1,4 @@
+# 统一以 LF 入库与检出（生产为 Linux + pm2）。
+* text=auto eol=lf
+*.png binary
+*.woff2 binary

@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  deployment-scripts:
+    name: Deployment scripts (local fixtures only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n scripts/activate.sh scripts/smoke.sh scripts/backup-pg.sh scripts/test-activate.sh
+      - run: shellcheck scripts/activate.sh scripts/smoke.sh scripts/backup-pg.sh scripts/test-activate.sh
+      - run: bash scripts/test-activate.sh
+  lint:
+    name: Lint / Format / Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx prettier --check src tests
+      - run: npm run typecheck
+
+  test:
+    name: Integration Tests (pg / redis / minio)
+    runs-on: ubuntu-latest
+    needs: [lint]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lingshu
+          POSTGRES_PASSWORD: ci_pg_pwd
+          POSTGRES_DB: lingshu_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lingshu -d lingshu_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      LINGSHU_PG_HOST: 127.0.0.1
+      LINGSHU_PG_PORT: '5432'
+      LINGSHU_PG_DB: lingshu_test
+      LINGSHU_TEST_PG_DB: lingshu_test
+      LINGSHU_PG_USER: lingshu
+      LINGSHU_PG_PASSWORD: ci_pg_pwd
+      LINGSHU_REDIS_HOST: 127.0.0.1
+      LINGSHU_REDIS_PORT: '6379'
+      LINGSHU_REDIS_PASSWORD: ci_redis_pwd
+      LINGSHU_S3_ENDPOINT: http://127.0.0.1:9000
+      LINGSHU_S3_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      LINGSHU_S3_REGION: us-east-1
+      LINGSHU_S3_BUCKET: lingshu
+      LINGSHU_S3_ACCESS_KEY: ci-minio
+      LINGSHU_S3_SECRET_KEY: ci_minio_pwd
+      LINGSHU_S3_FORCE_PATH_STYLE: 'true'
+      LINGSHU_CORS_ALLOWED_ORIGINS: http://localhost:5173
+      LINGSHU_CONFIG_ENC_KEY: ci-only-config-enc-key-0123456789abcdef0123456789
+      LINGSHU_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # MinIO 需要自定义启动命令，GitHub services 不支持，故用容器手动起。
+      - name: Configure Redis password
+        run: docker exec "${{ job.services.redis.id }}" redis-cli CONFIG SET requirepass ci_redis_pwd
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=ci-minio -e MINIO_ROOT_PASSWORD=ci_minio_pwd \
+            quay.io/minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9000/minio/health/live && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:9000/minio/health/live
+          docker run --rm --network host --entrypoint /bin/sh quay.io/minio/mc:latest -c \
+            "mc alias set local http://127.0.0.1:9000 ci-minio ci_minio_pwd && mc mb --ignore-existing local/lingshu"
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test, deployment-scripts]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-dist
+          path: |
+            dist/
+            package.json
+            package-lock.json
+          retention-days: 7

@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+*.log
+.env
+.env.*.local
+artifacts/
+/*.tar.gz
+/*.tar.gz.sha256
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
