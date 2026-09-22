@@ -26,9 +26,8 @@
     "types": ["vitest/globals"],
 
     /* Path alias */
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]
