@@ -121,6 +121,7 @@ export function createTaskModule(ctx: AppContext, options: TaskModuleOptions = {
     samples,
     aiConfigs,
     llm: options.llm ?? new OpenAiCompatibleLlmClient(),
+    metrics: ctx.metrics,
     taskService,
     logger: ctx.logger,
   });

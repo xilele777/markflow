@@ -10,6 +10,7 @@ import { createQueues, type Queues } from '../infra/queue.js';
 import { createRedis, type Redis } from '../infra/redis.js';
 import { SecretBox } from '../infra/secret-box.js';
 import { SysConfigService } from '../infra/sys-config.js';
+import { Metrics } from '../infra/metrics.js';
 
 export interface AppContext {
   config: AppConfig;
@@ -23,6 +24,7 @@ export interface AppContext {
   queues: Queues;
   /** 事务性发件箱：业务事务内落行、提交后投递。 */
   outbox: OutboxService;
+  metrics: Metrics;
 }
 
 export interface CreateContextOptions {
@@ -52,10 +54,12 @@ export async function createContext(
     storage: new ObjectStorage(config.storage),
     queues,
     outbox: new OutboxService({ db, queues, logger }),
+    metrics: new Metrics(),
   };
 }
 
 export async function destroyContext(ctx: AppContext): Promise<void> {
+  ctx.metrics.registry.clear();
   try {
     await ctx.queues.closeAll();
   } catch (err) {

@@ -12,6 +12,7 @@ import { createDatasetRouter } from '../modules/dataset/dataset.routes.js';
 import { createHealthRouter } from '../modules/health/health.routes.js';
 import { createLabelToolRouter } from '../modules/labeltool/labeltool.routes.js';
 import { createMonitoringRouters } from '../modules/monitoring/monitoring.routes.js';
+import { createMetricsRouter } from '../modules/monitoring/metrics.routes.js';
 import { createNotificationRouter } from '../modules/notification/notification.routes.js';
 import { UserRepository } from '../modules/user/user.repo.js';
 import { createTaskModule, type TaskModule } from '../modules/task/module.js';
@@ -46,6 +47,10 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Expr
   app.disable('x-powered-by');
 
   app.use(createRequestLogger(logger));
+  app.use(ctx.metrics.middleware());
+  // 探针不依赖全局 Redis 限流；metrics 自带专用 token，生产 Nginx 禁止公网访问。
+  app.use('/api/health', createHealthRouter(ctx));
+  app.use('/api/metrics', createMetricsRouter(ctx));
   app.use(
     cors({
       origin: corsOrigin(config.cors.allowedOrigins),
@@ -66,7 +71,6 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Expr
     }),
   );
 
-  app.use('/api/health', createHealthRouter(ctx));
   app.use('/api/auth', createAuthRouter(ctx));
   // 前端性能上报：公开（sendBeacon 无法带 Authorization），自带限流；汇总需鉴权。
   const monitoring = createMonitoringRouters(ctx);

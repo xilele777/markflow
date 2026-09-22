@@ -2,6 +2,8 @@
 
 灵枢数据标注平台后端的 TS 重写，接口契约与灵枢 React 前端（`../lingshu-web`）严格一致。规格来源与里程碑见 `../docs/`（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引，`handoff/` 最新一篇为当前状态）。
 
+M6 部署准备、生产配置、发布/回滚、备份恢复与切换验收见 [DEPLOY.md](DEPLOY.md)。当前没有部署服务器，CD 默认关闭。
+
 ## 5 分钟起步
 
 前置：Node ≥ 22、Docker Desktop（Compose v2）。
@@ -37,9 +39,10 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 
 ## 已实现接口
 
-| 模块 | 端点（均在 `/api` 下；除登录与性能上报外需 `Authorization: Bearer <jwt>`） |
+| 模块 | 端点（均在 `/api` 下；health / 登录 / 性能上报公开，metrics 独立 token，其余需 `Authorization: Bearer <jwt>`） |
 |---|---|
-| health | `GET /health` |
+| health | `GET /health`（公开；PG / Redis / 对象存储 / 队列 readiness） |
+| metrics | `GET /metrics`（Prometheus 文本；独立 `LINGSHU_METRICS_TOKEN`，未配置 404） |
 | auth | `POST /auth/login` |
 | user | `POST /user/create`、`getUserList`、`GET /user/getCurrentUser`、`POST /user/changePassword`、`updateStatus`（禁用 / 启用）、`getMyContribution` |
 | workspace | `POST /workspace/createWorkspace`、`getWorkspaceList`、`addWorkspaceMember`、`getWorkspaceDetail` |
@@ -67,6 +70,8 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 - `LINGSHU_TIMEZONE`：「我的贡献」按天统计与上传对象 key 日期段使用的 IANA 时区，默认 `Asia/Shanghai`。
 - `LINGSHU_S3_*`：S3 兼容对象存储（本地 MinIO；线上 MinIO 或火山 TOS 的 S3 端点）。`LINGSHU_S3_ENDPOINT` 供后端进程访问；`LINGSHU_S3_PUBLIC_ENDPOINT` 是浏览器直传时实际访问的地址，预签名 URL 以它签名（缺省同 ENDPOINT）；MinIO 需 `LINGSHU_S3_FORCE_PATH_STYLE=true`。compose 里的 MinIO 用 `LINGSHU_CORS_ALLOWED_ORIGINS` 作为 CORS 放行来源。
 - `LINGSHU_QUEUE_PREFIX`：BullMQ 在 Redis 中的键前缀（默认 `lingshu`，测试用 `lingshu_test`）。
+- `LINGSHU_SERVER_HOST`：默认 `127.0.0.1`，同机 Nginx 反代；容器内运行 API 时按网络模型改为 `0.0.0.0`。
+- `LINGSHU_METRICS_TOKEN`：可选，至少 32 字符；抓取时使用 Bearer token，与登录 JWT 无关。生产 Nginx 禁止公网访问 metrics。
 
 ## 约定
 

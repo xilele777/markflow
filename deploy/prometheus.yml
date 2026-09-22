@@ -1,0 +1,14 @@
+# 合并到现有 Prometheus；Prometheus 需与后端同机/同网络 namespace。
+global:
+  scrape_interval: 30s
+  scrape_timeout: 5s
+rule_files:
+  - lingshu-alerts.yml
+scrape_configs:
+  - job_name: lingshu
+    metrics_path: /api/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/lingshu-metrics-token
+    static_configs:
+      - targets: ['127.0.0.1:8080']

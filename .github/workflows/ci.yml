@@ -1,11 +1,20 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, master]
   pull_request:
 
 jobs:
+  deployment-scripts:
+    name: Deployment scripts (local fixtures only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n scripts/activate.sh scripts/smoke.sh scripts/backup-pg.sh scripts/test-activate.sh
+      - run: shellcheck scripts/activate.sh scripts/smoke.sh scripts/backup-pg.sh scripts/test-activate.sh
+      - run: bash scripts/test-activate.sh
   lint:
     name: Lint / Format / Typecheck
     runs-on: ubuntu-latest
@@ -50,7 +59,7 @@ jobs:
       LINGSHU_PG_PASSWORD: ci_pg_pwd
       LINGSHU_REDIS_HOST: 127.0.0.1
       LINGSHU_REDIS_PORT: '6379'
-      LINGSHU_REDIS_PASSWORD: ''
+      LINGSHU_REDIS_PASSWORD: ci_redis_pwd
       LINGSHU_S3_ENDPOINT: http://127.0.0.1:9000
       LINGSHU_S3_PUBLIC_ENDPOINT: http://127.0.0.1:9000
       LINGSHU_S3_REGION: us-east-1
@@ -68,6 +77,8 @@ jobs:
           node-version: 22
           cache: npm
       # MinIO 需要自定义启动命令，GitHub services 不支持，故用容器手动起。
+      - name: Configure Redis password
+        run: docker exec "${{ job.services.redis.id }}" redis-cli CONFIG SET requirepass ci_redis_pwd
       - name: Start MinIO
         run: |
           docker run -d --name minio -p 9000:9000 \
@@ -77,6 +88,7 @@ jobs:
             curl -sf http://127.0.0.1:9000/minio/health/live && break
             sleep 1
           done
+          curl --fail --silent http://127.0.0.1:9000/minio/health/live
           docker run --rm --network host --entrypoint /bin/sh quay.io/minio/mc:latest -c \
             "mc alias set local http://127.0.0.1:9000 ci-minio ci_minio_pwd && mc mb --ignore-existing local/lingshu"
       - run: npm ci
@@ -85,7 +97,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint]
+    needs: [lint, test, deployment-scripts]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -94,3 +106,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-dist
+          path: |
+            dist/
+            package.json
+            package-lock.json
+          retention-days: 7

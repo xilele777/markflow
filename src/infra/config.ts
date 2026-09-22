@@ -15,6 +15,12 @@ function isValidTimeZone(timeZone: string): boolean {
 const envSchema = z.object({
   LINGSHU_SERVER_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   LINGSHU_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
+  LINGSHU_SERVER_HOST: z.string().min(1).default('127.0.0.1'),
+  LINGSHU_RELEASE_ID: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/)
+    .default('development'),
+  LINGSHU_METRICS_TOKEN: z.string().min(32).optional(),
   LINGSHU_TRUST_PROXY: z.string().default('false'),
   // 按天统计（我的贡献）使用的 IANA 时区；对应 Java JDBC serverTimezone=Asia/Shanghai。
   LINGSHU_TIMEZONE: z
@@ -69,6 +75,8 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export interface AppConfig {
   server: {
+    host: string;
+    releaseId: string;
     port: number;
     logLevel: LogLevel;
     trustProxy: boolean | number | string;
@@ -101,6 +109,7 @@ export interface AppConfig {
     forcePathStyle: boolean;
   };
   queue: { prefix: string };
+  monitoring: { metricsToken: string | undefined };
 }
 
 export class ConfigError extends Error {
@@ -144,6 +153,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const e = result.data;
   return {
     server: {
+      host: e.LINGSHU_SERVER_HOST,
+      releaseId: e.LINGSHU_RELEASE_ID,
       port: e.LINGSHU_SERVER_PORT,
       logLevel: e.LINGSHU_LOG_LEVEL,
       trustProxy: parseTrustProxy(e.LINGSHU_TRUST_PROXY),
@@ -189,5 +200,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       forcePathStyle: parseBoolean(e.LINGSHU_S3_FORCE_PATH_STYLE, 'LINGSHU_S3_FORCE_PATH_STYLE'),
     },
     queue: { prefix: e.LINGSHU_QUEUE_PREFIX },
+    monitoring: { metricsToken: e.LINGSHU_METRICS_TOKEN },
   };
 }

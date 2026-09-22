@@ -5,6 +5,7 @@ import type { TaskRow } from '../../db/schema.js';
 import { ServiceError } from '../../infra/errors.js';
 import { LlmError, LlmErrorCode, type LlmClient } from '../../infra/llm.js';
 import type { Logger } from '../../infra/logger.js';
+import type { Metrics } from '../../infra/metrics.js';
 import type { AiConfigService } from '../aiconfig/aiconfig.service.js';
 import type { DatasetSampleRepository } from '../dataset/dataset-sample.repo.js';
 import type { CaseRepository } from './case.repo.js';
@@ -44,6 +45,7 @@ export interface AiTaskExecutorDeps {
   llm: LlmClient;
   taskService: TaskService;
   logger: Logger;
+  metrics: Metrics;
 }
 
 export type AiExecutionOutcome = 'done' | 'skipped' | 'failed';
@@ -72,10 +74,15 @@ export class AiTaskExecutor {
     try {
       await this.run(task);
       await this.clearFailure(task);
+      this.deps.metrics.ai.inc({ stage: String(task.taskType), outcome: 'success' });
       this.deps.logger.info({ taskId, taskType: task.taskType }, 'ai-task done');
       return 'done';
     } catch (err) {
       const failure = classify(err);
+      this.deps.metrics.ai.inc({
+        stage: String(task.taskType),
+        outcome: failure.retryable ? 'retryable_failure' : 'permanent_failure',
+      });
       await this.recordFailure(task, failure, attempt);
       this.deps.logger.error(
         { err, taskId, taskType: task.taskType, code: failure.code, retryable: failure.retryable },

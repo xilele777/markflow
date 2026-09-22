@@ -8,6 +8,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 import {
   GetObjectCommand,
   HeadObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -172,5 +173,12 @@ export class ObjectStorage {
   destroy(): void {
     this.internal.destroy();
     this.presigner.destroy();
+  }
+
+  /** 只读探测桶存在且凭据可访问，超时主动取消 S3 请求。 */
+  async checkHealth(): Promise<void> {
+    await this.internal.send(new HeadBucketCommand({ Bucket: this.bucket }), {
+      abortSignal: AbortSignal.timeout(1800),
+    });
   }
 }

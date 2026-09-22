@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   }
 
   const app = createApp(ctx);
-  const server = app.listen(config.server.port, () => {
+  const server = app.listen(config.server.port, config.server.host, () => {
     logger.info({ port: config.server.port }, 'lingshu-server listening');
   });
   const workers = startWorkers(ctx);

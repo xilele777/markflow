@@ -342,6 +342,14 @@ describe('AI 预标 / 预审 与 导出（消费者在进程内）', () => {
     expect((doneRow.ext as { aiFailure?: unknown } | null)?.aiFailure).toBeUndefined();
     // 已完成再执行 → skipped
     expect(await h.mod.aiExecutor.execute(t5.id)).toBe('skipped');
+    const metrics = await h.ctx.metrics.registry.metrics();
+    expect(metrics).toMatch(/lingshu_ai_executions_total\{stage="1",outcome="success"\} [1-9]/);
+    expect(metrics).toMatch(
+      /lingshu_ai_executions_total\{stage="1",outcome="permanent_failure"\} [1-9]/,
+    );
+    expect(metrics).toMatch(
+      /lingshu_ai_executions_total\{stage="1",outcome="retryable_failure"\} [1-9]/,
+    );
   });
 
   it('导出：CSV 与 JSONL 上传对象存储；详情返回现签的 downloadUrl；无结果的样本列为空', async () => {
