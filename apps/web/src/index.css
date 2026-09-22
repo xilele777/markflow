@@ -1,0 +1,27 @@
+/* 全局极简 reset。外观一律走 AntD + 主题 token（app/theme.ts），此处只做最基础归零。 */
+:root {
+  /* 全局缩放因子（见下方 body.zoom）。--app-vh = 缩放后正好铺满视口的高度，供全屏根容器用。 */
+  --app-zoom: 0.9;
+  --app-vh: calc(100vh / 0.9);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  /* 全局视觉密度：让 100% 浏览器缩放呈现 ≈ 90% 的观感（组件清单锁定 px 尺寸不动，整体缩放）。
+     zoom 同时作用于挂在 body 上的 AntD 浮层（下拉/弹窗/Toast），保持一致。
+     body 高度交给内容（auto）；铺满视口的壳/登录/执行页用 height: calc(100vh / 0.9)（缩放后正好 100vh）。 */
+  zoom: 0.9;
+  margin: 0;
+  /* 字体真源在 app/theme.ts（ConfigProvider）；此处兜底，防止字体闪烁。 */
+  font-family:
+    'IBM Plex Sans SC', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
