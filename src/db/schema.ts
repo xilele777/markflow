@@ -179,3 +179,7 @@ export type NewSysUser = Insertable<SysUserTable>;
 export type SysUserUpdate = Updateable<SysUserTable>;
 export type WorkspaceRow = Selectable<WorkspaceTable>;
 export type UserWorkspaceShipRow = Selectable<UserWorkspaceShipTable>;
+export type NewWorkspace = Insertable<WorkspaceTable>;
+export type NewUserWorkspaceShip = Insertable<UserWorkspaceShipTable>;
+export type LabelToolRow = Selectable<LingshuLabelToolTable>;
+export type NewLabelTool = Insertable<LingshuLabelToolTable>;

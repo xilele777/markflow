@@ -4,7 +4,10 @@ export type WorkspaceRoleName = keyof typeof WorkspaceRole;
 export type WorkspaceRoleCode = (typeof WorkspaceRole)[WorkspaceRoleName];
 
 const NAME_BY_CODE = new Map<number, WorkspaceRoleName>(
-  (Object.entries(WorkspaceRole) as [WorkspaceRoleName, number][]).map(([name, code]) => [code, name]),
+  (Object.entries(WorkspaceRole) as [WorkspaceRoleName, number][]).map(([name, code]) => [
+    code,
+    name,
+  ]),
 );
 
 export function isWorkspaceRoleCode(code: unknown): code is WorkspaceRoleCode {

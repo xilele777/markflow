@@ -25,14 +25,22 @@ describe('配置与首启引导', () => {
 
   it('JWT 密钥过短 → ConfigError', () => {
     expect(() =>
-      loadConfig({ LINGSHU_PG_PASSWORD: 'a', LINGSHU_REDIS_PASSWORD: 'b', LINGSHU_JWT_SECRET: 'short' }),
+      loadConfig({
+        LINGSHU_PG_PASSWORD: 'a',
+        LINGSHU_REDIS_PASSWORD: 'b',
+        LINGSHU_JWT_SECRET: 'short',
+      }),
     ).toThrow(/LINGSHU_JWT_SECRET/);
   });
 
   it('重复执行引导是幂等的：不改密钥、不重复建管理员', async () => {
     const secretBefore = await h.ctx.sysConfig.get(SYS_CONFIG_KEYS.jwtSecret);
     const result = await runBootstrap(h.ctx);
-    expect(result).toEqual({ jwtSecretWritten: false, jwtExpireWritten: false, adminCreated: false });
+    expect(result).toEqual({
+      jwtSecretWritten: false,
+      jwtExpireWritten: false,
+      adminCreated: false,
+    });
     h.ctx.sysConfig.invalidate();
     expect(await h.ctx.sysConfig.get(SYS_CONFIG_KEYS.jwtSecret)).toBe(secretBefore);
 

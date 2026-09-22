@@ -1,7 +1,14 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { UserStatus } from '../src/modules/user/enums.js';
-import { ADMIN, createTestHarness, createUser, login, uniq, type TestHarness } from './helpers/app.js';
+import {
+  ADMIN,
+  createTestHarness,
+  createUser,
+  login,
+  uniq,
+  type TestHarness,
+} from './helpers/app.js';
 
 describe('POST /api/auth/login', () => {
   let h: TestHarness;

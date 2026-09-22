@@ -22,6 +22,7 @@
     "infra:reset": "docker compose --env-file .env -f deploy/docker-compose.yml down -v"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",

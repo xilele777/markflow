@@ -12,3 +12,5 @@ process.env.LINGSHU_ADMIN_INITIAL_PASSWORD = 'admin123456';
 process.env.LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES = '3';
 process.env.LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES = '1';
 process.env.LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE = '10000';
+process.env.LINGSHU_CONFIG_ENC_KEY = 'test-only-config-enc-key-0123456789abcdef';
+process.env.LINGSHU_TIMEZONE = 'Asia/Shanghai';

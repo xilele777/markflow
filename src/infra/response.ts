@@ -31,6 +31,21 @@ export function fail(errorCode: ErrorCode, message?: string): Envelope<null> {
   };
 }
 
-export function page<T>(list: T[], total: number, pageNum: number, pageSize: number): PageEnvelope<T> {
+export function page<T>(
+  list: T[],
+  total: number,
+  pageNum: number,
+  pageSize: number,
+): PageEnvelope<T> {
   return { ...ok(list), total, pageNum, pageSize };
+}
+
+/** 领域层分页结果 → 分页包络。 */
+export function pageOf<T>(result: {
+  list: T[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+}): PageEnvelope<T> {
+  return page(result.list, result.total, result.pageNum, result.pageSize);
 }

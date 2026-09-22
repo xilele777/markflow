@@ -3,10 +3,24 @@ import { z } from 'zod';
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'] as const;
 
+function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const envSchema = z.object({
   LINGSHU_SERVER_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   LINGSHU_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   LINGSHU_TRUST_PROXY: z.string().default('false'),
+  // 按天统计（我的贡献）使用的 IANA 时区；对应 Java JDBC serverTimezone=Asia/Shanghai。
+  LINGSHU_TIMEZONE: z
+    .string()
+    .refine(isValidTimeZone, '不是合法的 IANA 时区名')
+    .default('Asia/Shanghai'),
 
   LINGSHU_PG_HOST: z.string().default('127.0.0.1'),
   LINGSHU_PG_PORT: z.coerce.number().int().default(5432),
@@ -24,6 +38,9 @@ const envSchema = z.object({
   LINGSHU_ADMIN_USERNAME: z.string().min(4).max(10).default('admin'),
   LINGSHU_ADMIN_INITIAL_PASSWORD: z.string().min(6, '管理员初始密码至少 6 位').optional(),
 
+  // 敏感配置（AI apiKey 等）的 AES-256-GCM 加密密钥；更换后历史密文无法解密。
+  LINGSHU_CONFIG_ENC_KEY: z.string().min(32, '配置加密密钥至少 32 字符'),
+
   LINGSHU_CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
   LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE: z.coerce.number().int().positive().default(600),
   LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES: z.coerce.number().int().positive().default(5),
@@ -33,7 +50,12 @@ const envSchema = z.object({
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export interface AppConfig {
-  server: { port: number; logLevel: LogLevel; trustProxy: boolean | number | string };
+  server: {
+    port: number;
+    logLevel: LogLevel;
+    trustProxy: boolean | number | string;
+    timeZone: string;
+  };
   pg: { host: string; port: number; database: string; user: string; password: string };
   redis: { host: string; port: number; password: string };
   bootstrap: {
@@ -42,6 +64,7 @@ export interface AppConfig {
     adminUsername: string;
     adminInitialPassword: string | undefined;
   };
+  security: { configEncKey: string };
   cors: { allowedOrigins: string[] };
   rateLimit: { globalPerMinute: number; loginMaxFailures: number; loginWindowMinutes: number };
 }
@@ -78,6 +101,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       port: e.LINGSHU_SERVER_PORT,
       logLevel: e.LINGSHU_LOG_LEVEL,
       trustProxy: parseTrustProxy(e.LINGSHU_TRUST_PROXY),
+      timeZone: e.LINGSHU_TIMEZONE,
     },
     pg: {
       host: e.LINGSHU_PG_HOST,
@@ -97,6 +121,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       adminUsername: e.LINGSHU_ADMIN_USERNAME,
       adminInitialPassword: e.LINGSHU_ADMIN_INITIAL_PASSWORD,
     },
+    security: { configEncKey: e.LINGSHU_CONFIG_ENC_KEY },
     cors: {
       allowedOrigins: e.LINGSHU_CORS_ALLOWED_ORIGINS.split(',')
         .map((s) => s.trim())

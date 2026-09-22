@@ -1,6 +1,6 @@
 # 灵枢 LingShu · 后端（Node + TypeScript）
 
-灵枢数据标注平台后端的 TS 重写，接口契约与灵枢 React 前端（`../lingshu-web`）严格一致。规格来源与里程碑见 `../docs/`（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引）。
+灵枢数据标注平台后端的 TS 重写，接口契约与灵枢 React 前端（`../lingshu-web`）严格一致。规格来源与里程碑见 `../docs/`（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引，`handoff/` 最新一篇为当前状态）。
 
 ## 5 分钟起步
 
@@ -35,18 +35,37 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 | `npm run migrate` | 单独执行迁移（启动时也会自动执行） |
 | `npm run infra:up` / `infra:down` / `infra:reset` | 中间件容器启停；`reset` 会删数据卷 |
 
+## 已实现接口
+
+| 模块 | 端点（均在 `/api` 下；除登录外需 `Authorization: Bearer <jwt>`） |
+|---|---|
+| health | `GET /health` |
+| auth | `POST /auth/login` |
+| user | `POST /user/create`、`POST /user/getUserList`、`GET /user/getCurrentUser`、`POST /user/changePassword`、`POST /user/getMyContribution` |
+| workspace | `POST /workspace/createWorkspace`、`getWorkspaceList`、`addWorkspaceMember`、`getWorkspaceDetail` |
+| labeltool | `POST /labeltool/createLabelTool`、`getLabelToolList`、`getLabelToolDetail` |
+| aiconfig | `POST /aiconfig/createAiConfig`、`updateAiConfig`、`getAiConfigList` |
+
+入参出参与权限规则见 `../docs/reference/0002-*` §3；dataset / case / task / taskgroup 在后续里程碑。
+
 ## 配置
 
 全部来自环境变量（启动时读仓库根 `.env`，已存在的进程变量优先），清单与说明见 `.env.example`。口令无默认值，缺失即退出。
 
-首启引导（幂等）：`sys_config` 缺 `jwt.secret` / `jwt.expireSeconds` 时从 `LINGSHU_JWT_SECRET` / `LINGSHU_JWT_EXPIRE_SECONDS` 写入；`LINGSHU_ADMIN_USERNAME`（默认 `admin`）不存在时用 `LINGSHU_ADMIN_INITIAL_PASSWORD` 创建。已有记录不会被修改。
+- 首启引导（幂等）：`sys_config` 缺 `jwt.secret` / `jwt.expireSeconds` 时从 `LINGSHU_JWT_SECRET` / `LINGSHU_JWT_EXPIRE_SECONDS` 写入；`LINGSHU_ADMIN_USERNAME`（默认 `admin`）不存在时用 `LINGSHU_ADMIN_INITIAL_PASSWORD` 创建。已有记录不会被修改。
+- `LINGSHU_CONFIG_ENC_KEY`：AI 配置的 apiKey 以 AES-256-GCM 加密后存入 `sys_config[ai.configList]`（密文形如 `enc:v1:…`；无前缀的历史明文可读、下次写入时自动加密）。更换密钥后历史密文无法解密。
+- `LINGSHU_TIMEZONE`：「我的贡献」按天统计使用的 IANA 时区，默认 `Asia/Shanghai`。
 
 ## 约定
 
 - 响应包络 `{success, code, message, data, timestamp}`；分页顶层加 `total/pageNum/pageSize`。成功 `code` 为 `SUCCESS`。
 - 错误码字符串沿用 Java 各 `*ErrorCode` 枚举名。HTTP 状态：`UNAUTHORIZED` 401、`FORBIDDEN`/`PERMISSION_DENIED` 403、`TOO_MANY_REQUESTS` 429，其余 200。
 - 时间戳全部毫秒 number；枚举走 number code；jsonb 列写入时 `JSON.stringify`。
-- 用作查找键的字符串列（username、space_code、各 `*_code`、dataset_name、case name、annotator、config_key）为 PostgreSQL `citext`，等值比较大小写不敏感，复刻原 MySQL `utf8mb4_general_ci` 语义。
+- 用作查找键的字符串列（username、space_code、各 `*_code`、dataset_name、case name、annotator、config_key）为 PostgreSQL `citext`，等值比较大小写不敏感，复刻原 MySQL `utf8mb4_general_ci` 语义；模糊搜索用 `ILIKE` 并转义通配符。
+- 分页：pageNum 默认 1（<1 → PARAM_INVALID），pageSize 默认 20、范围 1-100；排序 create_time、id 降序（`src/modules/common/pagination.ts`）。
+- 写路径并发：Redis 锁（`src/infra/lock.ts`，键 `lock:<name>`，wait 3s / lease 10s）+ 数据库唯一约束双保险；拿不到锁抛各模块 `OPERATION_CONFLICT`。
+- 权限判定集中在 `src/modules/common/permission.ts`（按库实时查，不信任 token）：系统管理员、空间 LABEL_ADMIN、任意空间 LABEL_ADMIN 及其组合。
+- 路由层 zod 只约束 JSON 类型（错类型 → PARAM_INVALID），空值与业务规则在服务层判断并返回 Java 同款错误码与文案。
 
 ## 目录
 
@@ -54,9 +73,12 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 src/
   main.ts            进程入口：env → 配置 → 连接 → 迁移 → 引导 → 监听
   app/               Express 装配、上下文、中间件（鉴权 / 错误处理 / 限流 / 校验 / 请求日志）
-  infra/             配置、日志、错误码、包络、db、redis、jwt、bcrypt、sys_config、首启引导
+  infra/             配置、日志、错误码、包络、db、redis、jwt、bcrypt、sys_config、首启引导、
+                     Redis 锁、AES-GCM 加密盒、JSON Schema 编译
   db/                Kysely 表类型、迁移（静态注册）、migrate CLI
-  modules/<domain>/  路由 + 服务 + 仓储 + 枚举 + 错误码（auth / user / workspace / health）
-tests/               vitest + supertest；global-setup 重建 lingshu_test
+  modules/common/    分页、字符串、zod 片段、操作者类型、权限判定
+  modules/<domain>/  路由 + 服务 + 仓储 + 枚举 + 错误码
+                     （auth / user / workspace / labeltool / aiconfig / task(仅统计仓储) / health）
+tests/               vitest + supertest；global-setup 重建 lingshu_test；helpers/ 造数据
 deploy/              docker-compose.yml（pg / redis / minio）
 ```

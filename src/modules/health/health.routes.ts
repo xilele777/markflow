@@ -15,7 +15,10 @@ interface ProbeResult {
 async function probe(fn: () => Promise<unknown>): Promise<ProbeResult> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`timeout after ${PROBE_TIMEOUT_MS}ms`)), PROBE_TIMEOUT_MS);
+    timer = setTimeout(
+      () => reject(new Error(`timeout after ${PROBE_TIMEOUT_MS}ms`)),
+      PROBE_TIMEOUT_MS,
+    );
   });
   try {
     await Promise.race([fn(), timeout]);

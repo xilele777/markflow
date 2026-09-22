@@ -6,9 +6,12 @@ import { createAuthMiddleware } from './middleware/auth.js';
 import { createErrorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { createRateLimit } from './middleware/rate-limit.js';
 import { createRequestLogger } from './middleware/request-logger.js';
+import { createAiConfigRouter } from '../modules/aiconfig/aiconfig.routes.js';
 import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createHealthRouter } from '../modules/health/health.routes.js';
+import { createLabelToolRouter } from '../modules/labeltool/labeltool.routes.js';
 import { createUserRouter } from '../modules/user/user.routes.js';
+import { createWorkspaceRouter } from '../modules/workspace/workspace.routes.js';
 
 const JSON_BODY_LIMIT = '2mb';
 const PREFLIGHT_MAX_AGE_SECONDS = 3600;
@@ -52,6 +55,9 @@ export function createApp(ctx: AppContext): Express {
 
   const requireAuth = createAuthMiddleware(ctx.sysConfig);
   app.use('/api/user', requireAuth, createUserRouter(ctx));
+  app.use('/api/workspace', requireAuth, createWorkspaceRouter(ctx));
+  app.use('/api/labeltool', requireAuth, createLabelToolRouter(ctx));
+  app.use('/api/aiconfig', requireAuth, createAiConfigRouter(ctx));
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));

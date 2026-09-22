@@ -48,7 +48,10 @@ export class ServiceError extends Error {
   readonly headers: Record<string, string> | undefined;
 
   constructor(errorCode: ErrorCode, message?: string, options?: ServiceErrorOptions) {
-    super(message ?? errorCode.message, options?.cause === undefined ? undefined : { cause: options.cause });
+    super(
+      message ?? errorCode.message,
+      options?.cause === undefined ? undefined : { cause: options.cause },
+    );
     this.name = 'ServiceError';
     this.errorCode = errorCode;
     this.headers = options?.headers;

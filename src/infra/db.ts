@@ -23,3 +23,12 @@ export function createDb(cfg: AppConfig['pg'], poolSize = 10): Db {
     plugins: [new CamelCasePlugin()],
   });
 }
+
+const UNIQUE_VIOLATION = '23505';
+
+/** PostgreSQL 唯一约束冲突（SQLSTATE 23505）；给出约束名时须一致。锁之外的第二道防线。 */
+export function isUniqueViolation(err: unknown, constraint?: string): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const e = err as { code?: unknown; constraint?: unknown };
+  return e.code === UNIQUE_VIOLATION && (constraint === undefined || e.constraint === constraint);
+}

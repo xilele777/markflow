@@ -41,7 +41,11 @@ export class AuthService {
     return { token: await this.generateToken(user) };
   }
 
-  private async authenticate(username: string, password: string, clientIp: string): Promise<SysUserRow> {
+  private async authenticate(
+    username: string,
+    password: string,
+    clientIp: string,
+  ): Promise<SysUserRow> {
     const user = await this.deps.users.selectByUsername(username);
     const matched = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
     if (!user || !matched) {

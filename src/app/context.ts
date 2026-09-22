@@ -1,8 +1,10 @@
-// 应用上下文：配置、日志、DB、Redis、sys_config 服务。路由/服务通过它拿依赖，不用全局单例。
+// 应用上下文：配置、日志、DB、Redis、sys_config 服务、分布式锁、加密盒。路由/服务通过它拿依赖，不用全局单例。
 import type { AppConfig } from '../infra/config.js';
 import { createDb, type Db } from '../infra/db.js';
+import { RedisLock } from '../infra/lock.js';
 import { createLogger, type Logger } from '../infra/logger.js';
 import { createRedis, type Redis } from '../infra/redis.js';
+import { SecretBox } from '../infra/secret-box.js';
 import { SysConfigService } from '../infra/sys-config.js';
 
 export interface AppContext {
@@ -11,6 +13,8 @@ export interface AppContext {
   db: Db;
   redis: Redis;
   sysConfig: SysConfigService;
+  lock: RedisLock;
+  secretBox: SecretBox;
 }
 
 export interface CreateContextOptions {
@@ -28,7 +32,15 @@ export async function createContext(
   const redis = createRedis(config.redis);
   redis.on('error', (err) => logger.warn({ err }, 'redis error'));
   await redis.connect();
-  return { config, logger, db, redis, sysConfig: new SysConfigService(db) };
+  return {
+    config,
+    logger,
+    db,
+    redis,
+    sysConfig: new SysConfigService(db),
+    lock: new RedisLock(redis, logger),
+    secretBox: new SecretBox(config.security.configEncKey),
+  };
 }
 
 export async function destroyContext(ctx: AppContext): Promise<void> {

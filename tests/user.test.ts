@@ -42,7 +42,11 @@ describe('GET /api/user/getCurrentUser', () => {
   });
 
   it('签名不匹配 → 401', async () => {
-    const token = signToken({ userId: 1, username: 'admin' }, 'another-secret-another-secret-123456', 60);
+    const token = signToken(
+      { userId: 1, username: 'admin' },
+      'another-secret-another-secret-123456',
+      60,
+    );
     const res = await get(`Bearer ${token}`);
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('UNAUTHORIZED');
