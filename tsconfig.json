@@ -22,6 +22,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
+    /* 测试：vitest globals（describe/it/expect 免 import） */
+    "types": ["vitest/globals"],
+
     /* Path alias */
     "baseUrl": ".",
     "paths": {
