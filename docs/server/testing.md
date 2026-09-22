@@ -1,6 +1,6 @@
 # 后端测试与接口冒烟
 
-所有命令在 `lingshu-server/` 根目录执行。
+所有命令在 `apps/server/` 应用目录执行。
 
 单元与集成测试：`npm test`（连接真实 PostgreSQL / Redis / S3 测试环境，重建专用测试库；环境配置见 [开发指南](development.md)）。常规检查为 `npm run lint`、`npm run typecheck`、`npm run build`。
 

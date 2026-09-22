@@ -15,4 +15,4 @@ mv -- "$FILE.partial" "$FILE"
 (cd "$DEST" && sha256sum "$(basename "$FILE")") > "$FILE.sha256.partial"
 mv -- "$FILE.sha256.partial" "$FILE.sha256"
 echo "Backup ready: $FILE (upload off-host and restore-test before retention cleanup)"
-# 不自动删除；异地备份确认前保留所有副本。保留策略见 docs/deployment.md。
+# 不自动删除；异地备份确认前保留所有副本。保留策略见仓库根 docs/server/deployment.md。

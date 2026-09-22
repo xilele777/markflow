@@ -1,10 +1,10 @@
 # 灵枢 LingShu · 后端（Node + TypeScript）
 
-灵枢数据标注平台后端的 TS 重写，接口契约与灵枢 React 前端（`../lingshu-web`）严格一致。规格来源与里程碑见 `../../docs/`（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引，`handoff/` 最新一篇为当前状态）。
+灵枢数据标注平台后端的 TS 重写，接口契约与灵枢 React 前端（`../web`）严格一致。规格来源与里程碑见 [项目文档入口](../README.md)（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引，`handoff/` 最新一篇为当前状态）。
 
 M6 部署准备、生产配置、发布/回滚、备份恢复与切换验收见 [部署手册](deployment.md)。当前没有部署服务器，CD 默认关闭。
 
-本文命令与代码路径均相对于后端仓库根目录；前端仓库为同级 `lingshu-web/`。
+本文应用命令与代码路径均相对于 `apps/server/`；前端为同级 `../web/`。仓库根统一命令见 [README](../../README.md)。
 
 ## 5 分钟起步
 
@@ -26,7 +26,7 @@ curl -s -X POST http://127.0.0.1:8080/api/auth/login -H 'Content-Type: applicati
 curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer <token>"
 ```
 
-前端：`../lingshu-web` 执行 `npm run dev`，Vite 已把 `/api` 代理到 `127.0.0.1:8080`。
+前端：`../web` 执行 `npm run dev`，Vite 已把 `/api` 代理到 `127.0.0.1:8080`。
 
 ## 常用命令
 
@@ -65,7 +65,7 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 
 ## 配置
 
-全部来自环境变量（启动时读仓库根 `.env`，已存在的进程变量优先），清单与说明见 `.env.example`。口令无默认值，缺失即退出。
+全部来自环境变量（启动时读应用目录 `apps/server/.env`，已存在的进程变量优先），清单与说明见 `.env.example`。口令无默认值，缺失即退出。
 
 - 首启引导（幂等）：`sys_config` 缺 `jwt.secret` / `jwt.expireSeconds` 时从 `LINGSHU_JWT_SECRET` / `LINGSHU_JWT_EXPIRE_SECONDS` 写入；`LINGSHU_ADMIN_USERNAME`（默认 `admin`）不存在时用 `LINGSHU_ADMIN_INITIAL_PASSWORD` 创建。已有记录不会被修改。
 - `LINGSHU_CONFIG_ENC_KEY`：AI 配置的 apiKey 以 AES-256-GCM 加密后存入 `sys_config[ai.configList]`（密文形如 `enc:v1:…`；无前缀的历史明文可读、下次写入时自动加密）。更换密钥后历史密文无法解密。

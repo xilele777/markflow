@@ -1,73 +1,78 @@
-# 目录规范与整理记录
+# Monorepo 目录与历史
 
-日期：2026-09-22。两个应用仓库维持同级位置，现有启动、CI、相邻仓库打包路径保持有效。
+日期：2026-09-22。`F:/label` 现在是唯一 Git 工作树，分支为 `main`。前后端不是子模块，也没有嵌套的活动 Git 仓库。
 
 ```text
 label/
-  README.md
+  .git/                       唯一活动仓库
+  .github/workflows/          ci.yml / deploy.yml
+  package.json               根命令入口，无运行依赖
+  package-lock.json           根入口锁文件，不合并应用依赖
+  apps/
+    server/
+      src/                    app / modules / infra / db
+      tests/                  后端单元与集成测试
+      scripts/                打包、发布、备份与 API 冒烟
+      deploy/                 Compose / PM2 / Nginx / 监控 / systemd
+      package.json / package-lock.json
+      .env                    本地配置，不入库
+    web/
+      src/                    app / features / shared / test / types
+      public/                 静态资源
+      e2e/                    Chrome 浏览器验收
+      scripts/                构建预算检查
+      examples/               本地 JSONL 样例，不入库
+      package.json / package-lock.json
   docs/
-    README.md                 工作区文档索引
-    verification.md           验收事实和未完成项
-    structure.md              目录规范与路径对照
-    plans/                    当前有效计划
-    handoff/                  按时间保留的状态快照
-    reference/                架构、规则、初期评估
-    archive/plans/            已被替代的计划
-  lingshu-server/
-    README.md
-    docs/                     development / testing / deployment
-    src/                      app / modules / infra / db
-    tests/                    后端自动化测试
-    scripts/                  打包、发布、备份、冒烟脚本
-    deploy/                   Compose / PM2 / Nginx / 监控 / systemd 配置
-    artifacts/                忽略入库的发布包与校验文件
-      archive/                旧打包试验和重复解包目录
-  lingshu-web/
-    README.md / CLAUDE.md      项目入口与工具识别入口
-    docs/
-      INDEX.md                前端规范索引
-      testing.md              浏览器验收
-      examples.md             本地样例说明
-      standards/              前端规范
-      design/                 历史设计原型、截图与交接资料
-    src/                      app / features / shared / test / types
-    public/                   静态资源
-    e2e/                      浏览器验收脚本
-    scripts/                  构建门禁
-    examples/                 datasets / users，本地 JSONL 文件不入库
-  LabelHub/                   旧系统，完整保留
-  submission/                 原始交付规格与参考资料，完整保留
+    server/                   开发、测试、部署手册
+    web/                      规范、接入、测试、历史设计
+    plans/                    有效规划
+    handoff/                  按时间保留的交接
+    reference/                架构、规则与初期评估
+    archive/plans/            失效计划
+  tests/                      仓库级发布打包测试
+  artifacts/                  本地打包目录、归档和 SHA256，不入库
+  .migration-backup/          合仓前 Git 元数据和 bundles，不入库
 ```
 
-仓库根还保留工具要求的 package.json、锁文件、TypeScript / Vite / ESLint 配置、`.github/` 等，避免为追求层级而改变工具发现规则。`.env`、本地依赖、现用 dist 和数据库卷保留；不在目录整理时重置环境或删除业务数据。
+## 维护约定
+
+一次业务改动可同时提交前后端与文档。根 `npm run setup` 分别按两份锁文件执行 npm ci；没有依赖提升或 npm workspaces，不引入 Nx / Turbo。各应用仍可独立安装、开发、构建和运行。
+
+全部 GitHub 工作流在根 `.github/workflows/`。统一 CI 分别检查前后端，并执行打包测试和发布脚本夹具。CD 默认关闭，未来只检出一个确定的提交构建两端，发布包的 repository / server / web SHA 相同。Linux release 内部的 `server/`、`web/`、`scripts/` 布局保持不变。
+
+`.env`、node_modules、dist、本地样例、artifacts 和迁移备份不提交。项目文档统一在根 docs；应用 README 仅提供入口，CLAUDE.md 按工具发现规则保留。
+
+## 完整历史如何保留
+
+原仓库最后提交为后端 `afc71f21a22f084a1d49f668555f6804db8518cf`、前端 `5a71ec2db8506b860faf6d39c8c53ecaca815af5`。通过保留双方父提交的合并，把当前源码树导入 apps/server 与 apps/web；没有 squash 或改写旧提交。
+
+- `migration/server-before-monorepo`：原后端最后提交的标签。
+- `migration/web-before-monorepo`：原前端最后提交的标签。
+- `git log --graph --all --oneline`：查看整体历史。
+- `git log migration/server-before-monorepo -- src/main.ts`：按旧路径查原后端历史。
+- `git log migration/web-before-monorepo -- src/app/router.tsx`：按旧路径查原前端历史。
+
+历史提交中的文件仍使用当时仓库根路径；合仓后的文件用 apps/ 前缀。原远端配置只留在本机备份，不自动成为新仓库 remote。
 
 ## 旧路径对照
 
-以下均相对于工作区根目录；旧快照中的路径按此查找。
-
-| 原路径 | 新路径 |
+| 旧路径 | 当前路径 |
 |---|---|
-| `灵枢迁移报告与总体计划.md` | `docs/reference/灵枢迁移报告与总体计划.md` |
-| `项目质量分析与迁移评估.md` | `docs/reference/项目质量分析与迁移评估.md` |
-| `docs/plans/0001-*.md` | `docs/archive/plans/0001-*.md` |
-| `docs/superpowers/plans/2026-09-22-lingshu-migration-phase1-reproducible-and-secure.md` | `docs/archive/plans/2026-09-22-lingshu-migration-phase1-reproducible-and-secure.md` |
-| 原后端长篇 `lingshu-server/README.md` | `lingshu-server/docs/development.md`；根 README 改为简短入口 |
-| `lingshu-server/DEPLOY.md` | `lingshu-server/docs/deployment.md` |
-| `lingshu-server/scripts/smoke/README.md` | `lingshu-server/docs/testing.md` |
-| `lingshu-web/e2e/README.md` | `lingshu-web/docs/testing.md` |
-| `lingshu-web/claudeDesign/lingshu/` | `lingshu-web/docs/design/` |
-| `lingshu-web/` 根下三个数据集 JSONL | `lingshu-web/examples/datasets/` |
-| `lingshu-web/import-users-30.jsonl` | `lingshu-web/examples/users/import-users-30.jsonl` |
-| `lingshu-server/artifacts/m6-local-validation/` | `lingshu-server/artifacts/archive/m6-local-validation/` |
-| `lingshu-server/artifacts/m6-ready-20260922/` | `lingshu-server/artifacts/archive/m6-ready-20260922/` |
+| `lingshu-server/` | `apps/server/` |
+| `lingshu-web/` | `apps/web/` |
+| `lingshu-server/DEPLOY.md` 或 `lingshu-server/docs/deployment.md` | `docs/server/deployment.md` |
+| 原后端长 README 或 `lingshu-server/docs/development.md` | `docs/server/development.md` |
+| `lingshu-server/scripts/smoke/README.md` 或 `lingshu-server/docs/testing.md` | `docs/server/testing.md` |
+| `lingshu-web/docs/` | `docs/web/` |
+| `lingshu-web/e2e/README.md` | `docs/web/testing.md` |
+| `lingshu-web/claudeDesign/lingshu/` | `docs/web/design/` |
+| 前端根 JSONL 样例 | `apps/web/examples/datasets/` 与 `apps/web/examples/users/` |
+| `lingshu-server/artifacts/` | 根 `artifacts/`；旧实验 / 解包目录仍在其 archive/ |
+| 根两份早期评估报告 | `docs/reference/` 内同名文件 |
+| `docs/plans/0001-*`、`docs/superpowers/plans/*` | `docs/archive/plans/` |
+| 两个应用各自的 `.github/workflows/` | 根 `.github/workflows/`，已合并与改写 |
 
-## 清理与保留
+历史 handoff 保留原文，按此映射读取。LabelHub 与 submission 在本轮开始时已不在工作区，本轮未删除、移动或导入它们；历史资料中指向它们的引用仅用于追溯，不代表现存备份位置。
 
-- 删除无引用的 `src/app/layout/PagePlaceholder.tsx`，包括两个旧占位组件；现有路由不依赖它们。
-- 移除前端 `.prettierignore` 失效的 `claudeDesign` 项；新设计路径已被既有 `docs` 规则覆盖。
-- 两个生成物目录原计划删除；自动审批返回 `blocked by policy`，因此改为可逆归档，未删除。移动前已逐文件核对正式解包目录与压缩包，357 文件完全一致。
-- 正式 `.tar.gz` 和 `.sha256` 留在 artifacts 顶层；打包脚本和 CI 路径不变。归档目录不作为新的候选版本。
-- 文档移动后修复当前链接，历史 handoff 不改写。迁移留下的空父目录可能仍在本机，不包含内容，也不进入 Git。
-- LabelHub 与 submission 仍有规格与回退价值，不属于当前可删垃圾；未移动、未封存。
-
-工作区根不在 Git 中；应备份根 README、根 docs、被忽略的本地样例和发布包。仓库专属文档留在各自 Git 中，不建立需要管理员权限的跨仓库软链接。
+备份目录中的 server.bundle / web.bundle 已通过 git bundle verify，另保留两边完整 `.git` 元数据和根文档迁移前副本；这些仅在本机，不应随新仓库发布。数据卷及应用 .env 随原环境保留，Git 历史备份不能替代数据库和对象存储备份。

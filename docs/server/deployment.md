@@ -2,7 +2,7 @@
 
 **当前仅完成部署前准备。服务器尚未准备好，未部署、未切域名、未 push，也未启用 CD。** 本文命令供后续服务器就绪后执行；本地构建、测试和打包不需要服务器。M6 的真实服务器、GitHub CI 和业务切换验收仍待完成。
 
-本文仓库文件路径与本地构建命令均相对于 `lingshu-server/` 根目录；Linux 服务器命令中的绝对路径保持原样。
+本文部署资产路径相对于 `apps/server/`；第 2 节本地命令明确从 monorepo 根目录执行。Linux 服务器命令中的绝对路径和 release 内部结构保持原样。
 
 ## 1. 发布模型与资产
 
@@ -15,7 +15,7 @@
     web/{index.html,assets/...}
     scripts/{activate.sh,smoke.sh,smoke.mjs}
     ecosystem.config.cjs
-    release.json                 # 配对的前后端 SHA、构建时间、工作区是否有改动
+    release.json                 # 统一仓库 SHA、构建时间、工作区是否有改动
   current -> releases/<release>   # 同一文件系统内 mv -T 原子切换
   shared/
     server.env                   # 0600，只由 Node --env-file 读取
@@ -34,35 +34,30 @@
 
 ## 2. 本地准备（可立即执行）
 
-在两个仓库分别安装锁定依赖并构建：
+从 monorepo 根目录执行，首次先创建并配置 `apps/server/.env`（已有配置不要覆盖）：
 
 ```bash
-# lingshu-server
-npm ci
+npm run setup
 npm run infra:up
 npm run lint
-npx prettier --check src tests
 npm run typecheck
 npm test
 npm run build
-bash -n scripts/activate.sh scripts/smoke.sh scripts/backup-pg.sh scripts/test-activate.sh
-shellcheck scripts/activate.sh scripts/smoke.sh scripts/backup-pg.sh scripts/test-activate.sh
-bash scripts/test-activate.sh  # Linux 临时目录 + 假进程，无真实部署
+# 以下 Linux 脚本可在隔离容器运行；无真实部署
+(cd apps/server && npx prettier --check src tests)
+bash -n apps/server/scripts/activate.sh apps/server/scripts/smoke.sh apps/server/scripts/backup-pg.sh apps/server/scripts/test-activate.sh
+shellcheck apps/server/scripts/activate.sh apps/server/scripts/smoke.sh apps/server/scripts/backup-pg.sh apps/server/scripts/test-activate.sh
+bash apps/server/scripts/test-activate.sh
 
-# lingshu-web
-npm ci
-npx eslint . --max-warnings 100
-npm run typecheck
-npm test
-npm run build:check
-
-# 返回 lingshu-server；release 名不得重复
-node scripts/package-release.mjs ../lingshu-web ./artifacts m6-candidate
-tar -C artifacts -czf m6-candidate.tar.gz m6-candidate
-sha256sum m6-candidate.tar.gz > m6-candidate.tar.gz.sha256
+# release 名不得重复；两个应用从同一个提交构建
+npm run package:release -- apps/web artifacts m6-candidate
+tar -C artifacts -czf artifacts/m6-candidate.tar.gz m6-candidate
+(cd artifacts && sha256sum m6-candidate.tar.gz > m6-candidate.tar.gz.sha256)
 ```
 
-打包仅复制白名单文件，不含 `.env`、源码、Git 或 node_modules；`artifacts/` 被忽略。Windows 可用 PowerShell 运行 Node 打包，Linux 脚本用容器验证。正式发布应使用两个干净工作区，确认 `release.json` 的 `serverDirty/webDirty=false`，并保存校验和与测试记录。构建机与生产均使用 Node 22+。
+打包仅复制白名单文件，不含 `.env`、源码、Git 或 node_modules；根 `artifacts/` 被忽略。默认参数始终按脚本所属 monorepo 定位 apps/web 和根 artifacts，显式路径参数相对于调用目录。Windows 可用 PowerShell 运行 Node 打包。
+
+正式发布使用干净的单一工作树，确认 `release.json` 的 `repositoryDirty/serverDirty/webDirty=false`，且 `repository/server/web` 为同一个 SHA。保留 server/web 字段兼容旧格式；旧双仓库发布包保留原 manifest，不改写为新 SHA。打包脚本会把共享文档或 CI 的未提交改动也标为 dirty，并拒绝跨仓库混配。构建机与生产均使用 Node 22+。
 
 ## 3. 服务器初始化（待服务器就绪）
 
@@ -155,18 +150,17 @@ pg_restore --exit-on-error --no-owner --no-privileges \
 
 ## 8. CI/CD（目前关闭）
 
-两个仓库的 CI 均支持 push/PR/手动运行，前后端的检查与构建都有门禁。后端已修复 CI Redis 密码缺失；MinIO 初始化会明确验证 readiness。后端没有 origin，前端现有 upstream 为来源仓库，**不要把来源仓库直接当作自己的发布目标**。先由项目负责人确定新的 GitHub 仓库/权限，再配置 remote 并 push；本次未做这些外部操作。
+根 `.github/workflows/ci.yml` 支持 main push / PR / 手动运行，同一次 CI 检查前后端、集成测试、打包测试和部署脚本夹具。当前 monorepo 未配置 remote、未 push，GitHub 实跑尚未验收。旧前端 upstream 不作为新项目发布目标。
 
-`deploy.yml` 已就位，仓库变量 `LINGSHU_DEPLOY_ENABLED` **未设置或 false 时所有部署 job 跳过**。服务器未就绪前保持关闭。启用后：main 的成功 push CI 触发配对构建；也可 main 手工触发。后端使用 CI 对应 SHA，前端使用显式固定的 40 位 SHA，重新运行两个仓库全部检查与后端集成测试，组装 tar/校验和；production environment 的发布 job 才读取 SSH 凭据、上传、校验并激活。不会自动切换 LabelHub 域名。
+根 `.github/workflows/deploy.yml` 只有仓库变量 `LINGSHU_DEPLOY_ENABLED=true` 时才允许准备发布；未设置或 false 时所有部署 job 跳过。服务器未就绪前保持关闭。启用后，main 的成功 push CI 或 main 手动运行会检出该次 CI / 运行的精确 SHA，并从同一工作树重跑两端检查与后端集成测试，组装 tar / 校验和。production environment 的 job 才读取 SSH 凭据、上传、校验并激活。不会自动切换 LabelHub 域名。
+
+合仓后不再需要单独的前端仓库变量、前端 SHA 变量或跨仓库读取 token；统一仓库的一次提交即配对版本。
 
 后续准备的 GitHub 配置：
 
 | 类型 | 名称 | 内容 |
 |---|---|---|
 | Repository variable | `LINGSHU_DEPLOY_ENABLED` | 仅服务器首发、备份与回滚演练通过后设 `true` |
-| Repository variable | `LINGSHU_WEB_REPOSITORY` | 自有前端 `owner/repo` |
-| Repository variable | `LINGSHU_WEB_SHA` | 与后端配对验收的完整 40 位 commit SHA；前端变更后更新并手工触发后端发布 |
-| Repository secret | `LINGSHU_WEB_READ_TOKEN` | 私有前端仓库 contents:read 凭据；公开仓库可省略 |
 | production environment secrets | `LINGSHU_DEPLOY_HOST/USER/PORT` | 服务器 DNS/IPv4、非 root lingshu、SSH 端口（显式填 22） |
 | production environment secrets | `LINGSHU_DEPLOY_KEY` | 专用 SSH 私钥 |
 | production environment secrets | `LINGSHU_DEPLOY_KNOWN_HOSTS` | 经服务器控制台/可信渠道核对的 host key；非默认端口使用 `[host]:port` |
@@ -176,7 +170,7 @@ production environment 限制 main，建议配置 reviewer；禁止免 host key 
 ## 9. 上线、切换和 LabelHub 封存检查表（待执行）
 
 - [ ] 服务器规格、域名、TLS、存储方案、备份去向与 RPO/RTO 已确定；强凭据已填齐。
-- [ ] 两个自有仓库 CI 在 GitHub 真正全绿；产物 SHA 与验收版本一致。
+- [ ] 统一仓库 CI 在 GitHub 真正全绿；产物 SHA 与验收版本一致。
 - [ ] 干净服务器按本手册首发成功；PM2/systemd 重启自恢复、日志轮转、备份与恢复演练通过。
 - [ ] 候选域名与 LabelHub 并行；`smoke.sh` 通过，已演练启动失败/冒烟失败回滚。
 - [ ] 在候选环境运行 `scripts/smoke/smoke-m1.mjs`、m2、m3 与前端 `e2e-m3/m4/m5.mjs`，覆盖浏览器真实 HTTPS 直传、导出、通知、截止、禁用和审核。`smoke-m3` 假 LLM 在执行脚本的本机监听，需与后端同机/在隔离验收环境执行；它会创建测试数据，不是只读生产探针。
@@ -185,4 +179,4 @@ production environment 限制 main，建议配置 reviewer；禁止免 host key 
 - [ ] 切后重新跑轻量冒烟与核心人工流程；异常时回退 Nginx 和配套静态目录，数据变更先评估再处理。
 - [ ] LabelHub 保持可启动、配置/数据库/对象数据可恢复至少两周；观察期后才打 `archive/final` 并在其 README 标明归档。当前没有修改 LabelHub。
 
-PM2 日志需设置 logrotate（每日/大小轮转、保留 14 天并按需脱敏归档），Nginx/系统日志使用发行版 logrotate；不要打印 .env、PM2 dump、token、S3 签名 URL。交接时补录部署时间、服务器、域名、配对 SHA、CI URL、冒烟和恢复演练结果，再将 M6 标为完成。
+PM2 日志需设置 logrotate（每日/大小轮转、保留 14 天并按需脱敏归档），Nginx/系统日志使用发行版 logrotate；不要打印 .env、PM2 dump、token、S3 签名 URL。交接时补录部署时间、服务器、域名、统一仓库 SHA、CI URL、冒烟和恢复演练结果，再将 M6 标为完成。

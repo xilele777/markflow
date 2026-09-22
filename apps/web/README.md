@@ -1,27 +1,14 @@
 # 灵枢前端
 
-React 18、TypeScript、Vite 6、Ant Design、TanStack Query、Puck。
+React 18、TypeScript、Vite 6、Ant Design、TanStack Query、Puck。源码位于 monorepo 的 `apps/web/`，后端在 `../server/`。
 
-后端位于同级 `lingshu-server/`；核心业务流程已通过本地验收，生产部署与切换尚未完成。当前数据集导入仅支持 JSONL，标注工具尚无更新入口。
+Node.js ≥ 22。从仓库根执行 `npm run setup`、`npm run dev:web`；也可进入本目录执行 `npm ci`、`npm run dev`。默认地址 `http://localhost:5173`，`/api` 代理到后端 `http://127.0.0.1:8080`。
 
-## 本地启动
+本目录常规检查：`npm run lint`、`npm run typecheck`、`npm test`、`npm run build:check`。
 
-Node.js ≥ 22，在本仓库根目录执行：
+- [规范与接入文档](../../docs/web/INDEX.md)
+- [浏览器验收](../../docs/web/testing.md)
+- [本地样例说明](../../docs/web/examples.md)
+- [项目文档总入口](../../docs/README.md)
 
-```bash
-npm ci
-npm run dev
-```
-
-默认地址 `http://localhost:5173`，`/api` 代理到 `http://127.0.0.1:8080`。
-
-常规检查：`npm run lint`、`npm run typecheck`、`npm test`、`npm run build:check`。
-
-## 文档与目录
-
-- [规范与接入文档索引](docs/INDEX.md)
-- [浏览器验收](docs/testing.md)
-- [本地样例说明](docs/examples.md)
-- [工作区文档总入口](../docs/README.md)（需要完整工作区）
-
-`src/` 放业务代码和单元测试，`public/` 放公共静态资源，`e2e/` 放浏览器脚本，`scripts/` 放构建检查，`docs/design/` 保存历史设计原型，`examples/` 收纳本地导入样例。`dist/`、`node_modules/` 和本地 JSONL 样例不提交到 Git。
+设计参考统一在根 `docs/web/design/`；本地导入样例在 `examples/`，JSONL 文件仍不入库。核心流程已通过本地验收，全部规划功能和生产切换尚未完成。

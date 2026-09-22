@@ -1,4 +1,4 @@
-/* ESLint 配置：见 docs/standards/工程结构.md
+/* ESLint 配置：见 ../../docs/web/standards/工程结构.md
    规则取向：禁内联 style、禁硬编码十六进制色值（走 token）、禁裸用未封装 AntD 组件。
    说明：「禁裸用 AntD 原始组件」靠约定 + code review 保证；这里用 no-restricted-imports
    对 'antd' 给出告警提示（shared/components、app/theme 等封装层除外）。 */

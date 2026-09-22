@@ -23,35 +23,21 @@ jobs:
        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     env:
-      WEB_REPOSITORY: ${{ vars.LINGSHU_WEB_REPOSITORY }}
-      WEB_SHA: ${{ vars.LINGSHU_WEB_SHA }}
       RELEASE: release-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Validate paired frontend revision
-        run: |
-          [[ "$WEB_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
-          [[ "$WEB_SHA" =~ ^[a-f0-9]{40}$ ]]
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          path: server
-          persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ vars.LINGSHU_WEB_REPOSITORY }}
-          ref: ${{ vars.LINGSHU_WEB_SHA }}
-          token: ${{ secrets.LINGSHU_WEB_READ_TOKEN || github.token }}
-          path: web
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            server/package-lock.json
-            web/package-lock.json
+            apps/server/package-lock.json
+            apps/web/package-lock.json
       - name: Backend checks on the exact revision
-        working-directory: server
+        working-directory: apps/server
         run: |
           npm ci
           npm run lint
@@ -64,30 +50,31 @@ jobs:
           npm run infra:up
           npm test
           npm run build
-      - name: Frontend checks on the pinned revision
-        working-directory: web
+      - name: Frontend checks on the same revision
+        working-directory: apps/web
         run: |
           npm ci
           npx eslint . --max-warnings 100
           npm run typecheck
           npm test
           npm run build:check
-      - name: Assemble paired immutable release
-        working-directory: server
+      - name: Verify monorepo packaging
+        run: npm run test:release
+      - name: Assemble immutable release from one commit
         run: |
-          node scripts/package-release.mjs ../web ./artifacts "$RELEASE"
-          tar -C artifacts -czf "$RELEASE.tar.gz" "$RELEASE"
-          sha256sum "$RELEASE.tar.gz" > "$RELEASE.tar.gz.sha256"
+          node apps/server/scripts/package-release.mjs apps/web artifacts "$RELEASE"
+          tar -C artifacts -czf "artifacts/$RELEASE.tar.gz" "$RELEASE"
+          (cd artifacts && sha256sum "$RELEASE.tar.gz" > "$RELEASE.tar.gz.sha256")
       - uses: actions/upload-artifact@v4
         with:
           name: release
           path: |
-            server/release-*.tar.gz
-            server/release-*.tar.gz.sha256
+            artifacts/release-*.tar.gz
+            artifacts/release-*.tar.gz.sha256
           retention-days: 14
       - name: Stop disposable CI infrastructure
         if: always()
-        working-directory: server
+        working-directory: apps/server
         run: |
           if [[ -f .env ]]; then npm run infra:down; fi
 

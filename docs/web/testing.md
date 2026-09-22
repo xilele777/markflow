@@ -1,13 +1,13 @@
 # 浏览器验收脚本（无头 Chrome + CDP）
 
-所有命令与脚本路径均相对于 `lingshu-web/` 根目录。单元 / 组件测试运行 `npm test`；完整构建门禁运行 `npm run build:check`。
+所有命令与脚本路径均相对于 `apps/web/` 应用目录。单元 / 组件测试运行 `npm test`；完整构建门禁运行 `npm run build:check`。
 
 对运行中的真实前端（Vite `http://localhost:5173`）与后端（`http://127.0.0.1:8080`）跑端到端流程。
 不依赖 Playwright / Puppeteer，只用 Node ≥ 22 自带的 `fetch` / `WebSocket` 和本机 Chrome。
 
 ## 前置
 
-- 后端：`lingshu-server` 已 `npm run infra:up` + `npm run dev`（8080）。
+- 后端：`apps/server` 已 `npm run infra:up` + `npm run dev`（8080）。
 - 前端：`npm run dev`（5173）。
 - Chrome：默认取 `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`（Windows）/ `/Applications/Google Chrome.app/...`（macOS）/ `google-chrome`（Linux）；可用第 3 个参数或环境变量 `LINGSHU_E2E_BROWSER` 覆盖。
 - 系统管理员账号默认 `admin / admin123456`，与后端 `.env` 的 `LINGSHU_ADMIN_USERNAME` / `LINGSHU_ADMIN_INITIAL_PASSWORD` 一致；不同时用同名环境变量覆盖。
