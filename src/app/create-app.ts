@@ -11,6 +11,12 @@ import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createDatasetRouter } from '../modules/dataset/dataset.routes.js';
 import { createHealthRouter } from '../modules/health/health.routes.js';
 import { createLabelToolRouter } from '../modules/labeltool/labeltool.routes.js';
+import { createTaskModule, type TaskModule } from '../modules/task/module.js';
+import {
+  createCaseRouter,
+  createTaskGroupRouter,
+  createTaskRouter,
+} from '../modules/task/task.routes.js';
 import { createUserRouter } from '../modules/user/user.routes.js';
 import { createWorkspaceRouter } from '../modules/workspace/workspace.routes.js';
 
@@ -23,8 +29,14 @@ function corsOrigin(allowedOrigins: string[]): CorsOptions['origin'] {
   return (origin, callback) => callback(null, !origin || allowed.has(origin));
 }
 
-export function createApp(ctx: AppContext): Express {
+export interface CreateAppOptions {
+  /** 复用外部构造的任务域（测试注入假 LLM 时与 worker 共用）。 */
+  taskModule?: TaskModule;
+}
+
+export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Express {
   const { config, logger } = ctx;
+  const taskModule = options.taskModule ?? createTaskModule(ctx);
   const app = express();
 
   app.set('trust proxy', config.server.trustProxy);
@@ -60,6 +72,9 @@ export function createApp(ctx: AppContext): Express {
   app.use('/api/labeltool', requireAuth, createLabelToolRouter(ctx));
   app.use('/api/aiconfig', requireAuth, createAiConfigRouter(ctx));
   app.use('/api/dataset', requireAuth, createDatasetRouter(ctx));
+  app.use('/api/case', requireAuth, createCaseRouter(ctx, taskModule));
+  app.use('/api/task', requireAuth, createTaskRouter(ctx, taskModule));
+  app.use('/api/taskgroup', requireAuth, createTaskGroupRouter(ctx, taskModule));
 
   app.use(notFoundHandler());
   app.use(createErrorHandler(logger));
