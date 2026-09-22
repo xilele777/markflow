@@ -37,8 +37,9 @@ export function LabelToolIframeFormDrawer({ open, onClose }: Props) {
   const [form] = Form.useForm<FormValues>();
   const [schemaError, setSchemaError] = useState<string | null>(null);
 
+  // 打开时重置（关闭时 Drawer 已 destroyOnHidden 卸载了 Form，此时 resetFields 会触发 antd「未连接 Form」警告）。
   useEffect(() => {
-    if (!open) {
+    if (open) {
       form.resetFields();
       setSchemaError(null);
     }

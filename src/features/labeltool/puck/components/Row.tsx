@@ -35,28 +35,31 @@ export const Row: ComponentConfig<RowProps> = {
     },
   },
   defaultProps: { columns: 2, gap: 16, align: 'top' },
-  render: ({ columns, gap, align }) => {
-    const { mode } = useRuntime();
-    const editing = mode === 'edit';
-    const n = Math.max(1, columns || 2);
-    const alignItems = align === 'center' ? 'center' : align === 'stretch' ? 'stretch' : 'flex-start';
-    return (
-      <div style={{ display: 'flex', gap: gap ?? 16, alignItems, marginBottom: 14 }}>
-        {Array.from({ length: n }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              ...(editing
-                ? { border: `1px dashed ${palette.border}`, borderRadius: 6, padding: 8, background: palette.surface }
-                : null),
-            }}
-          >
-            <DropZone zone={`cell-${i}`} minEmptyHeight={80} />
-          </div>
-        ))}
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 RowRender 里（rules-of-hooks）。
+  render: (props) => <RowRender {...props} />,
 };
+
+function RowRender({ columns, gap, align }: RowProps) {
+  const { mode } = useRuntime();
+  const editing = mode === 'edit';
+  const n = Math.max(1, columns || 2);
+  const alignItems = align === 'center' ? 'center' : align === 'stretch' ? 'stretch' : 'flex-start';
+  return (
+    <div style={{ display: 'flex', gap: gap ?? 16, alignItems, marginBottom: 14 }}>
+      {Array.from({ length: n }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            ...(editing
+              ? { border: `1px dashed ${palette.border}`, borderRadius: 6, padding: 8, background: palette.surface }
+              : null),
+          }}
+        >
+          <DropZone zone={`cell-${i}`} minEmptyHeight={80} />
+        </div>
+      ))}
+    </div>
+  );
+}

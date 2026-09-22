@@ -43,38 +43,41 @@ export const TextInput: ComponentConfig<TextInputProps> = {
     minHeight: minHeightField,
   },
   defaultProps: { label: '文本输入', resultKey: '', placeholder: '请输入', multiline: false, rows: 3, maxLength: 0, showCount: false, minHeight: 0 },
-  render: ({ label, resultKey, placeholder, multiline, rows, maxLength, showCount, minHeight }) => {
-    const { result, setField, mode } = useRuntime();
-    const value = resultKey ? ((result[resultKey] as string | undefined) ?? '') : '';
-    const disabled = mode === 'review';
-    const max = maxLength && maxLength > 0 ? maxLength : undefined;
-    return (
-      <div style={{ marginBottom: 14, minHeight: minHeight || undefined }}>
-        <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </div>
-        {multiline ? (
-          <Input.TextArea
-            value={value}
-            placeholder={placeholder}
-            disabled={disabled}
-            maxLength={max}
-            showCount={showCount}
-            autoSize={{ minRows: rows || 3, maxRows: Math.max(rows || 3, 8) }}
-            onChange={(e) => resultKey && setField(resultKey, e.target.value)}
-          />
-        ) : (
-          <Input
-            value={value}
-            placeholder={placeholder}
-            disabled={disabled}
-            maxLength={max}
-            showCount={showCount}
-            onChange={(e) => resultKey && setField(resultKey, e.target.value)}
-          />
-        )}
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 TextInputRender 里（rules-of-hooks）。
+  render: (props) => <TextInputRender {...props} />,
 };
+
+function TextInputRender({ label, resultKey, placeholder, multiline, rows, maxLength, showCount, minHeight }: TextInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const value = resultKey ? ((result[resultKey] as string | undefined) ?? '') : '';
+  const disabled = mode === 'review';
+  const max = maxLength && maxLength > 0 ? maxLength : undefined;
+  return (
+    <div style={{ marginBottom: 14, minHeight: minHeight || undefined }}>
+      <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </div>
+      {multiline ? (
+        <Input.TextArea
+          value={value}
+          placeholder={placeholder}
+          disabled={disabled}
+          maxLength={max}
+          showCount={showCount}
+          autoSize={{ minRows: rows || 3, maxRows: Math.max(rows || 3, 8) }}
+          onChange={(e) => resultKey && setField(resultKey, e.target.value)}
+        />
+      ) : (
+        <Input
+          value={value}
+          placeholder={placeholder}
+          disabled={disabled}
+          maxLength={max}
+          showCount={showCount}
+          onChange={(e) => resultKey && setField(resultKey, e.target.value)}
+        />
+      )}
+    </div>
+  );
+}

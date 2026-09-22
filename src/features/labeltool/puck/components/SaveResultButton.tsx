@@ -33,21 +33,24 @@ export const SaveResultButton: ComponentConfig<SaveResultButtonProps> = {
     },
   },
   defaultProps: { text: '保存标注结果', align: 'right', block: false },
-  render: ({ text, align, block }) => {
-    const { mode, saveResult, saving } = useRuntime();
-    const justify = align === 'center' ? 'center' : align === 'left' ? 'flex-start' : 'flex-end';
-    return (
-      <div style={{ marginTop: 8, marginBottom: 14, display: 'flex', justifyContent: block ? 'stretch' : justify }}>
-        <Button
-          type="primary"
-          block={block}
-          loading={saving}
-          disabled={mode === 'edit' || mode === 'review'}
-          onClick={() => saveResult?.()}
-        >
-          {text}
-        </Button>
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 SaveResultButtonRender 里（rules-of-hooks）。
+  render: (props) => <SaveResultButtonRender {...props} />,
 };
+
+function SaveResultButtonRender({ text, align, block }: SaveResultButtonProps) {
+  const { mode, saveResult, saving } = useRuntime();
+  const justify = align === 'center' ? 'center' : align === 'left' ? 'flex-start' : 'flex-end';
+  return (
+    <div style={{ marginTop: 8, marginBottom: 14, display: 'flex', justifyContent: block ? 'stretch' : justify }}>
+      <Button
+        type="primary"
+        block={block}
+        loading={saving}
+        disabled={mode === 'edit' || mode === 'review'}
+        onClick={() => saveResult?.()}
+      >
+        {text}
+      </Button>
+    </div>
+  );
+}

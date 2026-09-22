@@ -46,36 +46,39 @@ export const RadioInput: ComponentConfig<RadioInputProps> = {
     minHeight: minHeightField,
   },
   defaultProps: { label: '单选', resultKey: '', options: [{ label: '是' }, { label: '否' }], direction: 'horizontal', optionType: 'default', minHeight: 0 },
-  render: ({ label, resultKey, options, direction, optionType, minHeight }) => {
-    const { result, setField, mode } = useRuntime();
-    const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
-    const vertical = direction === 'vertical' && optionType !== 'button';
-    return (
-      <div style={{ marginBottom: 14, minHeight: minHeight || undefined }}>
-        <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </div>
-        <Radio.Group
-          disabled={mode === 'review'}
-          value={value}
-          optionType={optionType === 'button' ? 'button' : 'default'}
-          onChange={(e) => resultKey && setField(resultKey, e.target.value)}
-          style={vertical ? { display: 'flex', flexDirection: 'column', gap: 8 } : undefined}
-        >
-          {options.map((o, i) =>
-            optionType === 'button' ? (
-              <Radio.Button key={i} value={o.label}>
-                {o.label}
-              </Radio.Button>
-            ) : (
-              <Radio key={i} value={o.label}>
-                {o.label}
-              </Radio>
-            ),
-          )}
-        </Radio.Group>
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 RadioInputRender 里（rules-of-hooks）。
+  render: (props) => <RadioInputRender {...props} />,
 };
+
+function RadioInputRender({ label, resultKey, options, direction, optionType, minHeight }: RadioInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
+  const vertical = direction === 'vertical' && optionType !== 'button';
+  return (
+    <div style={{ marginBottom: 14, minHeight: minHeight || undefined }}>
+      <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </div>
+      <Radio.Group
+        disabled={mode === 'review'}
+        value={value}
+        optionType={optionType === 'button' ? 'button' : 'default'}
+        onChange={(e) => resultKey && setField(resultKey, e.target.value)}
+        style={vertical ? { display: 'flex', flexDirection: 'column', gap: 8 } : undefined}
+      >
+        {options.map((o, i) =>
+          optionType === 'button' ? (
+            <Radio.Button key={i} value={o.label}>
+              {o.label}
+            </Radio.Button>
+          ) : (
+            <Radio key={i} value={o.label}>
+              {o.label}
+            </Radio>
+          ),
+        )}
+      </Radio.Group>
+    </div>
+  );
+}

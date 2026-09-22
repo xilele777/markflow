@@ -27,23 +27,26 @@ export const RateInput: ComponentConfig<RateInputProps> = {
     },
   },
   defaultProps: { label: '评分', resultKey: '', count: 5, allowHalf: false },
-  render: ({ label, resultKey, count, allowHalf }) => {
-    const { result, setField, mode } = useRuntime();
-    const value = resultKey ? (result[resultKey] as number | undefined) : undefined;
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </div>
-        <Rate
-          count={count || 5}
-          allowHalf={allowHalf}
-          disabled={mode === 'review'}
-          value={value}
-          onChange={(v) => resultKey && setField(resultKey, v)}
-        />
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 RateInputRender 里（rules-of-hooks）。
+  render: (props) => <RateInputRender {...props} />,
 };
+
+function RateInputRender({ label, resultKey, count, allowHalf }: RateInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const value = resultKey ? (result[resultKey] as number | undefined) : undefined;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </div>
+      <Rate
+        count={count || 5}
+        allowHalf={allowHalf}
+        disabled={mode === 'review'}
+        value={value}
+        onChange={(v) => resultKey && setField(resultKey, v)}
+      />
+    </div>
+  );
+}

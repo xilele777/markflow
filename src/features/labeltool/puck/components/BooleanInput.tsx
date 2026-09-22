@@ -24,33 +24,36 @@ export const BooleanInput: ComponentConfig<BooleanInputProps> = {
     offText: { type: 'text', label: '关文案' },
   },
   defaultProps: { label: '开关', resultKey: '', onText: '是', offText: '否' },
-  render: ({ label, resultKey, onText, offText }) => {
-    const { result, setField, mode } = useRuntime();
-    const raw = resultKey ? result[resultKey] : undefined;
-    const value = Boolean(raw);
-
-    // 视觉=数据：只在真实标注模式（mode='label'）下、result 里没该字段时自动写 false。
-    // 'edit'（画布预览）/ 'review'（只读回显）都不写，避免画布改 resultKey 时写入中间脏 key、或污染历史结果。
-    useEffect(() => {
-      if (mode !== 'label') return;
-      if (!resultKey || raw !== undefined) return;
-      setField(resultKey, false);
-    }, [mode, resultKey, raw, setField]);
-
-    return (
-      <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 12, color: palette.weak, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </span>
-        <Switch
-          checked={value}
-          disabled={mode === 'review'}
-          checkedChildren={onText}
-          unCheckedChildren={offText}
-          onChange={(v) => resultKey && setField(resultKey, v)}
-        />
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 BooleanInputRender 里（rules-of-hooks）。
+  render: (props) => <BooleanInputRender {...props} />,
 };
+
+function BooleanInputRender({ label, resultKey, onText, offText }: BooleanInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const raw = resultKey ? result[resultKey] : undefined;
+  const value = Boolean(raw);
+
+  // 视觉=数据：只在真实标注模式（mode='label'）下、result 里没该字段时自动写 false。
+  // 'edit'（画布预览）/ 'review'（只读回显）都不写，避免画布改 resultKey 时写入中间脏 key、或污染历史结果。
+  useEffect(() => {
+    if (mode !== 'label') return;
+    if (!resultKey || raw !== undefined) return;
+    setField(resultKey, false);
+  }, [mode, resultKey, raw, setField]);
+
+  return (
+    <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 12, color: palette.weak, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </span>
+      <Switch
+        checked={value}
+        disabled={mode === 'review'}
+        checkedChildren={onText}
+        unCheckedChildren={offText}
+        onChange={(v) => resultKey && setField(resultKey, v)}
+      />
+    </div>
+  );
+}

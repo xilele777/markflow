@@ -47,8 +47,6 @@ export function ExportResultSection({ caseId, lastExport, refetchCaseDetail }: P
   const { canExportResult } = useCurrentRoles();
   const [format, setFormat] = useState<ExportFormat>('csv');
 
-  if (!canExportResult) return null;
-
   // —— 软轮询 ————————————————————————————————————————————————
   // status === 'EXPORTING' 时启动；命中 DONE/FAILED 或超时停止。
   // setInterval id + tick count 用 ref 持有，避免 re-render 重置。
@@ -109,6 +107,8 @@ export function ExportResultSection({ caseId, lastExport, refetchCaseDetail }: P
   };
 
   // —— 渲染 ————————————————————————————————————————————————
+  // 无导出权限：不渲染（放在所有 hook 之后，遵守 rules-of-hooks）。
+  if (!canExportResult) return null;
 
   return (
     <section style={sectionStyle}>

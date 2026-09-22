@@ -45,26 +45,29 @@ export const SelectInput: ComponentConfig<SelectInputProps> = {
     },
   },
   defaultProps: { label: '下拉', resultKey: '', placeholder: '请选择', options: [{ label: '选项一' }, { label: '选项二' }], size: 'middle', allowClear: true },
-  render: ({ label, resultKey, placeholder, options, size, allowClear }) => {
-    const { result, setField, mode } = useRuntime();
-    const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </div>
-        <Select
-          value={value}
-          placeholder={placeholder}
-          disabled={mode === 'review'}
-          size={size || 'middle'}
-          allowClear={allowClear}
-          style={{ width: '100%' }}
-          onChange={(v) => resultKey && setField(resultKey, v ?? undefined)}
-          options={options.map((o) => ({ label: o.label, value: o.label }))}
-        />
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 SelectInputRender 里（rules-of-hooks）。
+  render: (props) => <SelectInputRender {...props} />,
 };
+
+function SelectInputRender({ label, resultKey, placeholder, options, size, allowClear }: SelectInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </div>
+      <Select
+        value={value}
+        placeholder={placeholder}
+        disabled={mode === 'review'}
+        size={size || 'middle'}
+        allowClear={allowClear}
+        style={{ width: '100%' }}
+        onChange={(v) => resultKey && setField(resultKey, v ?? undefined)}
+        options={options.map((o) => ({ label: o.label, value: o.label }))}
+      />
+    </div>
+  );
+}

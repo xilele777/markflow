@@ -86,7 +86,7 @@ function csvToRows(text: string): string[][] {
 }
 
 function parseCsv(text: string): ParsedUserRow[] {
-  const clean = text.replace(/^﻿/, ''); // 去掉 Excel 的 UTF-8 BOM
+  const clean = text.replace(/^\uFEFF/, ''); // 去掉 Excel 的 UTF-8 BOM
   const rows = csvToRows(clean).filter((r) => r.some((c) => c.trim() !== ''));
   if (rows.length === 0) return [];
   const header = rows[0].map((h) => h.trim());
@@ -117,4 +117,4 @@ export const SAMPLE_JSONL =
   '{"username":"chener","displayName":"陈二","password":"Init@1234"}\n';
 
 export const SAMPLE_CSV =
-  '﻿username,displayName,password\n' + 'liuyi,刘一,Init@1234\n' + 'chener,陈二,Init@1234\n';
+  '\uFEFFusername,displayName,password\n' + 'liuyi,刘一,Init@1234\n' + 'chener,陈二,Init@1234\n';

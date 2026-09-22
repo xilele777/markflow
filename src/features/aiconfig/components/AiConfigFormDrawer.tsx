@@ -111,7 +111,7 @@ export function AiConfigFormDrawer({ open, mode, initial, onClose }: AiConfigFor
       onClose={onClose}
       width={520}
       title={isEdit ? '编辑 AI 配置' : '新建 AI 配置'}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Btn onClick={onClose}>取消</Btn>

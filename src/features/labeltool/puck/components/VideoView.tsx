@@ -57,49 +57,52 @@ export const VideoView: ComponentConfig<VideoViewProps> = {
     },
   },
   defaultProps: { label: '视频', sampleField: '', width: '100%', height: 0, controls: true, autoplay: false, muted: false, loop: false },
-  render: ({ label, sampleField, width, height, controls, autoplay, muted, loop }) => {
-    const { sampleData } = useRuntime();
-    const url = sampleField ? getByPath(sampleData, sampleField) : undefined;
-    const src = typeof url === 'string' ? url : '';
-    return (
-      <div style={{ marginBottom: 14 }}>
-        {label && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
-        {src ? (
-          <video
-            src={src}
-            controls={controls}
-            autoPlay={autoplay}
-            muted={muted}
-            loop={loop}
-            style={{
-              display: 'block',
-              width: width || '100%',
-              height: height || 'auto',
-              maxWidth: '100%',
-              borderRadius: 6,
-              border: `1px solid ${palette.hairline}`,
-              background: '#000',
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: width || '100%',
-              height: height || 160,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 6,
-              border: `1px dashed ${palette.border}`,
-              color: palette.weak,
-              fontSize: 12.5,
-              fontFamily: fonts.body,
-            }}
-          >
-            {`（未绑定视频字段：${sampleField || '—'}）`}
-          </div>
-        )}
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 VideoViewRender 里（rules-of-hooks）。
+  render: (props) => <VideoViewRender {...props} />,
 };
+
+function VideoViewRender({ label, sampleField, width, height, controls, autoplay, muted, loop }: VideoViewProps) {
+  const { sampleData } = useRuntime();
+  const url = sampleField ? getByPath(sampleData, sampleField) : undefined;
+  const src = typeof url === 'string' ? url : '';
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
+      {src ? (
+        <video
+          src={src}
+          controls={controls}
+          autoPlay={autoplay}
+          muted={muted}
+          loop={loop}
+          style={{
+            display: 'block',
+            width: width || '100%',
+            height: height || 'auto',
+            maxWidth: '100%',
+            borderRadius: 6,
+            border: `1px solid ${palette.hairline}`,
+            background: '#000',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: width || '100%',
+            height: height || 160,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 6,
+            border: `1px dashed ${palette.border}`,
+            color: palette.weak,
+            fontSize: 12.5,
+            fontFamily: fonts.body,
+          }}
+        >
+          {`（未绑定视频字段：${sampleField || '—'}）`}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -16,21 +16,24 @@ export const AudioView: ComponentConfig<AudioViewProps> = {
     sampleField: sampleFieldField,
   },
   defaultProps: { label: '音频', sampleField: '' },
-  render: ({ label, sampleField }) => {
-    const { sampleData } = useRuntime();
-    const url = sampleField ? getByPath(sampleData, sampleField) : undefined;
-    const src = typeof url === 'string' ? url : '';
-    return (
-      <div style={{ marginBottom: 14 }}>
-        {label && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
-        {src ? (
-          <audio src={src} controls style={{ width: '100%' }} />
-        ) : (
-          <div style={{ fontSize: 12.5, color: palette.weak, fontFamily: fonts.body }}>
-            {`（未绑定音频字段：${sampleField || '—'}）`}
-          </div>
-        )}
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 AudioViewRender 里（rules-of-hooks）。
+  render: (props) => <AudioViewRender {...props} />,
 };
+
+function AudioViewRender({ label, sampleField }: AudioViewProps) {
+  const { sampleData } = useRuntime();
+  const url = sampleField ? getByPath(sampleData, sampleField) : undefined;
+  const src = typeof url === 'string' ? url : '';
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
+      {src ? (
+        <audio src={src} controls style={{ width: '100%' }} />
+      ) : (
+        <div style={{ fontSize: 12.5, color: palette.weak, fontFamily: fonts.body }}>
+          {`（未绑定音频字段：${sampleField || '—'}）`}
+        </div>
+      )}
+    </div>
+  );
+}

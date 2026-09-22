@@ -38,23 +38,26 @@ export const CheckboxInput: ComponentConfig<CheckboxInputProps> = {
     options: [{ label: '选项一' }, { label: '选项二' }],
     vertical: true,
   },
-  render: ({ label, resultKey, options, vertical }) => {
-    const { result, setField, mode } = useRuntime();
-    const value = resultKey ? ((result[resultKey] as string[] | undefined) ?? []) : [];
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </div>
-        <Checkbox.Group
-          value={value}
-          disabled={mode === 'review'}
-          onChange={(v) => resultKey && setField(resultKey, v)}
-          style={vertical ? { display: 'flex', flexDirection: 'column', gap: 8 } : undefined}
-          options={options.map((o) => o.label)}
-        />
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 CheckboxInputRender 里（rules-of-hooks）。
+  render: (props) => <CheckboxInputRender {...props} />,
 };
+
+function CheckboxInputRender({ label, resultKey, options, vertical }: CheckboxInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const value = resultKey ? ((result[resultKey] as string[] | undefined) ?? []) : [];
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </div>
+      <Checkbox.Group
+        value={value}
+        disabled={mode === 'review'}
+        onChange={(v) => resultKey && setField(resultKey, v)}
+        style={vertical ? { display: 'flex', flexDirection: 'column', gap: 8 } : undefined}
+        options={options.map((o) => o.label)}
+      />
+    </div>
+  );
+}

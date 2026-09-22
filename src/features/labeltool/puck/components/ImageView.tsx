@@ -32,47 +32,50 @@ export const ImageView: ComponentConfig<ImageViewProps> = {
     radius: { type: 'number', label: '圆角 (px)', min: 0 },
   },
   defaultProps: { label: '图片', sampleField: '', width: '100%', height: 0, fit: 'contain', radius: 6 },
-  render: ({ label, sampleField, width, height, fit, radius }) => {
-    const { sampleData } = useRuntime();
-    const url = sampleField ? getByPath(sampleData, sampleField) : undefined;
-    const src = typeof url === 'string' ? url : '';
-    return (
-      <div style={{ marginBottom: 14 }}>
-        {label && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
-        {src ? (
-          <img
-            src={src}
-            alt={label}
-            style={{
-              display: 'block',
-              width: width || '100%',
-              height: height || 'auto',
-              maxWidth: '100%',
-              objectFit: fit || 'contain',
-              borderRadius: radius ?? 6,
-              border: `1px solid ${palette.hairline}`,
-              background: palette.fill,
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: width || '100%',
-              height: height || 120,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 6,
-              border: `1px dashed ${palette.border}`,
-              color: palette.weak,
-              fontSize: 12.5,
-              fontFamily: fonts.body,
-            }}
-          >
-            {`（未绑定图片字段：${sampleField || '—'}）`}
-          </div>
-        )}
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 ImageViewRender 里（rules-of-hooks）。
+  render: (props) => <ImageViewRender {...props} />,
 };
+
+function ImageViewRender({ label, sampleField, width, height, fit, radius }: ImageViewProps) {
+  const { sampleData } = useRuntime();
+  const url = sampleField ? getByPath(sampleData, sampleField) : undefined;
+  const src = typeof url === 'string' ? url : '';
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
+      {src ? (
+        <img
+          src={src}
+          alt={label}
+          style={{
+            display: 'block',
+            width: width || '100%',
+            height: height || 'auto',
+            maxWidth: '100%',
+            objectFit: fit || 'contain',
+            borderRadius: radius ?? 6,
+            border: `1px solid ${palette.hairline}`,
+            background: palette.fill,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: width || '100%',
+            height: height || 120,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 6,
+            border: `1px dashed ${palette.border}`,
+            color: palette.weak,
+            fontSize: 12.5,
+            fontFamily: fonts.body,
+          }}
+        >
+          {`（未绑定图片字段：${sampleField || '—'}）`}
+        </div>
+      )}
+    </div>
+  );
+}

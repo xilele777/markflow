@@ -87,34 +87,37 @@ export const TextView: ComponentConfig<TextViewProps> = {
     radius: 6,
     padding: 0,
   },
-  render: (props) => {
-    const { label, showLabel, sampleField, fontSize, weight, tone, align, lineHeight, maxLines, minHeight } = props;
-    const { sampleData } = useRuntime();
-    const value = sampleField ? getByPath(sampleData, sampleField) : undefined;
-    const has = value != null && value !== '';
-    const clamp =
-      maxLines && maxLines > 0
-        ? { display: '-webkit-box', WebkitLineClamp: maxLines, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }
-        : {};
-    return (
-      <div style={{ marginBottom: 14, minHeight: minHeight || undefined, ...boxStyle(props) }}>
-        {showLabel !== false && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
-        <div
-          style={{
-            fontSize: fontSize || 14,
-            fontWeight: weight === 'bold' ? 700 : 400,
-            lineHeight: lineHeight || 1.6,
-            textAlign: align || 'left',
-            fontFamily: fonts.body,
-            color: has ? toneColor(tone) : palette.weak,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            ...clamp,
-          }}
-        >
-          {has ? String(value) : `（未绑定 / 无数据：${sampleField || '—'}）`}
-        </div>
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 TextViewRender 里（rules-of-hooks）。
+  render: (props) => <TextViewRender {...props} />,
 };
+
+function TextViewRender(props: TextViewProps) {
+  const { label, showLabel, sampleField, fontSize, weight, tone, align, lineHeight, maxLines, minHeight } = props;
+  const { sampleData } = useRuntime();
+  const value = sampleField ? getByPath(sampleData, sampleField) : undefined;
+  const has = value != null && value !== '';
+  const clamp =
+    maxLines && maxLines > 0
+      ? { display: '-webkit-box', WebkitLineClamp: maxLines, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }
+      : {};
+  return (
+    <div style={{ marginBottom: 14, minHeight: minHeight || undefined, ...boxStyle(props) }}>
+      {showLabel !== false && <div style={{ fontSize: 12, color: palette.weak, marginBottom: 4 }}>{label}</div>}
+      <div
+        style={{
+          fontSize: fontSize || 14,
+          fontWeight: weight === 'bold' ? 700 : 400,
+          lineHeight: lineHeight || 1.6,
+          textAlign: align || 'left',
+          fontFamily: fonts.body,
+          color: has ? toneColor(tone) : palette.weak,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          ...clamp,
+        }}
+      >
+        {has ? String(value) : `（未绑定 / 无数据：${sampleField || '—'}）`}
+      </div>
+    </div>
+  );
+}

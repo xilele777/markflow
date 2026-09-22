@@ -31,35 +31,38 @@ export const SegmentInput: ComponentConfig<SegmentInputProps> = {
     resultKey: '',
     options: [{ label: '优秀' }, { label: '合格' }, { label: '不合格' }],
   },
-  render: ({ label, resultKey, options }) => {
-    const { result, setField, mode } = useRuntime();
-    const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
-    const firstOpt = options[0]?.label;
-
-    // 视觉=数据：只在真实标注模式（mode='label'）下、result 里没值时自动把第一项写入。
-    // - 'edit'（Puck 画布预览）：搭建者在右侧改 resultKey 时每次按键都触发本 effect，
-    //   会把「优秀」写到所有中间 key（'s'/'so'/'sta'/.../'status'）造成脏数据。画布只是预览，不写。
-    // - 'review'（只读回显）：不写，避免污染历史结果。
-    useEffect(() => {
-      if (mode !== 'label') return;
-      if (!resultKey || value !== undefined || firstOpt == null) return;
-      setField(resultKey, firstOpt);
-    }, [mode, resultKey, value, firstOpt, setField]);
-
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
-          {label}
-          {resultKey ? ` · ${resultKey}` : ''}
-        </div>
-        <Segmented
-          block
-          value={value}
-          disabled={mode === 'review'}
-          onChange={(v) => resultKey && setField(resultKey, v)}
-          options={options.map((o) => o.label)}
-        />
-      </div>
-    );
-  },
+  // render 只做转发：hooks 放在真正的函数组件 SegmentInputRender 里（rules-of-hooks）。
+  render: (props) => <SegmentInputRender {...props} />,
 };
+
+function SegmentInputRender({ label, resultKey, options }: SegmentInputProps) {
+  const { result, setField, mode } = useRuntime();
+  const value = resultKey ? (result[resultKey] as string | undefined) : undefined;
+  const firstOpt = options[0]?.label;
+
+  // 视觉=数据：只在真实标注模式（mode='label'）下、result 里没值时自动把第一项写入。
+  // - 'edit'（Puck 画布预览）：搭建者在右侧改 resultKey 时每次按键都触发本 effect，
+  //   会把「优秀」写到所有中间 key（'s'/'so'/'sta'/.../'status'）造成脏数据。画布只是预览，不写。
+  // - 'review'（只读回显）：不写，避免污染历史结果。
+  useEffect(() => {
+    if (mode !== 'label') return;
+    if (!resultKey || value !== undefined || firstOpt == null) return;
+    setField(resultKey, firstOpt);
+  }, [mode, resultKey, value, firstOpt, setField]);
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: palette.weak, marginBottom: 6, fontFamily: fonts.body }}>
+        {label}
+        {resultKey ? ` · ${resultKey}` : ''}
+      </div>
+      <Segmented
+        block
+        value={value}
+        disabled={mode === 'review'}
+        onChange={(v) => resultKey && setField(resultKey, v)}
+        options={options.map((o) => o.label)}
+      />
+    </div>
+  );
+}
