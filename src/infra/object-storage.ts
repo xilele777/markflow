@@ -4,6 +4,7 @@
 // SigV4 会把 host 签进 URL，所以必须用浏览器最终访问的地址来签名。
 // 错误码字符串沿用 Java TosErrorCode（TOS_*），保持契约不变。
 import type { Readable } from 'node:stream';
+import { Upload } from '@aws-sdk/lib-storage';
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -90,6 +91,36 @@ export class ObjectStorage {
       return { url, signedHeaders: {}, expiresInSeconds };
     } catch (err) {
       throw wrap(ObjectStorageErrorCode.TOS_PRESIGN_FAILED, err);
+    }
+  }
+
+  /** 预签名 GET（导出下载；替代 Java 的公共读 URL 拼串，桶无需公共读）。 */
+  async presignGet(key: string, expiresInSeconds: number): Promise<string> {
+    requireKey(key);
+    try {
+      return await getSignedUrl(
+        this.presigner,
+        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        { expiresIn: expiresInSeconds },
+      );
+    } catch (err) {
+      throw wrap(ObjectStorageErrorCode.TOS_PRESIGN_FAILED, err);
+    }
+  }
+
+  /** 流式分片上传（导出大文件用；lib-storage 每 5MB 一片，内存占用有界）。 */
+  async putObjectStream(key: string, body: Readable, contentType?: string): Promise<void> {
+    requireKey(key);
+    try {
+      const upload = new Upload({
+        client: this.internal,
+        params: { Bucket: this.bucket, Key: key, Body: body, ContentType: contentType },
+        queueSize: 2,
+        leavePartsOnError: false,
+      });
+      await upload.done();
+    } catch (err) {
+      throw wrap(ObjectStorageErrorCode.TOS_UPLOAD_FAILED, err);
     }
   }
 

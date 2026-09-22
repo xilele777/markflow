@@ -1,7 +1,7 @@
 // 数据集领域服务（对应 Java DatasetDomainServiceImpl；规则见后端索引 §3.6 / §7.10）。
 // 权限：系统管理员 或 该空间 LABEL_ADMIN（按 spaceCode 查空间，不存在 → WORKSPACE_NOT_FOUND）。
 // 与 Java 的差异：
-// - 建数据集 / 建版本在 Kysely 事务内落库，提交后再入队 dataset-parse（入队失败只记 error 日志，版本停留在 PARSING；M3 加 outbox 重投）；
+// - 建数据集 / 建版本在 Kysely 事务内落库并写 outbox，提交后投递 dataset-parse（投递失败由 outbox 定时重投）；
 // - 空间内同名还有部分唯一索引兜底（迁移 0002）；建版本时对 dataset 行 FOR UPDATE，版本号唯一键冲突转 OPERATION_CONFLICT；
 // - getUploadPreSignedUrl 收紧为「系统管理员 或 任意空间 LABEL_ADMIN」（Java 任何登录用户可用，索引 §9.4）；
 // - 对象 key 的日期段按 LINGSHU_TIMEZONE 取当天。
@@ -11,7 +11,8 @@ import { ServiceError } from '../../infra/errors.js';
 import type { RedisLock } from '../../infra/lock.js';
 import type { Logger } from '../../infra/logger.js';
 import type { ObjectStorage } from '../../infra/object-storage.js';
-import type { Queues } from '../../infra/queue.js';
+import type { OutboxService } from '../../infra/outbox.js';
+import { QUEUE_NAMES } from '../../infra/queue.js';
 import type { Operator } from '../common/operator.js';
 import { emptyPage, normalizePage, type PageInput, type PageResult } from '../common/pagination.js';
 import type { PermissionService } from '../common/permission.js';
@@ -110,7 +111,7 @@ export interface DatasetServiceDeps {
   permissions: PermissionService;
   lock: RedisLock;
   storage: ObjectStorage;
-  queues: Queues;
+  outbox: OutboxService;
   logger: Logger;
   /** 对象 key 日期段所用时区（LINGSHU_TIMEZONE）。 */
   timeZone: string;
@@ -171,7 +172,8 @@ export class DatasetService {
               createTime: now,
               updateTime: now,
             });
-            return { datasetId, versionId };
+            const outboxId = await this.enqueueParseTx(trx, versionId);
+            return { datasetId, versionId, outboxId };
           });
         } catch (err) {
           if (isUniqueViolation(err, 'uk_dataset_space_name_active')) {
@@ -181,8 +183,12 @@ export class DatasetService {
         }
       },
     );
-    await this.enqueueParse(created.versionId);
-    return { ...created, versionNumber: INIT_VERSION_NUMBER };
+    await this.deps.outbox.deliver([created.outboxId]);
+    return {
+      datasetId: created.datasetId,
+      versionId: created.versionId,
+      versionNumber: INIT_VERSION_NUMBER,
+    };
   }
 
   /** 数据集存在 → 权限（按 dataset.spaceCode）→ 参数 → 锁内事务：行锁重读 latest+1、插版本、回写 latest → 入队。 */
@@ -226,7 +232,8 @@ export class DatasetService {
               operator.username,
               now,
             );
-            return { versionId, versionNumber };
+            const outboxId = await this.enqueueParseTx(trx, versionId);
+            return { versionId, versionNumber, outboxId };
           });
         } catch (err) {
           if (isUniqueViolation(err, 'uk_dataset_version')) {
@@ -236,8 +243,8 @@ export class DatasetService {
         }
       },
     );
-    await this.enqueueParse(created.versionId);
-    return created;
+    await this.deps.outbox.deliver([created.outboxId]);
+    return { versionId: created.versionId, versionNumber: created.versionNumber };
   }
 
   async getDatasetList(
@@ -342,20 +349,14 @@ export class DatasetService {
     return dataset;
   }
 
-  /** 事务提交后入队；失败仅记日志、不影响已落库结果（与 Java mqProducer.send 一致）。 */
-  private async enqueueParse(versionId: number): Promise<void> {
-    try {
-      await this.deps.queues.datasetParse.add(
-        'parse',
-        { versionId },
-        { jobId: `version-${versionId}` },
-      );
-    } catch (err) {
-      this.deps.logger.error(
-        { err, versionId },
-        'enqueue dataset-parse failed; version stays PARSING until re-enqueued',
-      );
-    }
+  /** 事务内写 outbox 行（jobId 沿用 version-<id> 去重）；提交后由调用方 deliver。 */
+  private enqueueParseTx(trx: Db, versionId: number): Promise<number> {
+    return this.deps.outbox.enqueueTx(trx, {
+      queue: QUEUE_NAMES.datasetParse,
+      jobName: 'parse',
+      jobId: `version-${versionId}`,
+      payload: { versionId },
+    });
   }
 }
 

@@ -48,7 +48,7 @@ export function createDatasetService(ctx: AppContext): DatasetService {
     permissions: new PermissionService(ctx.db),
     lock: ctx.lock,
     storage: ctx.storage,
-    queues: ctx.queues,
+    outbox: ctx.outbox,
     logger: ctx.logger,
     timeZone: ctx.config.server.timeZone,
   });

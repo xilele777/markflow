@@ -160,6 +160,22 @@ export interface LabelTaskTable {
   updateTime: number;
 }
 
+/** 事务内写入、提交后投递的消息（迁移 0003）。payload 为 jsonb（写入 JSON.stringify）。 */
+export interface MqOutboxTable {
+  id: Generated<number>;
+  queue: string;
+  jobName: string;
+  jobId: string | null;
+  payload: ColumnType<unknown, string, string>;
+  /** 1 PENDING */
+  status: Generated<number>;
+  attempts: Generated<number>;
+  nextRetryTime: number;
+  lastError: string | null;
+  createTime: number;
+  updateTime: number;
+}
+
 export interface Database {
   sys_user: SysUserTable;
   workspace: WorkspaceTable;
@@ -172,6 +188,7 @@ export interface Database {
   label_case: LabelCaseTable;
   label_task_group: LabelTaskGroupTable;
   label_task: LabelTaskTable;
+  mq_outbox: MqOutboxTable;
 }
 
 export type SysUserRow = Selectable<SysUserTable>;
@@ -189,3 +206,11 @@ export type DatasetVersionRow = Selectable<LingshuDatasetVersionTable>;
 export type NewDatasetVersion = Insertable<LingshuDatasetVersionTable>;
 export type DatasetSampleRow = Selectable<LingshuDatasetSampleTable>;
 export type NewDatasetSample = Insertable<LingshuDatasetSampleTable>;
+export type CaseRow = Selectable<LabelCaseTable>;
+export type NewCase = Insertable<LabelCaseTable>;
+export type TaskGroupRow = Selectable<LabelTaskGroupTable>;
+export type NewTaskGroup = Insertable<LabelTaskGroupTable>;
+export type TaskRow = Selectable<LabelTaskTable>;
+export type NewTask = Insertable<LabelTaskTable>;
+export type MqOutboxRow = Selectable<MqOutboxTable>;
+export type NewMqOutbox = Insertable<MqOutboxTable>;
