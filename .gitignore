@@ -1,0 +1,23 @@
+# Local dependencies, build output and runtime files
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+*.local
+/artifacts/
+
+# Local migration backups and original source bundles (never publish)
+/.migration-backup/
+/LabelHub/
+/submission/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

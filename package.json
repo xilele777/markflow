@@ -1,0 +1,22 @@
+{
+  "name": "lingshu",
+  "private": true,
+  "version": "0.1.0",
+  "description": "灵枢数据标注平台 monorepo",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "setup": "npm ci --prefix apps/server && npm ci --prefix apps/web",
+    "dev:server": "npm run dev --prefix apps/server",
+    "dev:web": "npm run dev --prefix apps/web",
+    "infra:up": "npm run infra:up --prefix apps/server",
+    "infra:down": "npm run infra:down --prefix apps/server",
+    "lint": "npm run lint --prefix apps/server && npm run lint --prefix apps/web",
+    "typecheck": "npm run typecheck --prefix apps/server && npm run typecheck --prefix apps/web",
+    "test": "npm run test:release && npm test --prefix apps/server && npm test --prefix apps/web",
+    "test:release": "node --test tests/package-release.test.mjs",
+    "build": "npm run build --prefix apps/server && npm run build:check --prefix apps/web",
+    "package:release": "node apps/server/scripts/package-release.mjs"
+  }
+}
