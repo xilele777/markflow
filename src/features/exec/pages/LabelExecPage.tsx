@@ -1,6 +1,7 @@
 // 标注执行页（全屏，《页面模板.md》四）。ExecToolbar + iframe。
 // 队列：进入时从详情页 navigate(state) 接 taskIds；剩 ≤2 时自动补一页待办拼到队尾。
-// 提交：直接 submitLabelTask；成功切下一题，失败 toast 显示后端 message、不切。
+// 提交：先等嵌入页把自动保存落库（postMessage 协议），再按 pageSchema 做必填校验，最后 submitLabelTask；
+//       成功切下一题，失败 toast 显示后端 message、不切。
 // 工具分流：type=1 内置 → /embed/label/:taskId（同源），type=2 IFRAME → labelToolUrl?taskId=...
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -15,6 +16,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
 import { getTaskDetail, getTaskResult, submitLabelTask } from '@/features/task/api';
+import {
+  describeMissing,
+  isEmbedResultMessage,
+  validateResultAgainstSchema,
+  type EmbedResultState,
+} from '../resultValidation';
 import { getTaskListInGroup } from '@/features/taskgroup/api';
 import type { MyTaskGroupItem } from '@/features/taskgroup/types';
 
@@ -29,6 +36,11 @@ interface ExecState {
 
 const QUEUE_REFILL_THRESHOLD = 2;
 const REFILL_PAGE_SIZE = 20;
+/** 提交前等待嵌入页自动保存落库的最长时间。 */
+const WAIT_SAVE_TIMEOUT_MS = 4000;
+
+/** 客户端校验失败时抛出的错误（不请求后端）。 */
+class ClientValidationError extends Error {}
 
 export default function LabelExecPage() {
   const { taskId: taskIdParam } = useParams();
@@ -136,14 +148,61 @@ export default function LabelExecPage() {
     });
   }, [cursor, navigate, state]);
 
+  // 嵌入页（iframe）的保存状态：dirty=有未落库编辑；saving=保存中；saved=已落库；error=保存失败。
+  const embedStateRef = useRef<EmbedResultState>('saved');
+  const embedWaitersRef = useRef<Array<() => void>>([]);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (!isEmbedResultMessage(e.data) || e.data.taskId !== taskId) return;
+      embedStateRef.current = e.data.state;
+      if (e.data.state === 'saved' || e.data.state === 'error') {
+        const waiters = embedWaitersRef.current;
+        embedWaitersRef.current = [];
+        waiters.forEach((w) => w());
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [taskId]);
+  // 切题时重置。
+  useEffect(() => {
+    embedStateRef.current = 'saved';
+    embedWaitersRef.current = [];
+  }, [taskId]);
+
+  /** 等嵌入页把未保存的编辑落库；超时或保存失败都返回（交给后端最终校验）。 */
+  const waitEmbedSaved = () =>
+    new Promise<void>((resolve) => {
+      if (embedStateRef.current === 'saved' || embedStateRef.current === 'error') {
+        resolve();
+        return;
+      }
+      const timer = setTimeout(resolve, WAIT_SAVE_TIMEOUT_MS);
+      embedWaitersRef.current.push(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+
   const submitMutation = useMutation({
-    mutationFn: (tid: number) => submitLabelTask(tid),
+    mutationFn: async (tid: number) => {
+      await waitEmbedSaved();
+      // 内置工具：按 pageSchema 派生的必填字段校验已保存结果；IFRAME 工具无 pageSchema，跳过。
+      const pageSchema = detailQ.data?.labelTool.labelToolPageSchema;
+      if (pageSchema && detailQ.data?.labelTool.labelToolType === 1) {
+        const saved = await getTaskResult(tid, 1);
+        const check = validateResultAgainstSchema(pageSchema, saved.hasResult ? saved.result : null);
+        if (!check.ok) throw new ClientValidationError(describeMissing(check.missing));
+      }
+      await submitLabelTask(tid);
+    },
     onSuccess: () => {
       message.success('已提交标注');
       advance();
     },
     onError: (e) => {
-      // 后端 message 原文显示（常见：未保存结果 / 校验未通过）；不切题。
+      // 客户端校验 / 后端 message 原文显示（常见：未保存结果 / 校验未通过）；不切题。
       message.error((e as Error)?.message || '提交失败');
     },
   });

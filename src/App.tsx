@@ -7,13 +7,14 @@ import { RouterProvider } from 'react-router-dom';
 import { antdTheme } from '@/app/theme';
 import { router } from '@/app/router';
 import { queryClient } from '@/shared/api/queryClient';
-import { ToastBridge } from '@/shared/components';
+import { NetworkStatusBar, ToastBridge } from '@/shared/components';
 
 export default function App() {
   return (
     <ConfigProvider theme={antdTheme} locale={zhCN}>
       <AntApp>
         <ToastBridge />
+        <NetworkStatusBar />
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>

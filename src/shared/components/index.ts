@@ -26,3 +26,4 @@ export { toast, ToastBridge } from './Toast';
 export { EmptyState } from './EmptyState';
 export { LoadingState } from './LoadingState';
 export { ErrorState } from './ErrorState';
+export { NetworkStatusBar } from './NetworkStatusBar';

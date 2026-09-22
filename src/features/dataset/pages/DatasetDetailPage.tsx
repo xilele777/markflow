@@ -23,6 +23,10 @@ import { palette, fonts } from '@/app/theme';
 import { getDatasetDetail, getVersionSamplePreview } from '../api';
 import type { DatasetVersion } from '../types';
 
+/** 解析中（UPLOAD_STATUS）。 */
+const UPLOAD_STATUS_PARSING = 1;
+const PARSE_POLL_INTERVAL_MS = 3000;
+
 export default function DatasetDetailPage() {
   const { id } = useParams();
   const datasetId = Number(id);
@@ -33,6 +37,11 @@ export default function DatasetDetailPage() {
     queryKey: ['dataset', 'detail', datasetId],
     queryFn: () => getDatasetDetail(datasetId),
     enabled: Number.isFinite(datasetId),
+    // 有版本仍在解析中（uploadStatus=1）时每 3s 轮询，解析完成 / 失败后自动停。
+    refetchInterval: (query) =>
+      query.state.data?.versions.some((v) => v.uploadStatus === UPLOAD_STATUS_PARSING)
+        ? PARSE_POLL_INTERVAL_MS
+        : false,
   });
 
   const columns: ColumnDef<DatasetVersion>[] = [
