@@ -1,10 +1,55 @@
+import { Writable } from 'node:stream';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CommonErrorCode, ServiceError } from '../src/infra/errors.js';
 import { RedisLock } from '../src/infra/lock.js';
+import { createLogger } from '../src/infra/logger.js';
 import { SecretBox, SecretBoxError } from '../src/infra/secret-box.js';
 import { createTestHarness, type TestHarness } from './helpers/app.js';
 
 const KEY = 'unit-test-passphrase-0123456789abcdef-xyz';
+
+describe('logger 对 ServiceError 的序列化', () => {
+  it('logger.error({ err: ServiceError }) 不抛错，输出含 type / message / cause；errorCode 不可枚举', async () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk, _enc, cb) {
+        lines.push(String(chunk));
+        cb();
+      },
+    });
+    const logger = createLogger('error', false, sink);
+    const err = ServiceError.of(CommonErrorCode.NOT_FOUND, '找不到', {
+      cause: new Error('inner'),
+      headers: { 'Retry-After': '1' },
+    });
+    expect(Object.keys(err)).not.toContain('errorCode');
+    expect(err.errorCode).toBe(CommonErrorCode.NOT_FOUND);
+    expect(err.code).toBe('NOT_FOUND');
+    expect(() => logger.error({ err, versionId: 1 }, 'boom')).not.toThrow();
+    await new Promise((r) => setTimeout(r, 20));
+    const parsed = JSON.parse(lines[0] ?? '{}');
+    expect(parsed).toMatchObject({ msg: 'boom', versionId: 1 });
+    expect(parsed.err).toMatchObject({ type: 'ServiceError', message: '找不到: inner' });
+    expect(parsed.err.headers).toEqual({ 'Retry-After': '1' });
+  });
+
+  it('序列化器自身出错时退化为 {type, message}，不抛错', async () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk, _enc, cb) {
+        lines.push(String(chunk));
+        cb();
+      },
+    });
+    const logger = createLogger('error', false, sink);
+    // 模拟 M2 冒烟撞到的情形：可枚举、带 message、且冻结的子对象。
+    const weird = Object.assign(new Error('outer'), { nested: Object.freeze({ message: 'x' }) });
+    expect(() => logger.error({ err: weird }, 'weird')).not.toThrow();
+    await new Promise((r) => setTimeout(r, 20));
+    const parsed = JSON.parse(lines[0] ?? '{}');
+    expect(parsed.err).toMatchObject({ type: 'Error', message: 'outer', serializerFailed: true });
+  });
+});
 
 describe('SecretBox（AES-256-GCM）', () => {
   const box = new SecretBox(KEY);

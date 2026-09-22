@@ -44,7 +44,11 @@ export interface ServiceErrorOptions {
 
 /** 业务异常：直接映射为失败包络。业务拒绝不打堆栈日志。 */
 export class ServiceError extends Error {
-  readonly errorCode: ErrorCode;
+  /**
+   * 不可枚举：pino 的 err 序列化器会把带 message 字段的可枚举子对象当作嵌套 error 递归打标记，
+   * 而错误码对象是冻结的，会抛 "object is not extensible"。
+   */
+  declare readonly errorCode: ErrorCode;
   readonly headers: Record<string, string> | undefined;
 
   constructor(errorCode: ErrorCode, message?: string, options?: ServiceErrorOptions) {
@@ -53,7 +57,7 @@ export class ServiceError extends Error {
       options?.cause === undefined ? undefined : { cause: options.cause },
     );
     this.name = 'ServiceError';
-    this.errorCode = errorCode;
+    Object.defineProperty(this, 'errorCode', { value: errorCode, enumerable: false });
     this.headers = options?.headers;
   }
 
