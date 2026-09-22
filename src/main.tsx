@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { initWebVitals } from '@/shared/monitoring/webVitals';
 import './index.css';
 
 // 字体 · 自托管（《配色规范.md》：IBM Plex 全家族）。
@@ -18,6 +19,9 @@ import '@fontsource/ibm-plex-sans/700.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
+
+// 生产构建采集 Core Web Vitals 并上报后端（开发环境为空操作）。
+initWebVitals();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

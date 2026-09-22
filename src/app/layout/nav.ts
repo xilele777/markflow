@@ -45,6 +45,8 @@ export const NAV: NavGroup[] = [
       // 标注管理员对标注工具不可见（按用户确认）。
       { label: '标注工具', path: '/labeltool', visible: labelToolViewable },
       { label: 'AI 配置', path: '/aiconfig', visible: aiViewable },
+      // 前端性能（Web Vitals 汇总）：仅 SA。
+      { label: '前端性能', path: '/monitoring/web-vitals', visible: onlySA },
     ],
   },
 ];
