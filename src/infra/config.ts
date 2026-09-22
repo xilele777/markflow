@@ -45,6 +45,7 @@ const envSchema = z.object({
   LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE: z.coerce.number().int().positive().default(600),
   LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES: z.coerce.number().int().positive().default(5),
   LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+  LINGSHU_RATE_LIMIT_WEB_VITALS_PER_MINUTE: z.coerce.number().int().positive().default(60),
 
   // 对象存储（S3 兼容：本地 MinIO / 线上 MinIO 或火山 TOS）。
   // ENDPOINT 供后端进程访问；PUBLIC_ENDPOINT 供浏览器直传（预签名 URL 以它签名），缺省与 ENDPOINT 相同。
@@ -83,7 +84,13 @@ export interface AppConfig {
   };
   security: { configEncKey: string };
   cors: { allowedOrigins: string[] };
-  rateLimit: { globalPerMinute: number; loginMaxFailures: number; loginWindowMinutes: number };
+  rateLimit: {
+    globalPerMinute: number;
+    loginMaxFailures: number;
+    loginWindowMinutes: number;
+    /** 公开的 Web Vitals 上报接口每 IP 每分钟上限。 */
+    webVitalsPerMinute: number;
+  };
   storage: {
     endpoint: string;
     publicEndpoint: string;
@@ -170,6 +177,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       globalPerMinute: e.LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE,
       loginMaxFailures: e.LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES,
       loginWindowMinutes: e.LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES,
+      webVitalsPerMinute: e.LINGSHU_RATE_LIMIT_WEB_VITALS_PER_MINUTE,
     },
     storage: {
       endpoint: normalizeEndpoint(e.LINGSHU_S3_ENDPOINT),

@@ -6,6 +6,7 @@ import type { Logger } from '../infra/logger.js';
 import * as m0001 from './migrations/0001_init.js';
 import * as m0002 from './migrations/0002_dataset_unique_name.js';
 import * as m0003 from './migrations/0003_mq_outbox.js';
+import * as m0004 from './migrations/0004_web_vitals.js';
 
 // Kysely 的 Migration 接口要求 Kysely<any>：迁移不依赖表类型。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,6 +16,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0001_init': m0001,
   '0002_dataset_unique_name': m0002,
   '0003_mq_outbox': m0003,
+  '0004_web_vitals': m0004,
 };
 
 class StaticMigrationProvider implements MigrationProvider {

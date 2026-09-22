@@ -11,6 +11,7 @@ import { createAuthRouter } from '../modules/auth/auth.routes.js';
 import { createDatasetRouter } from '../modules/dataset/dataset.routes.js';
 import { createHealthRouter } from '../modules/health/health.routes.js';
 import { createLabelToolRouter } from '../modules/labeltool/labeltool.routes.js';
+import { createMonitoringRouters } from '../modules/monitoring/monitoring.routes.js';
 import { createTaskModule, type TaskModule } from '../modules/task/module.js';
 import {
   createCaseRouter,
@@ -65,8 +66,12 @@ export function createApp(ctx: AppContext, options: CreateAppOptions = {}): Expr
 
   app.use('/api/health', createHealthRouter(ctx));
   app.use('/api/auth', createAuthRouter(ctx));
+  // 前端性能上报：公开（sendBeacon 无法带 Authorization），自带限流；汇总需鉴权。
+  const monitoring = createMonitoringRouters(ctx);
+  app.use('/api/monitoring', monitoring.publicRouter);
 
   const requireAuth = createAuthMiddleware(ctx.sysConfig);
+  app.use('/api/monitoring', requireAuth, monitoring.adminRouter);
   app.use('/api/user', requireAuth, createUserRouter(ctx));
   app.use('/api/workspace', requireAuth, createWorkspaceRouter(ctx));
   app.use('/api/labeltool', requireAuth, createLabelToolRouter(ctx));

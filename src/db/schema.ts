@@ -176,6 +176,18 @@ export interface MqOutboxTable {
   updateTime: number;
 }
 
+/** 前端 Core Web Vitals 样本（迁移 0004）。value：ms 取整，CLS 为 ×1000 取整。 */
+export interface WebVitalsTable {
+  id: Generated<number>;
+  name: string;
+  value: number;
+  rating: string | null;
+  page: string | null;
+  navigationType: string | null;
+  metricId: string | null;
+  createTime: number;
+}
+
 export interface Database {
   sys_user: SysUserTable;
   workspace: WorkspaceTable;
@@ -189,6 +201,7 @@ export interface Database {
   label_task_group: LabelTaskGroupTable;
   label_task: LabelTaskTable;
   mq_outbox: MqOutboxTable;
+  web_vitals: WebVitalsTable;
 }
 
 export type SysUserRow = Selectable<SysUserTable>;
@@ -214,3 +227,5 @@ export type TaskRow = Selectable<LabelTaskTable>;
 export type NewTask = Insertable<LabelTaskTable>;
 export type MqOutboxRow = Selectable<MqOutboxTable>;
 export type NewMqOutbox = Insertable<MqOutboxTable>;
+export type WebVitalsRow = Selectable<WebVitalsTable>;
+export type NewWebVitals = Insertable<WebVitalsTable>;
