@@ -20,7 +20,7 @@ npm run typecheck    # tsc --noEmit
 npm test             # vitest run（src/**/*.{test,spec}.{ts,tsx}）
 npm run build        # tsc + vite build
 npm run build:check  # build + scripts/check-bundle-size.cjs（入口 gzip 预算门禁）
-node e2e/e2e-m4.mjs  # 无头 Chrome 浏览器验收（需前后端都在跑，见 e2e/README.md）
+node e2e/e2e-m4.mjs  # 无头 Chrome 浏览器验收（需前后端都在跑，见 docs/testing.md）
 ```
 
 lint / typecheck / test / build 是每次改动后的常规验证动作，直接执行即可。

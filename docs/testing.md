@@ -1,5 +1,7 @@
 # 浏览器验收脚本（无头 Chrome + CDP）
 
+所有命令与脚本路径均相对于 `lingshu-web/` 根目录。单元 / 组件测试运行 `npm test`；完整构建门禁运行 `npm run build:check`。
+
 对运行中的真实前端（Vite `http://localhost:5173`）与后端（`http://127.0.0.1:8080`）跑端到端流程。
 不依赖 Playwright / Puppeteer，只用 Node ≥ 22 自带的 `fetch` / `WebSocket` 和本机 Chrome。
 

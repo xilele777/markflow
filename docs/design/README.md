@@ -1,3 +1,7 @@
+# 历史设计交付包
+
+本目录仅供视觉和决策追溯，不是待实施任务。实际业务、权限和目录结构以当前源码与 `../INDEX.md` 为准。以下为原始设计交接说明。
+
 # CODING AGENTS: READ THIS FIRST
 
 This is a **handoff bundle** from Claude Design (claude.ai/design).
@@ -6,9 +10,9 @@ A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported t
 
 ## What you should do — IMPORTANT
 
-**Read the chat transcripts first.** There are 2 chat transcript(s) in `lingshu/chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+**Read the chat transcripts first.** There are 2 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
 
-**Find the primary design file under `lingshu/project/` and read it top to bottom.** The chat transcripts will tell you which file the user was last iterating on. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+**Find the primary design file under `project/` and read it top to bottom.** The chat transcripts will tell you which file the user was last iterating on. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
 
 **If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
 
@@ -20,6 +24,6 @@ The design medium is **HTML/CSS/JS** — these are prototypes, not production co
 
 ## Bundle contents
 
-- `lingshu/README.md` — this file
-- `lingshu/chats/` — conversation transcripts (read these!)
-- `lingshu/project/` — the `lingshu` project files (HTML prototypes, assets, components)
+- `README.md` — this file
+- `chats/` — conversation transcripts (read these!)
+- `project/` — the `lingshu` project files (HTML prototypes, assets, components)

@@ -1,7 +1,7 @@
 # 灵枢前端 · 文档索引
 
 > 前端开发文档总目录。**按需加载**：动手前先在此找到对应文档并阅读，不要凭记忆猜。
-> 跨仓库的规划 / 交接 / 参考文档在 `../docs/`（`plans/`、`handoff/`、`reference/`），后端在 `../lingshu-server/`。
+> 跨仓库资料见 [工作区文档入口](../../docs/README.md)，后端见 [后端 README](../../lingshu-server/README.md)。除 Markdown 链接外，下文代码和命令路径均相对于前端仓库根目录。
 
 ## 规范类 `docs/standards/`（编码时按需必读）
 
@@ -17,7 +17,7 @@
 | 接口层 | standards/接口层.md | http 客户端、响应包络拆包、鉴权、与 react-query 配合 | 写任何调后端的代码前（代码：`src/shared/api/http.ts`） |
 | 权限可见性 | standards/权限可见性.md | 角色 → 菜单 / 操作 显隐 | 配菜单显隐 / 路由守卫前（代码：`src/shared/auth/permissions.ts`） |
 
-注：规范文档写于设计阶段，个别细节已被代码取代（如后端角色 code 为 `LABELER / REVIEWER / LABEL_ADMIN` 英文串；HTTP 状态 401/403/429 非 200）。冲突时以代码与 `../docs/handoff/` 最新快照为准。
+注：规范文档写于设计阶段，个别细节已被代码取代（如后端角色 code 为 `LABELER / REVIEWER / LABEL_ADMIN` 英文串；HTTP 状态 401/403/429 非 200）。冲突时以代码与 `../../docs/handoff/` 最新快照为准。
 
 ## 接入类（给业务方 / 第三方）
 
@@ -31,7 +31,7 @@
 |---|---|---|
 | 单元 / 组件测试 | `vitest.config.ts`、`src/test/setup.ts`、`src/**/*.test.ts(x)` | `npm test`；覆盖 permissions / nav / http / LoginPage / webVitals / NetworkStatusBar / resultValidation |
 | 体积预算门禁 | `scripts/check-bundle-size.cjs` | `npm run build:check`；入口预加载 gzip 与最大单 chunk 预算，CI 执行 |
-| 浏览器验收 | `e2e/README.md`、`e2e/e2e-m*.mjs`、`e2e/lib/cdp.mjs` | 无头 Chrome + CDP，按里程碑跑真实前后端 |
+| 浏览器验收 | [浏览器验收说明](testing.md)、`e2e/e2e-m*.mjs`、`e2e/lib/cdp.mjs` | 无头 Chrome + CDP，按里程碑跑真实前后端 |
 | CI | `.github/workflows/ci.yml` | lint / typecheck / test / build + 体积门禁 |
 | 前端性能监控 | `src/shared/monitoring/webVitals.ts`、`src/features/monitoring/` | 生产构建上报 Core Web Vitals 到后端；系统管理员在「系统 → 前端性能」看汇总 |
 
@@ -39,7 +39,7 @@
 
 | 内容 | 路径 | 说明 |
 |---|---|---|
-| 设计原型 | claudeDesign/lingshu/project/ | 视觉目标（JSX / HTML），**不照搬其手写结构** |
+| 设计原型 | docs/design/project/ | 视觉目标（JSX / HTML），**不照搬其手写结构** |
 
 ## 内置标注工具（Puck）
 
