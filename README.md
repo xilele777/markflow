@@ -45,8 +45,11 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 | workspace | `POST /workspace/createWorkspace`、`getWorkspaceList`、`addWorkspaceMember`、`getWorkspaceDetail` |
 | labeltool | `POST /labeltool/createLabelTool`、`getLabelToolList`、`getLabelToolDetail` |
 | aiconfig | `POST /aiconfig/createAiConfig`、`updateAiConfig`、`getAiConfigList` |
+| dataset | `POST /dataset/getUploadPreSignedUrl`、`createDataset`、`createDatasetVersion`、`getDatasetList`、`getDatasetDetail`、`getVersionSamplePreview` |
 
-入参出参与权限规则见 `../docs/reference/0002-*` §3；dataset / case / task / taskgroup 在后续里程碑。
+入参出参与权限规则见 `../docs/reference/0002-*` §3；case / task / taskgroup 在后续里程碑。
+
+数据集上传链路：前端 `getUploadPreSignedUrl` 取预签名 PUT URL → 浏览器直传对象存储（不经后端）→ `createDataset` / `createDatasetVersion` 落库并向 BullMQ `dataset-parse` 队列投递 `{versionId}` → 同进程的消费者从对象存储流式读取 jsonl，按标注工具的 JSON Schema 逐行校验，每 1000 行一批写入 `lingshu_dataset_sample`，最后回写 `upload_status`（2 就绪 / 3 解析失败）与 `ext` 统计（总行数、成功、跳过、前 100 条错误明细或整体失败原因）。
 
 ## 配置
 
@@ -54,7 +57,9 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 
 - 首启引导（幂等）：`sys_config` 缺 `jwt.secret` / `jwt.expireSeconds` 时从 `LINGSHU_JWT_SECRET` / `LINGSHU_JWT_EXPIRE_SECONDS` 写入；`LINGSHU_ADMIN_USERNAME`（默认 `admin`）不存在时用 `LINGSHU_ADMIN_INITIAL_PASSWORD` 创建。已有记录不会被修改。
 - `LINGSHU_CONFIG_ENC_KEY`：AI 配置的 apiKey 以 AES-256-GCM 加密后存入 `sys_config[ai.configList]`（密文形如 `enc:v1:…`；无前缀的历史明文可读、下次写入时自动加密）。更换密钥后历史密文无法解密。
-- `LINGSHU_TIMEZONE`：「我的贡献」按天统计使用的 IANA 时区，默认 `Asia/Shanghai`。
+- `LINGSHU_TIMEZONE`：「我的贡献」按天统计与上传对象 key 日期段使用的 IANA 时区，默认 `Asia/Shanghai`。
+- `LINGSHU_S3_*`：S3 兼容对象存储（本地 MinIO；线上 MinIO 或火山 TOS 的 S3 端点）。`LINGSHU_S3_ENDPOINT` 供后端进程访问；`LINGSHU_S3_PUBLIC_ENDPOINT` 是浏览器直传时实际访问的地址，预签名 URL 以它签名（缺省同 ENDPOINT）；MinIO 需 `LINGSHU_S3_FORCE_PATH_STYLE=true`。compose 里的 MinIO 用 `LINGSHU_CORS_ALLOWED_ORIGINS` 作为 CORS 放行来源。
+- `LINGSHU_QUEUE_PREFIX`：BullMQ 在 Redis 中的键前缀（默认 `lingshu`，测试用 `lingshu_test`）。
 
 ## 约定
 
@@ -66,19 +71,22 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 - 写路径并发：Redis 锁（`src/infra/lock.ts`，键 `lock:<name>`，wait 3s / lease 10s）+ 数据库唯一约束双保险；拿不到锁抛各模块 `OPERATION_CONFLICT`。
 - 权限判定集中在 `src/modules/common/permission.ts`（按库实时查，不信任 token）：系统管理员、空间 LABEL_ADMIN、任意空间 LABEL_ADMIN 及其组合。
 - 路由层 zod 只约束 JSON 类型（错类型 → PARAM_INVALID），空值与业务规则在服务层判断并返回 Java 同款错误码与文案。
+- 异步任务走 BullMQ（`src/infra/queue.ts`）：生产者在事务提交后入队；消费者与 API 同进程（`src/app/workers.ts`），关停时先等在手任务完成。业务级失败（如文件解析失败）在消费者内部落库消化，只有基础设施异常才让 job 失败并重试 3 次。
+- 打日志时把异常放在 `err` 字段（`logger.error({ err }, 'msg')`）；序列化器带兜底，日志永远不会打断业务流程。
 
 ## 目录
 
 ```
 src/
-  main.ts            进程入口：env → 配置 → 连接 → 迁移 → 引导 → 监听
-  app/               Express 装配、上下文、中间件（鉴权 / 错误处理 / 限流 / 校验 / 请求日志）
+  main.ts            进程入口：env → 配置 → 连接 → 迁移 → 引导 → 监听 → 启动队列消费者
+  app/               Express 装配、上下文、消费者装配、中间件（鉴权 / 错误处理 / 限流 / 校验 / 请求日志）
   infra/             配置、日志、错误码、包络、db、redis、jwt、bcrypt、sys_config、首启引导、
-                     Redis 锁、AES-GCM 加密盒、JSON Schema 编译
+                     Redis 锁、AES-GCM 加密盒、JSON Schema 编译、S3 对象存储、BullMQ 队列
   db/                Kysely 表类型、迁移（静态注册）、migrate CLI
   modules/common/    分页、字符串、zod 片段、操作者类型、权限判定
   modules/<domain>/  路由 + 服务 + 仓储 + 枚举 + 错误码
-                     （auth / user / workspace / labeltool / aiconfig / task(仅统计仓储) / health）
-tests/               vitest + supertest；global-setup 重建 lingshu_test；helpers/ 造数据
+                     （auth / user / workspace / labeltool / aiconfig / dataset(含解析服务与消费者) /
+                      task(仅统计仓储) / health）
+tests/               vitest + supertest；global-setup 重建 lingshu_test 并清测试队列；helpers/ 造数据
 deploy/              docker-compose.yml（pg / redis / minio）
 ```

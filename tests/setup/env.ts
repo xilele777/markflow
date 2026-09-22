@@ -1,9 +1,10 @@
-// 测试环境变量：读 .env 取 pg/redis 连接，但库名强制 lingshu_test、日志静默、引导参数固定。
+// 测试环境变量：读 .env 取 pg/redis/minio 连接，但库名强制 lingshu_test、队列前缀 lingshu_test、日志静默、引导参数固定。
 import { loadEnvFile } from '../../src/infra/env.js';
 
 loadEnvFile('.env');
 
 process.env.LINGSHU_PG_DB = process.env.LINGSHU_TEST_PG_DB ?? 'lingshu_test';
+process.env.LINGSHU_QUEUE_PREFIX = 'lingshu_test';
 process.env.LINGSHU_LOG_LEVEL = 'silent';
 process.env.LINGSHU_JWT_SECRET = 'test-only-jwt-secret-0123456789abcdef0123456789';
 process.env.LINGSHU_JWT_EXPIRE_SECONDS = '3600';

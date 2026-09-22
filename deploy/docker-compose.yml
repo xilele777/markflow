@@ -53,6 +53,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${LINGSHU_MINIO_ROOT_USER:-lingshu-minio}
       MINIO_ROOT_PASSWORD: ${LINGSHU_MINIO_ROOT_PASSWORD:?缺少 LINGSHU_MINIO_ROOT_PASSWORD}
+      # 浏览器直传（预签名 PUT）的 CORS 放行来源，与后端 CORS 白名单共用一个变量；MinIO 缺省为 *。
+      MINIO_API_CORS_ALLOW_ORIGIN: ${LINGSHU_CORS_ALLOWED_ORIGINS:-*}
     ports:
       - '${LINGSHU_MINIO_PORT:-9000}:9000'
       - '${LINGSHU_MINIO_CONSOLE_PORT:-9001}:9001'
@@ -65,7 +67,7 @@ services:
       retries: 10
       start_period: 5s
 
-  # 一次性任务：建桶（幂等）。M2 再补 CORS 规则。
+  # 一次性任务：建桶（幂等）。CORS 由 minio 服务的 MINIO_API_CORS_ALLOW_ORIGIN 控制。
   minio-init:
     image: quay.io/minio/mc:latest
     container_name: lingshu-minio-init

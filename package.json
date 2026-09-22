@@ -22,8 +22,11 @@
     "infra:reset": "docker compose --env-file .env -f deploy/docker-compose.yml down -v"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1137.0",
+    "@aws-sdk/s3-request-presigner": "^3.1137.0",
     "ajv": "^8.20.0",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^6.3.8",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",

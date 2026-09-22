@@ -4,6 +4,7 @@ import type { Kysely } from 'kysely';
 import { Migrator, type Migration, type MigrationProvider } from 'kysely/migration';
 import type { Logger } from '../infra/logger.js';
 import * as m0001 from './migrations/0001_init.js';
+import * as m0002 from './migrations/0002_dataset_unique_name.js';
 
 // Kysely 的 Migration 接口要求 Kysely<any>：迁移不依赖表类型。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -11,6 +12,7 @@ type AnyDb = Kysely<any>;
 
 const MIGRATIONS: Record<string, Migration> = {
   '0001_init': m0001,
+  '0002_dataset_unique_name': m0002,
 };
 
 class StaticMigrationProvider implements MigrationProvider {

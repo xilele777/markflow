@@ -45,6 +45,23 @@ const envSchema = z.object({
   LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE: z.coerce.number().int().positive().default(600),
   LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES: z.coerce.number().int().positive().default(5),
   LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+
+  // 对象存储（S3 兼容：本地 MinIO / 线上 MinIO 或火山 TOS）。
+  // ENDPOINT 供后端进程访问；PUBLIC_ENDPOINT 供浏览器直传（预签名 URL 以它签名），缺省与 ENDPOINT 相同。
+  LINGSHU_S3_ENDPOINT: z.url({ error: '需为完整 URL，如 http://127.0.0.1:9000' }),
+  LINGSHU_S3_PUBLIC_ENDPOINT: z.url({ error: '需为完整 URL，如 http://localhost:9000' }).optional(),
+  LINGSHU_S3_REGION: z.string().min(1).default('us-east-1'),
+  LINGSHU_S3_BUCKET: z.string().min(1).default('lingshu'),
+  LINGSHU_S3_ACCESS_KEY: z.string().min(1),
+  LINGSHU_S3_SECRET_KEY: z.string().min(1),
+  // MinIO 用路径风格（/bucket/key）；虚拟主机风格端点（TOS 等）填 false。
+  LINGSHU_S3_FORCE_PATH_STYLE: z.string().default('true'),
+
+  // BullMQ 在 Redis 中的键前缀；测试库用另一个前缀隔离。
+  LINGSHU_QUEUE_PREFIX: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]+$/, '只允许字母、数字、下划线、连字符')
+    .default('lingshu'),
 });
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -67,6 +84,16 @@ export interface AppConfig {
   security: { configEncKey: string };
   cors: { allowedOrigins: string[] };
   rateLimit: { globalPerMinute: number; loginMaxFailures: number; loginWindowMinutes: number };
+  storage: {
+    endpoint: string;
+    publicEndpoint: string;
+    region: string;
+    bucket: string;
+    accessKey: string;
+    secretKey: string;
+    forcePathStyle: boolean;
+  };
+  queue: { prefix: string };
 }
 
 export class ConfigError extends Error {
@@ -82,6 +109,18 @@ function parseTrustProxy(raw: string): boolean | number | string {
   if (v.toLowerCase() === 'true') return true;
   if (/^\d+$/.test(v)) return Number(v);
   return v;
+}
+
+function parseBoolean(raw: string, name: string): boolean {
+  const v = raw.trim().toLowerCase();
+  if (v === 'true' || v === '1' || v === 'yes') return true;
+  if (v === 'false' || v === '0' || v === 'no') return false;
+  throw new ConfigError(`环境变量配置无效：\n  ${name}: 需为 true / false`);
+}
+
+/** 去掉末尾斜杠，避免拼出 `//bucket` 形式的 URL。 */
+function normalizeEndpoint(url: string): string {
+  return url.replace(/\/+$/, '');
 }
 
 /** 从环境变量装配配置；空字符串视为未设置。 */
@@ -132,5 +171,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       loginMaxFailures: e.LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES,
       loginWindowMinutes: e.LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES,
     },
+    storage: {
+      endpoint: normalizeEndpoint(e.LINGSHU_S3_ENDPOINT),
+      publicEndpoint: normalizeEndpoint(e.LINGSHU_S3_PUBLIC_ENDPOINT ?? e.LINGSHU_S3_ENDPOINT),
+      region: e.LINGSHU_S3_REGION,
+      bucket: e.LINGSHU_S3_BUCKET,
+      accessKey: e.LINGSHU_S3_ACCESS_KEY,
+      secretKey: e.LINGSHU_S3_SECRET_KEY,
+      forcePathStyle: parseBoolean(e.LINGSHU_S3_FORCE_PATH_STYLE, 'LINGSHU_S3_FORCE_PATH_STYLE'),
+    },
+    queue: { prefix: e.LINGSHU_QUEUE_PREFIX },
   };
 }
