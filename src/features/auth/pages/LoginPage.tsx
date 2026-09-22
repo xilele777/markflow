@@ -1,6 +1,7 @@
 // 登录页（全屏，脱壳）。视觉：编辑分栏 · 浅色工坊（左品牌 / 右表单）。
 // 真实登录：login() 拿 token → getCurrentUser() 拿 user + workspaces，写入 store。
-import { useNavigate } from 'react-router-dom';
+// 登录后去向：优先回到 RequireAuth 记下的 state.from，否则按角色 pickHomePath（F17）。
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Form, Input } from 'antd';
 import { Btn, toast } from '@/shared/components';
@@ -8,6 +9,7 @@ import { palette, fonts } from '@/app/theme';
 import { BrandMark } from '@/app/layout/BrandMark';
 import { useAuthStore } from '@/shared/store/auth';
 import { useWorkspaceStore } from '@/shared/store/workspace';
+import { computeRoles, pickHomePath } from '@/shared/auth/permissions';
 import { login, getCurrentUser } from '../api';
 import type { LoginRequest } from '../types';
 
@@ -97,6 +99,7 @@ function BrandPanel() {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setToken = useAuthStore((s) => s.setToken);
   const setUser = useAuthStore((s) => s.setUser);
   const clearAuth = useAuthStore((s) => s.clear);
@@ -114,9 +117,13 @@ export default function LoginPage() {
       setUser(me);
       setWorkspaces(me.workspaces);
       // 默认选中第一个空间（需要 spaceCode 的接口靠它）。
-      if (me.workspaces[0]) setSpace(me.workspaces[0].spaceCode);
+      const spaceCode = me.workspaces[0]?.spaceCode ?? null;
+      if (spaceCode) setSpace(spaceCode);
       toast.success('登录成功');
-      navigate('/dataset', { replace: true });
+      // 未登录被截到 /login 时 RequireAuth 带了 state.from；否则按角色挑首选入口（无权路径会被 RequireRole 再兜底）。
+      const from = (location.state as { from?: string } | null)?.from;
+      const target = from && from !== '/login' ? from : pickHomePath(computeRoles(me, spaceCode));
+      navigate(target, { replace: true });
     },
     onError: () => {
       // 业务错误已由 http 层 Toast；清掉半登录态（token 已写但 getCurrentUser 失败的情况）。

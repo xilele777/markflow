@@ -6,7 +6,7 @@
 // 用法（组件内）：
 //   const perms = useCurrentRoles();
 //   if (!perms.canManageData) return null;
-import { useAuthStore } from '@/shared/store/auth';
+import { useAuthStore, type CurrentUser } from '@/shared/store/auth';
 import { useWorkspaceStore } from '@/shared/store/workspace';
 
 // 角色 code 常量（与后端 getCurrentUser.workspaces[].roles 字符串严格一致）。
@@ -60,15 +60,13 @@ const EMPTY: CurrentRoles = {
   canExportResult: false,
 };
 
-/** 计算当前用户在当前空间的角色 + 派生能力。
+/** 纯函数：由用户与当前空间算出角色 + 派生能力。
  *  规则：
  *   - 用户为空（未登录） → 全 false
  *   - 找不到当前空间 / 未选空间 → 仅 isSA 可能为 true，空间角色全 false
+ *  组件内用 useCurrentRoles；非渲染上下文（如登录成功回调）直接调用本函数。
  */
-export function useCurrentRoles(): CurrentRoles {
-  const user = useAuthStore((s) => s.user);
-  const spaceCode = useWorkspaceStore((s) => s.spaceCode);
-
+export function computeRoles(user: CurrentUser | null, spaceCode: string | null): CurrentRoles {
   if (!user) return EMPTY;
 
   const isSA = user.isSystemAdmin;
@@ -100,6 +98,13 @@ export function useCurrentRoles(): CurrentRoles {
     canWriteAiConfig,
     canExportResult,
   };
+}
+
+/** 计算当前用户在当前空间的角色 + 派生能力（订阅 store，随登录 / 切空间刷新）。 */
+export function useCurrentRoles(): CurrentRoles {
+  const user = useAuthStore((s) => s.user);
+  const spaceCode = useWorkspaceStore((s) => s.spaceCode);
+  return computeRoles(user, spaceCode);
 }
 
 /** 给路由首选/重定向用：按当前用户角色挑一个有权访问的入口路径。
