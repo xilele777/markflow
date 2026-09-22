@@ -46,4 +46,4 @@ label/                       Git 仓库根，main 分支
 - [部署、备份和回滚](docs/server/deployment.md)
 - [目录规范与历史迁移](docs/structure.md)
 
-原前后端完整提交历史已合并，旧提交号保留。当前没有配置发布 remote，也未 push；原前端 upstream 不作为新项目推送目标。本机原 Git 元数据和 bundle 在被忽略的 `.migration-backup/20260922-monorepo/`，历史已进入新仓库，备份不参与运行。
+原前后端完整提交历史已合并，旧提交号保留。GitHub 私有仓库为 [xilele777/lingshu](https://github.com/xilele777/lingshu)，对应 origin；原前端 upstream 不作为新项目推送目标。CI 结果见 [Actions](https://github.com/xilele777/lingshu/actions/workflows/ci.yml)，部署变量 `LINGSHU_DEPLOY_ENABLED=false`。本机原 Git 元数据和 bundle 在被忽略的 `.migration-backup/20260922-monorepo/`，历史已进入新仓库，备份不参与运行。

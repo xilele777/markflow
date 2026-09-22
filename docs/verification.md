@@ -33,7 +33,7 @@ API 与浏览器验收针对本地真实前后端及 PG / Redis / MinIO。AI 冒
 | 其它已知遗留 | AI 耗尽重试后的手动重派、审核页草稿自动保存未实现；已读通知无定期清理；截止扫描每批最多 500 case；禁用用户跨实例缓存最多 10s；前端既有警告。 |
 | 历史数据 | 没有 LabelHub 历史数据自动迁移工具，也没有迁移验数。早期报告曾提出从新数据起步；实际切换前仍须明确保留旧库还是另做迁移。 |
 | 生产部署 | 服务器未就绪，未部署。真实域名 / TLS / 对象存储直传 / 云权限 / PM2 / systemd / 重启恢复 / 备份恢复待验收。 |
-| GitHub CI/CD | 工作流已准备，尚未在 GitHub 实跑；CD 默认关闭，未 push。 |
+| GitHub CI/CD | 代码与工作流提交到私有仓库 [xilele777/lingshu](https://github.com/xilele777/lingshu)。云端 CI 结果以 [Actions](https://github.com/xilele777/lingshu/actions/workflows/ci.yml) 为准；部署变量明确为 false，未部署。 |
 | 业务切换 | 未切换旧系统流量，LabelHub 未封存；切换后观察两周的阶段未开始。 |
 
 上线时还需按 [部署手册](server/deployment.md) 完成实机检查。迁移关闭前应逐项确认以上差异是补齐、延期还是正式排除，不能只依据里程碑标题判断全部完成。

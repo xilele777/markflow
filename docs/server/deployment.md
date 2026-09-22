@@ -1,6 +1,6 @@
 # 灵枢 M6 部署与切换手册
 
-**当前仅完成部署前准备。服务器尚未准备好，未部署、未切域名、未 push，也未启用 CD。** 本文命令供后续服务器就绪后执行；本地构建、测试和打包不需要服务器。M6 的真实服务器、GitHub CI 和业务切换验收仍待完成。
+**当前仅完成部署前准备。服务器尚未准备好，未部署、未切域名，也未启用 CD。** 本文命令供后续服务器就绪后执行；本地构建、测试和打包不需要服务器。M6 的真实服务器、GitHub CI 和业务切换验收仍待完成。
 
 本文部署资产路径相对于 `apps/server/`；第 2 节本地命令明确从 monorepo 根目录执行。Linux 服务器命令中的绝对路径和 release 内部结构保持原样。
 
@@ -150,7 +150,7 @@ pg_restore --exit-on-error --no-owner --no-privileges \
 
 ## 8. CI/CD（目前关闭）
 
-根 `.github/workflows/ci.yml` 支持 main push / PR / 手动运行，同一次 CI 检查前后端、集成测试、打包测试和部署脚本夹具。当前 monorepo 未配置 remote、未 push，GitHub 实跑尚未验收。旧前端 upstream 不作为新项目发布目标。
+根 `.github/workflows/ci.yml` 支持 main push / PR / 手动运行，同一次 CI 检查前后端、集成测试、打包测试和部署脚本夹具。monorepo 的 origin 为私有仓库 [xilele777/lingshu](https://github.com/xilele777/lingshu)，部署变量 `LINGSHU_DEPLOY_ENABLED` 明确设置为 false。每次 push 的云端验证结果见 [CI 运行记录](https://github.com/xilele777/lingshu/actions/workflows/ci.yml)。旧前端 upstream 不作为新项目发布目标。
 
 根 `.github/workflows/deploy.yml` 只有仓库变量 `LINGSHU_DEPLOY_ENABLED=true` 时才允许准备发布；未设置或 false 时所有部署 job 跳过。服务器未就绪前保持关闭。启用后，main 的成功 push CI 或 main 手动运行会检出该次 CI / 运行的精确 SHA，并从同一工作树重跑两端检查与后端集成测试，组装 tar / 校验和。production environment 的 job 才读取 SSH 凭据、上传、校验并激活。不会自动切换 LabelHub 域名。
 
