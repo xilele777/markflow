@@ -1,8 +1,10 @@
-# markflow
-
-[![CI](https://github.com/xilele777/markflow/actions/workflows/ci.yml/badge.svg)](https://github.com/xilele777/markflow/actions/workflows/ci.yml)
-![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522-5FA04E?logo=nodedotjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![markflow](https://socialify.git.ci/xilele777/markflow/image?custom_description=%E7%94%A8%E4%BA%8E%E6%89%93%E9%80%A0%E9%AB%98%E8%B4%A8%E9%87%8F%E6%95%B0%E6%8D%AE%E9%9B%86%E7%9A%84%E8%87%AA%E6%89%98%E7%AE%A1%E6%95%B0%E6%8D%AE%E6%A0%87%E6%B3%A8%E5%B9%B3%E5%8F%B0%EF%BC%9A%0A%E5%9C%A8%E4%B8%80%E4%B8%AA%E5%B7%A5%E4%BD%9C%E6%B5%81%E4%B8%AD%E7%BB%9F%E7%AD%B9%E6%A0%87%E6%B3%A8%E3%80%81AI+%E9%A2%84%E6%A0%87%E6%B3%A8%E3%80%81%E4%BA%BA%E5%B7%A5%E5%AE%A1%E6%A0%B8%E5%92%8C%E7%BB%93%E6%9E%84%E5%8C%96%E5%AF%BC%E5%87%BA%E3%80%82&description=1&font=JetBrains+Mono&language=1&name=1&owner=1&pattern=Plus&theme=Light)
+<p align="center">
+  <a href="https://github.com/xilele777/markflow/actions/workflows/ci.yml">
+    <img src="https://github.com/xilele777/markflow/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <img src="https://img.shields.io/badge/Node.js-%E2%89%A522-5FA04E?logo=nodedotjs&logoColor=white" alt="Node.js">
+</p>
 
 可自托管的数据标注平台，支持从数据集导入、任务分配到标注、质检与结果导出的完整流程。
 
@@ -52,7 +54,7 @@ npm run dev:server
 npm run dev:web
 ```
 
-访问 **http://localhost:5173**。后端默认监听 `http://127.0.0.1:8080`，前端通过 `/api` 代理访问。后端启动时自动执行数据库迁移和首次管理员初始化。
+访问 `http://localhost:5173`。 后端默认监听 `http://127.0.0.1:8080`，前端通过 `/api` 代理访问。后端启动时自动执行数据库迁移和首次管理员初始化。
 
 本地 MinIO 从固定的官方源码提交构建，首次 `infra:up` 需要下载 Go 依赖并编译，耗时较长，后续复用镜像。该社区版本已停止维护，仅作为开发和测试依赖；生产对象存储请按部署指南配置。
 
@@ -107,6 +109,3 @@ tests/              仓库级发布打包测试
 
 提交 Pull Request 前，请为业务修复补充回归用例，更新相关文档，并运行 `npm run lint`、`npm run typecheck`、`npm test` 和 `npm run build`。后端代码还需通过 `cd apps/server && npx prettier --check src tests`。请勿提交 `.env`、访问密钥、真实业务数据或本地产物。
 
-## 许可证
-
-仓库尚未指定开源许可证；使用与分发授权以维护者明确提供的许可为准。
