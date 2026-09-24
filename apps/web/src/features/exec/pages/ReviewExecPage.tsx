@@ -1,59 +1,25 @@
 // 质检执行页（全屏，《页面模板.md》四）。ExecToolbar + iframe，结构对齐 LabelExecPage。
 // 区别：右侧操作 = 通过 / 不通过；不通过弹 RejectModal 收意见 → submitReviewTask({reviewAction:0|1, reviewComment})。
 // 提交按响应分流：成功切下一题、失败 toast 后端 message 不切。已完成(status=4)只读复看。
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App, Button, Input } from 'antd';
 import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
 import { getTaskDetail, getTaskResult, submitReviewTask } from '@/features/task/api';
-import { getTaskListInGroup } from '@/features/taskgroup/api';
-import type { MyTaskGroupItem } from '@/features/taskgroup/types';
-
-interface ExecState {
-  taskIds?: number[];
-  taskGroupId?: number;
-  group?: MyTaskGroupItem;
-}
-
-const QUEUE_REFILL_THRESHOLD = 2;
-const REFILL_PAGE_SIZE = 20;
+import { useExecutionQueue } from '../useExecutionQueue';
 
 /** reviewAction：0=驳回 1=通过。 */
 const REVIEW_PASS = 1;
 const REVIEW_REJECT = 0;
 
 export default function ReviewExecPage() {
-  const { taskId: taskIdParam } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = (location.state ?? {}) as ExecState;
   const { message } = App.useApp();
-
-  const initialQueue = useMemo<number[]>(() => {
-    const cur = Number(taskIdParam);
-    const tail = (state.taskIds ?? []).filter((id) => id !== cur);
-    return Number.isFinite(cur) ? [cur, ...tail] : tail;
-  }, [taskIdParam, state.taskIds]);
-
-  const [queue, setQueue] = useState<number[]>(initialQueue);
-  const [cursor, setCursor] = useState(0);
-  const [done, setDone] = useState(false);
-  const taskId = queue[cursor];
-
-  useEffect(() => {
-    const cur = Number(taskIdParam);
-    if (Number.isFinite(cur) && queue[cursor] !== cur) {
-      setQueue((q) => {
-        const tail = q.filter((id) => id !== cur).slice(cursor);
-        return [cur, ...tail];
-      });
-      setCursor(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskIdParam]);
+  const { queue, cursor, setCursor, done, taskId, state, advance, queueError, advancing } =
+    useExecutionQueue('review');
 
   const detailQ = useQuery({
     queryKey: ['task', 'detail', taskId],
@@ -68,51 +34,6 @@ export default function ReviewExecPage() {
     queryFn: () => getTaskResult(taskId, 2),
     enabled: Number.isFinite(taskId),
   });
-
-  // 补货：拉一页 status=1 待办，append 没见过的。
-  const refilling = useRef(false);
-  useEffect(() => {
-    if (done) return;
-    const remaining = queue.length - cursor - 1;
-    if (remaining > QUEUE_REFILL_THRESHOLD) return;
-    if (!state.taskGroupId) return;
-    if (refilling.current) return;
-    refilling.current = true;
-    getTaskListInGroup({
-      taskGroupId: state.taskGroupId,
-      status: 1,
-      pageNum: 1,
-      pageSize: REFILL_PAGE_SIZE,
-    })
-      .then((res) => {
-        setQueue((q) => {
-          const seen = new Set(q);
-          const fresh = res.list.map((t) => t.taskId).filter((tid) => !seen.has(tid));
-          return fresh.length ? [...q, ...fresh] : q;
-        });
-      })
-      .catch(() => {})
-      .finally(() => {
-        refilling.current = false;
-      });
-  }, [queue.length, cursor, done, state.taskGroupId]);
-
-  const advance = useCallback(() => {
-    setQueue((q) => {
-      const nextCursor = cursor + 1;
-      if (nextCursor >= q.length) {
-        setDone(true);
-        return q;
-      }
-      const nextId = q[nextCursor];
-      setCursor(nextCursor);
-      navigate(`/exec/review/${nextId}`, {
-        replace: true,
-        state: { ...state, taskIds: q.slice(nextCursor + 1) },
-      });
-      return q;
-    });
-  }, [cursor, navigate, state]);
 
   // 队列内手动浏览。
   const goTo = (nextCursor: number) => {
@@ -146,11 +67,11 @@ export default function ReviewExecPage() {
   const submitMutation = useMutation({
     mutationFn: (vars: { taskId: number; reviewAction: number; reviewComment?: string }) =>
       submitReviewTask(vars),
-    onSuccess: (_, vars) => {
+    onSuccess: async (_, vars) => {
       message.success(vars.reviewAction === REVIEW_PASS ? '已通过' : '已不通过 · 已打回重标');
       setReviewComment('');
       lastHydratedTaskId.current = null;
-      advance();
+      await advance();
     },
     onError: (e) => {
       message.error((e as Error)?.message || '提交失败');
@@ -169,7 +90,9 @@ export default function ReviewExecPage() {
 
   const backToGroup = () => {
     if (state.taskGroupId) {
-      navigate(`/my-groups/${state.taskGroupId}`, { state: state.group ? { group: state.group } : undefined });
+      navigate(`/my-groups/${state.taskGroupId}`, {
+        state: state.group ? { group: state.group } : undefined,
+      });
     } else {
       navigate('/my-groups');
     }
@@ -256,10 +179,13 @@ export default function ReviewExecPage() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-          <Button onClick={goPrev} disabled={done || cursor === 0}>
+          <Button onClick={goPrev} disabled={queueError || advancing || done || cursor === 0}>
             上一题
           </Button>
-          <Button onClick={goNext} disabled={done || cursor >= queue.length - 1}>
+          <Button
+            onClick={goNext}
+            disabled={queueError || advancing || done || cursor >= queue.length - 1}
+          >
             下一题
           </Button>
           <span style={vDivider} />
@@ -268,7 +194,7 @@ export default function ReviewExecPage() {
           ) : (
             <>
               <Button
-                disabled={done || submitMutation.isPending}
+                disabled={queueError || advancing || done || submitMutation.isPending}
                 loading={
                   submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_PASS
                 }
@@ -278,9 +204,10 @@ export default function ReviewExecPage() {
                 通过
               </Button>
               <Button
-                disabled={done || submitMutation.isPending}
+                disabled={queueError || advancing || done || submitMutation.isPending}
                 loading={
-                  submitMutation.isPending && submitMutation.variables?.reviewAction === REVIEW_REJECT
+                  submitMutation.isPending &&
+                  submitMutation.variables?.reviewAction === REVIEW_REJECT
                 }
                 onClick={() => submitReview(REVIEW_REJECT)}
                 style={rejectBtnStyle}
@@ -318,7 +245,11 @@ export default function ReviewExecPage() {
       )}
 
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        {done ? (
+        {queueError ? (
+          <ErrorState message="提交已成功，后续任务加载失败" onRetry={() => void advance()} />
+        ) : advancing ? (
+          <LoadingState />
+        ) : done ? (
           <DonePanel onBack={backToGroup} />
         ) : detailQ.isLoading ? (
           <LoadingState />
@@ -329,13 +260,18 @@ export default function ReviewExecPage() {
             key={detail.taskId}
             src={iframeSrc}
             title="质检工具"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none',
+            }}
           />
         ) : (
           <ErrorState message="标注工具未配置（labelToolUrl 为空）" />
         )}
       </div>
-
     </div>
   );
 }
@@ -376,10 +312,19 @@ function DonePanel({ onBack }: { onBack: () => void }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
         <CheckCircleFilled style={{ fontSize: 48, color: '#2c7a52' }} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 700, color: palette.text }}>
+          <div
+            style={{
+              fontFamily: fonts.display,
+              fontSize: 18,
+              fontWeight: 700,
+              color: palette.text,
+            }}
+          >
             本组已全部处理完
           </div>
-          <div style={{ marginTop: 6, fontSize: 13, color: palette.sub }}>可返回任务组查看进度。</div>
+          <div style={{ marginTop: 6, fontSize: 13, color: palette.sub }}>
+            可返回任务组查看进度。
+          </div>
         </div>
         <Button type="primary" onClick={onBack}>
           返回任务组

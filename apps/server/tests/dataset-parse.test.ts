@@ -237,12 +237,27 @@ describe('数据集解析', () => {
       expect(await samplesOf(versionId).then((s) => s.length)).toBe(2500);
     });
 
-    it('重解析幂等：先清场再入库，样本数不翻倍', async () => {
+    it('READY 版本重复解析直接跳过，样本主键与内容保持不变', async () => {
       const { versionId } = await parseFile(jsonlOf([{ text: 'a' }, { text: 'b' }]));
+      const before = await samplesOf(versionId);
       await service.parseDatasetVersion(versionId);
       const version = await selectVersion(h.ctx, versionId);
       expect(version.sampleCount).toBe(2);
-      expect(await samplesOf(versionId).then((s) => s.length)).toBe(2);
+      expect(await samplesOf(versionId)).toEqual(before);
+    });
+
+    it('同版本并发解析串行执行，后到的消费者保留首轮样本主键', async () => {
+      const ossPath = await uploadTestObject(h.ctx, jsonlOf([{ text: 'a' }, { text: 'b' }]));
+      const versionId = await insertVersion(h.ctx, { datasetId, ossPath });
+      let firstIds: number[] = [];
+      await Promise.all([
+        service.parseDatasetVersion(versionId).then(async () => {
+          firstIds = (await samplesOf(versionId)).map((row) => row.id);
+        }),
+        service.parseDatasetVersion(versionId),
+      ]);
+      expect((await samplesOf(versionId)).map((row) => row.id)).toEqual(firstIds);
+      expect(firstIds).toHaveLength(2);
     });
 
     it('不支持的后缀 → PARSE_FAILED，原因为业务文案，其余统计为 null，sampleCount 不变', async () => {

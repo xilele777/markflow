@@ -1,10 +1,10 @@
 // 标注执行页（全屏，《页面模板.md》四）。ExecToolbar + iframe。
-// 队列：进入时从详情页 navigate(state) 接 taskIds；剩 ≤2 时自动补一页待办拼到队尾。
+// 队列：进入时从详情页 navigate(state) 接 taskIds；提交后查询在手任务。
 // 提交：先等嵌入页把自动保存落库（postMessage 协议），再按 pageSchema 做必填校验，最后 submitLabelTask；
 //       成功切下一题，失败 toast 显示后端 message、不切。
 // 工具分流：type=1 内置 → /embed/label/:taskId（同源），type=2 IFRAME → labelToolUrl?taskId=...
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { App, Button } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -22,20 +22,8 @@ import {
   validateResultAgainstSchema,
   type EmbedResultState,
 } from '../resultValidation';
-import { getTaskListInGroup } from '@/features/taskgroup/api';
-import type { MyTaskGroupItem } from '@/features/taskgroup/types';
+import { useExecutionQueue } from '../useExecutionQueue';
 
-interface ExecState {
-  /** 进入时由详情页提供：当前组在手 + 待办的 taskId 顺序队列。 */
-  taskIds?: number[];
-  /** 用于「补货」（再拉一页 status=1 待办）。 */
-  taskGroupId?: number;
-  /** 用于顶栏显示组名 / 返回。 */
-  group?: MyTaskGroupItem;
-}
-
-const QUEUE_REFILL_THRESHOLD = 2;
-const REFILL_PAGE_SIZE = 20;
 /** 提交前等待嵌入页自动保存落库的最长时间。 */
 const WAIT_SAVE_TIMEOUT_MS = 4000;
 
@@ -43,40 +31,11 @@ const WAIT_SAVE_TIMEOUT_MS = 4000;
 class ClientValidationError extends Error {}
 
 export default function LabelExecPage() {
-  const { taskId: taskIdParam } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = (location.state ?? {}) as ExecState;
   const { message } = App.useApp();
+  const { queue, cursor, setCursor, done, taskId, state, advance, queueError, advancing } =
+    useExecutionQueue('label');
 
-  // 队列：从 URL 当前题为起点，state.taskIds 给一段未来的顺序。
-  // 第一题是 URL :taskId；后续来自 state.taskIds.filter(id => id !== current)。
-  const initialQueue = useMemo<number[]>(() => {
-    const cur = Number(taskIdParam);
-    const tail = (state.taskIds ?? []).filter((id) => id !== cur);
-    return Number.isFinite(cur) ? [cur, ...tail] : tail;
-  }, [taskIdParam, state.taskIds]);
-
-  const [queue, setQueue] = useState<number[]>(initialQueue);
-  const [cursor, setCursor] = useState(0);
-  const [done, setDone] = useState(false);
-  // 「本组完结」终态：队列跑完且补货也回了空。
-  const taskId = queue[cursor];
-
-  // 当 URL 的 :taskId 与队列首位不一致时（手动改 URL 等），把队列重置。
-  useEffect(() => {
-    const cur = Number(taskIdParam);
-    if (Number.isFinite(cur) && queue[cursor] !== cur) {
-      setQueue((q) => {
-        const tail = q.filter((id) => id !== cur).slice(cursor);
-        return [cur, ...tail];
-      });
-      setCursor(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskIdParam]);
-
-  // 当前任务详情（拿 labelToolType / labelToolUrl / bizId / round 用于顶栏 + iframe src 分流）。
   const detailQ = useQuery({
     queryKey: ['task', 'detail', taskId],
     queryFn: () => getTaskDetail(taskId),
@@ -99,54 +58,6 @@ export default function LabelExecPage() {
     const v = (r.result as { reviewComment?: unknown }).reviewComment;
     return typeof v === 'string' ? v : '';
   }, [isRebound, reviewResultQ.data]);
-
-  // 当剩余 ≤ 阈值时补货：拉一页 status=1 待办，append 没见过的。
-  const refilling = useRef(false);
-  useEffect(() => {
-    if (done) return;
-    const remaining = queue.length - cursor - 1;
-    if (remaining > QUEUE_REFILL_THRESHOLD) return;
-    if (!state.taskGroupId) return; // 没有 groupId 就无法补货
-    if (refilling.current) return;
-    refilling.current = true;
-    getTaskListInGroup({
-      taskGroupId: state.taskGroupId,
-      status: 1, // 待办
-      pageNum: 1,
-      pageSize: REFILL_PAGE_SIZE,
-    })
-      .then((res) => {
-        setQueue((q) => {
-          const seen = new Set(q);
-          const fresh = res.list.map((t) => t.taskId).filter((tid) => !seen.has(tid));
-          return fresh.length ? [...q, ...fresh] : q;
-        });
-      })
-      .catch(() => {
-        // 静默：补货失败不影响当前题作业。
-      })
-      .finally(() => {
-        refilling.current = false;
-      });
-  }, [queue.length, cursor, done, state.taskGroupId]);
-
-  const advance = useCallback(() => {
-    setQueue((q) => {
-      const nextCursor = cursor + 1;
-      if (nextCursor >= q.length) {
-        setDone(true);
-        return q;
-      }
-      const nextId = q[nextCursor];
-      setCursor(nextCursor);
-      // URL 跟着切（state 透传，便于刷新后队列里至少自己还在）。
-      navigate(`/exec/label/${nextId}`, {
-        replace: true,
-        state: { ...state, taskIds: q.slice(nextCursor + 1) },
-      });
-      return q;
-    });
-  }, [cursor, navigate, state]);
 
   // 嵌入页（iframe）的保存状态：dirty=有未落库编辑；saving=保存中；saved=已落库；error=保存失败。
   const embedStateRef = useRef<EmbedResultState>('saved');
@@ -192,14 +103,17 @@ export default function LabelExecPage() {
       const pageSchema = detailQ.data?.labelTool.labelToolPageSchema;
       if (pageSchema && detailQ.data?.labelTool.labelToolType === 1) {
         const saved = await getTaskResult(tid, 1);
-        const check = validateResultAgainstSchema(pageSchema, saved.hasResult ? saved.result : null);
+        const check = validateResultAgainstSchema(
+          pageSchema,
+          saved.hasResult ? saved.result : null,
+        );
         if (!check.ok) throw new ClientValidationError(describeMissing(check.missing));
       }
       await submitLabelTask(tid);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       message.success('已提交标注');
-      advance();
+      await advance();
     },
     onError: (e) => {
       // 客户端校验 / 后端 message 原文显示（常见：未保存结果 / 校验未通过）；不切题。
@@ -209,7 +123,9 @@ export default function LabelExecPage() {
 
   const backToGroup = () => {
     if (state.taskGroupId) {
-      navigate(`/my-groups/${state.taskGroupId}`, { state: state.group ? { group: state.group } : undefined });
+      navigate(`/my-groups/${state.taskGroupId}`, {
+        state: state.group ? { group: state.group } : undefined,
+      });
     } else {
       navigate('/my-groups');
     }
@@ -274,11 +190,7 @@ export default function LabelExecPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-          <button
-            onClick={backToGroup}
-            title="退出"
-            style={iconBtnStyle}
-          >
+          <button onClick={backToGroup} title="退出" style={iconBtnStyle}>
             <ArrowLeftOutlined style={{ fontSize: 14, color: palette.sub }} />
           </button>
           <span
@@ -314,15 +226,18 @@ export default function LabelExecPage() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-          <Button onClick={goPrev} disabled={done || cursor === 0}>
+          <Button onClick={goPrev} disabled={queueError || advancing || done || cursor === 0}>
             上一题
           </Button>
-          <Button onClick={goNext} disabled={done || cursor >= queue.length - 1}>
+          <Button
+            onClick={goNext}
+            disabled={queueError || advancing || done || cursor >= queue.length - 1}
+          >
             下一题
           </Button>
           <span style={vDivider} />
           <Button
-            disabled={done || isDone || submitMutation.isPending}
+            disabled={queueError || advancing || done || isDone || submitMutation.isPending}
             loading={submitMutation.isPending}
             type="primary"
             onClick={() => taskId && submitMutation.mutate(taskId)}
@@ -340,7 +255,11 @@ export default function LabelExecPage() {
 
       {/* 主体：iframe / 加载 / 完结终态 */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        {done ? (
+        {queueError ? (
+          <ErrorState message="提交已成功，后续任务加载失败" onRetry={() => void advance()} />
+        ) : advancing ? (
+          <LoadingState />
+        ) : done ? (
           <DonePanel onBack={backToGroup} />
         ) : detailQ.isLoading ? (
           <LoadingState />
@@ -351,7 +270,13 @@ export default function LabelExecPage() {
             key={detail.taskId}
             src={iframeSrc}
             title="标注工具"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none',
+            }}
           />
         ) : (
           <ErrorState message="标注工具未配置（labelToolUrl 为空）" />
@@ -435,9 +360,7 @@ function ReboundBanner({ comment, round }: { comment: string; round: number }) {
               wordBreak: 'break-word',
             }}
           >
-            {comment.trim() || (
-              <span style={{ color: palette.weak }}>（质检员未填写理由）</span>
-            )}
+            {comment.trim() || <span style={{ color: palette.weak }}>（质检员未填写理由）</span>}
           </div>
         )}
       </div>
@@ -451,7 +374,14 @@ function DonePanel({ onBack }: { onBack: () => void }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
         <CheckCircleFilled style={{ fontSize: 48, color: '#2c7a52' }} />
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 700, color: palette.text }}>
+          <div
+            style={{
+              fontFamily: fonts.display,
+              fontSize: 18,
+              fontWeight: 700,
+              color: palette.text,
+            }}
+          >
             本组已全部处理完
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: palette.sub }}>

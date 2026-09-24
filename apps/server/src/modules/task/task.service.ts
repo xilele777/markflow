@@ -39,6 +39,7 @@ import {
 import { DispatchEngine, STAGE_DESC, SYSTEM_OPERATOR } from './dispatch-engine.js';
 import {
   CaseStatus,
+  IN_HAND_STATUSES,
   isAnnotationTaskType,
   isTaskStatusCode,
   ReviewAction,
@@ -80,6 +81,7 @@ export interface TaskServiceDeps {
 
 export interface TaskListItem {
   taskId: number;
+  taskType: number;
   bizId: string | null;
   taskGroupSeq: number;
   status: number;
@@ -91,6 +93,7 @@ export interface TaskListItem {
 
 export interface TaskDetail {
   taskId: number;
+  taskGroupId: number;
   caseId: number;
   taskType: number;
   stageType: string;
@@ -151,6 +154,7 @@ export class TaskService {
     return {
       list: rows.map((t) => ({
         taskId: t.id,
+        taskType: t.taskType,
         bizId: t.bizId,
         taskGroupSeq: t.taskGroupSeq,
         status: t.status,
@@ -175,6 +179,7 @@ export class TaskService {
     if (!tool) throw ServiceError.of(LabelToolErrorCode.LABEL_TOOL_NOT_FOUND);
     return {
       taskId: task.id,
+      taskGroupId: task.taskGroupId,
       caseId: task.caseId,
       taskType: task.taskType,
       stageType: requireStageByCode(task.taskType).type,
@@ -245,7 +250,19 @@ export class TaskService {
     result: unknown,
   ): Promise<void> {
     const caseRow = await this.requireWritableCase(task.caseId);
-    await this.writeResultSample(this.deps.db, task, caseRow, sampleType, result);
+    // lazy 结果版本使用独立事务，必须在持有 task 行锁/连接之前创建，避免并发首存耗尽连接池。
+    if (task.status === TaskStatus.DONE)
+      throw ServiceError.of(TaskErrorCode.TASK_ALREADY_COMPLETED);
+    if (sampleType === SampleType.ANNOTATION && caseRow.labelResultDatasetVersionId === null) {
+      caseRow.labelResultDatasetVersionId = await this.getOrCreateResultVersion(
+        caseRow,
+        operatorOf(task),
+      );
+    }
+    await this.deps.db.transaction().execute(async (trx) => {
+      await this.lockWritableTask(trx, task);
+      await this.writeResultSample(trx, task, caseRow, sampleType, result);
+    });
   }
 
   async submitLabelTask(operator: Operator, input: { taskId?: Maybe<number> }): Promise<void> {
@@ -313,6 +330,7 @@ export class TaskService {
     if (reviewAction === ReviewAction.PASS) {
       const nextStage = nextStageInPlan(plan, currentStage);
       const outcome = await this.deps.db.transaction().execute(async (trx) => {
+        await this.lockWritableTask(trx, task);
         await this.writeResultSample(trx, task, caseRow, SampleType.REVIEW, review);
         const now = Date.now();
         await this.completeTaskOrThrow(trx, task, now);
@@ -342,6 +360,7 @@ export class TaskService {
 
     const outcome = await this.deps.db.transaction().execute(async (trx) => {
       const tasks = this.deps.tasks.withDb(trx);
+      await this.lockWritableTask(trx, task);
       await this.writeResultSample(trx, task, caseRow, SampleType.REVIEW, review);
       const now = Date.now();
       await this.completeTaskOrThrow(trx, task, now);
@@ -609,12 +628,35 @@ export class TaskService {
   }
 
   private async completeTaskOrThrow(trx: Db, task: TaskRow, now: number): Promise<void> {
+    await this.lockWritableTask(trx, task);
     const costTime = task.claimTime === null ? null : now - task.claimTime;
     const affected = await this.deps.tasks
       .withDb(trx)
       .updateToCompleted(task.id, costTime, operatorOf(task), now);
     if (affected === 0) throw ServiceError.of(TaskErrorCode.TASK_ALREADY_COMPLETED);
     await this.deps.groups.withDb(trx).refreshPersonalGroupStats([task.taskGroupId], now);
+  }
+
+  /** 行锁与提交、回收的 UPDATE 互斥；旧请求不能写入新轮次或新持有人的结果。 */
+  private async lockWritableTask(trx: Db, expected: TaskRow): Promise<void> {
+    const current = await trx
+      .selectFrom('label_task')
+      .selectAll()
+      .where('id', '=', expected.id)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!current) throw ServiceError.of(TaskErrorCode.TASK_NOT_FOUND);
+    if (current.status === TaskStatus.DONE)
+      throw ServiceError.of(TaskErrorCode.TASK_ALREADY_COMPLETED);
+    if (
+      !IN_HAND_STATUSES.includes(current.status) ||
+      current.annotator === null ||
+      current.annotator !== expected.annotator ||
+      current.round !== expected.round ||
+      current.taskGroupId !== expected.taskGroupId ||
+      current.claimTime !== expected.claimTime
+    )
+      throw ServiceError.of(TaskErrorCode.TASK_STATE_CHANGED);
   }
 
   /** case 存在且未结束；已结束的 case 拒绝保存 / 提交（CASE_FINISHED）。 */
@@ -692,6 +734,7 @@ export class TaskService {
       payload: {
         caseId: task.caseId,
         taskId: task.id,
+        round: task.round,
         dataSampleId: task.dataSampleId,
         currentStageType: currentStage.type,
         nextStageType: nextStage ? nextStage.type : null,

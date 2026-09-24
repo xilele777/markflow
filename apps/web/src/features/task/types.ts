@@ -16,6 +16,7 @@ export interface TaskDetailLabelTool {
 /** getTaskDetail 出参。 */
 export interface TaskDetail {
   taskId: number;
+  taskGroupId: number;
   caseId: number;
   /** task 类型码：1=AI标 2=人工标 3=AI审 4=人工初检 5=人工复检。 */
   taskType: number;

@@ -12,6 +12,7 @@ import { DatasetRepository } from './dataset.repo.js';
 
 export function createDatasetParseService(ctx: AppContext): DatasetParseService {
   return new DatasetParseService({
+    db: ctx.db,
     datasets: new DatasetRepository(ctx.db),
     versions: new DatasetVersionRepository(ctx.db),
     samples: new DatasetSampleRepository(ctx.db),

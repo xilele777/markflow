@@ -1,6 +1,6 @@
 # markflow文档总入口
 
-先读 [2026-09-24 项目审阅](reviews/2026-09-24-project-review.md)（质量、架构、8 项已确认缺陷和逐功能进度），再读 [验收状态](verification.md) 与 [当前迁移规划](plans/0002-2026-09-22-规划-迁移总规划.md)。最新交接为 [0014 · markflow 改名](handoff/0014-2026-09-24-状态快照-markflow改名.md)，包含仓库改名、本地数据衔接与验证结果。
+先读 [2026-09-24 修复验收](reviews/2026-09-24-project-review-fixes.md)（B1–B8 修复与回归证据），原始问题和逐功能进度见 [项目审阅](reviews/2026-09-24-project-review.md)。再读 [验收状态](verification.md) 与 [当前迁移规划](plans/0002-2026-09-22-规划-迁移总规划.md)。仓库改名和本地数据衔接见 [0014 · markflow 改名](handoff/0014-2026-09-24-状态快照-markflow改名.md)。
 
 ## 当前文档
 

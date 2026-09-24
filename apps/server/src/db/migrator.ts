@@ -9,6 +9,7 @@ import * as m0003 from './migrations/0003_mq_outbox.js';
 import * as m0004 from './migrations/0004_web_vitals.js';
 import * as m0005 from './migrations/0005_notification.js';
 import * as m0006 from './migrations/0006_markflow_names.js';
+import * as m0007 from './migrations/0007_task_forwarded_round.js';
 
 // Kysely 的 Migration 接口要求 Kysely<any>：迁移不依赖表类型。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,6 +22,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0004_web_vitals': m0004,
   '0005_notification': m0005,
   '0006_markflow_names': m0006,
+  '0007_task_forwarded_round': m0007,
 };
 
 class StaticMigrationProvider implements MigrationProvider {

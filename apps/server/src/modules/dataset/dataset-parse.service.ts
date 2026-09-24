@@ -5,6 +5,8 @@
 import { StringDecoder } from 'node:string_decoder';
 import type { Readable } from 'node:stream';
 import type { ValidateFunction } from 'ajv';
+import { sql } from 'kysely';
+import type { Db } from '../../infra/db.js';
 import type { NewDatasetSample } from '../../db/schema.js';
 import { ServiceError } from '../../infra/errors.js';
 import {
@@ -35,6 +37,7 @@ const BIZ_ID_MAX_LENGTH = 64;
 const INVALID_ROW_MESSAGE = '非法 JSON 行或非对象';
 
 export interface DatasetParseServiceDeps {
+  db: Db;
   datasets: DatasetRepository;
   versions: DatasetVersionRepository;
   samples: DatasetSampleRepository;
@@ -180,13 +183,34 @@ export function describeParseFailure(err: unknown): string {
 export class DatasetParseService {
   constructor(private readonly deps: DatasetParseServiceDeps) {}
 
-  /** 版本不存在 / 已删除直接跳过；其余任何异常 → PARSE_FAILED（不重试、不上抛）。 */
+  /** 同版本串行解析，数据库连接锁不会因大文件解析超过固定租期而失效。 */
   async parseDatasetVersion(versionId: number): Promise<void> {
+    await this.deps.db.connection().execute(async (connection) => {
+      const lockKey = `dataset-parse:${versionId}`;
+      await sql`SELECT pg_advisory_lock(hashtextextended(${lockKey}, 0))`.execute(connection);
+      try {
+        const service = new DatasetParseService({
+          ...this.deps,
+          db: connection,
+          datasets: this.deps.datasets.withDb(connection),
+          versions: this.deps.versions.withDb(connection),
+          samples: this.deps.samples.withDb(connection),
+          labelTools: this.deps.labelTools.withDb(connection),
+        });
+        await service.parseLockedVersion(versionId);
+      } finally {
+        await sql`SELECT pg_advisory_unlock(hashtextextended(${lockKey}, 0))`.execute(connection);
+      }
+    });
+  }
+
+  private async parseLockedVersion(versionId: number): Promise<void> {
     const version = await this.deps.versions.selectById(versionId);
     if (!version || version.deleted !== DELETED_NO) {
       this.deps.logger.warn({ versionId }, 'dataset-parse skipped: version missing or deleted');
       return;
     }
+    if (version.uploadStatus === UploadStatus.READY) return;
     try {
       const stats = await this.doParse(version);
       this.deps.logger.info(
@@ -228,7 +252,7 @@ export class DatasetParseService {
     }
     const validate = compileJsonSchema(schema, { allErrors: true });
 
-    // 物理清场旧样本，保证重解析幂等。
+    // 仅未就绪版本重试时清理部分样本；READY 版本及其源样本主键不可变。
     await this.deps.samples.deleteByVersionId(version.id);
 
     const stream = await this.deps.storage.getObjectStream(version.ossPath as string);

@@ -51,8 +51,7 @@ export default function GroupDetailPage() {
   const { gid } = useParams();
   const taskGroupId = Number(gid);
 
-  // 接口文档里没有 getTaskGroupDetail：组基本信息（名/case 名/工具/类型）由列表页 navigate(state) 带过来。
-  // 直接刷新或粘贴 URL 时 state 为空，仅展示组 id；后端补口后改为独立 useQuery 拉详情。
+  // 导航信息用于组名展示；执行阶段始终取服务端返回的 taskType。
   // state.from 决定 backTo（my-groups / task-progress / case-detail），缺省回 my-groups。
   const navState =
     (location.state as {
@@ -61,7 +60,6 @@ export default function GroupDetailPage() {
       caseId?: number;
     } | null) ?? null;
   const group = navState?.group;
-  const review = group ? isReviewStage(group.taskType) : false;
   const backTo =
     navState?.from === 'task-progress'
       ? '/task-progress'
@@ -94,7 +92,9 @@ export default function GroupDetailPage() {
   // - 执行页用 taskIds 做「上/下一题」；
   // - 剩 ≤2 时用 taskGroupId 自动补一页待办；
   // - group 用来顶栏显示组名、返回。
-  const enter = (taskId: number) => {
+  const enter = (task: TaskGroupTaskItem) => {
+    const { taskId } = task;
+    const review = isReviewStage(task.taskType);
     const queue = list
       .filter((t) => t.status === 1 || t.status === 2 || t.status === 3 || t.status === 5)
       .map((t) => t.taskId);
@@ -105,6 +105,7 @@ export default function GroupDetailPage() {
   };
 
   const opText = (t: TaskGroupTaskItem): string => {
+    const review = isReviewStage(t.taskType);
     if (t.status === 5) return review ? '重新质检' : '重新标注';
     if (t.status === 1) return review ? '领取质检' : '领取标注';
     return review ? '进入质检' : '进入标注';
@@ -179,11 +180,11 @@ export default function GroupDetailPage() {
       // 已完成的任务：保留「查看详情」入口（执行页会把提交按钮禁用、用只读模式渲染）。
       render: (t) =>
         t.status === 4 ? (
-          <Btn kind="ghost" size="small" onClick={() => enter(t.taskId)}>
+          <Btn kind="ghost" size="small" onClick={() => enter(t)}>
             查看详情
           </Btn>
         ) : (
-          <Btn kind="primary" size="small" onClick={() => enter(t.taskId)}>
+          <Btn kind="primary" size="small" onClick={() => enter(t)}>
             {opText(t)}
           </Btn>
         ),

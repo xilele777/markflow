@@ -20,9 +20,17 @@ export class TaskRepository {
     return new TaskRepository(db);
   }
 
-  async batchInsert(rows: NewTask[]): Promise<void> {
-    if (rows.length === 0) return;
-    await this.db.insertInto('label_task').values(rows).execute();
+  async batchInsert(rows: NewTask[]): Promise<number> {
+    let inserted = 0;
+    for (let offset = 0; offset < rows.length; offset += 500) {
+      const result = await this.db
+        .insertInto('label_task')
+        .values(rows.slice(offset, offset + 500))
+        .onConflict((oc) => oc.columns(['caseId', 'taskType', 'dataSampleId']).doNothing())
+        .executeTakeFirst();
+      inserted += Number(result.numInsertedOrUpdatedRows ?? 0);
+    }
+    return inserted;
   }
 
   selectById(id: number): Promise<TaskRow | undefined> {
@@ -30,19 +38,24 @@ export class TaskRepository {
   }
 
   /** 给定样本集中已存在 (caseId, taskType, dataSampleId) 的 task 行（入池去重 / 重开判断）。 */
-  selectExistingByCaseTypeAndSamples(
+  async selectExistingByCaseTypeAndSamples(
     caseId: number,
     taskType: number,
     sampleIds: readonly number[],
   ): Promise<TaskRow[]> {
-    if (sampleIds.length === 0) return Promise.resolve([]);
-    return this.db
-      .selectFrom('label_task')
-      .selectAll()
-      .where('caseId', '=', caseId)
-      .where('taskType', '=', taskType)
-      .where('dataSampleId', 'in', [...sampleIds])
-      .execute();
+    const rows: TaskRow[] = [];
+    for (let offset = 0; offset < sampleIds.length; offset += 1000) {
+      rows.push(
+        ...(await this.db
+          .selectFrom('label_task')
+          .selectAll()
+          .where('caseId', '=', caseId)
+          .where('taskType', '=', taskType)
+          .where('dataSampleId', 'in', sampleIds.slice(offset, offset + 1000))
+          .execute()),
+      );
+    }
+    return rows;
   }
 
   /** 按 (caseId, taskType, dataSampleId) 取唯一 task（uk_task_case_type_sample）。 */

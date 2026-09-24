@@ -4,7 +4,7 @@
 // 每个执行者一个事务：FOR UPDATE SKIP LOCKED 取池内 task → 建个人组 → 逐条条件更新移组 → 写 outbox → 提交后投递。
 // 与 Java 的差异：dispatchPool 检查 case RUNNING；已 DONE 的 task 再次入池时「重开」（round+1）；task.bizId 填源样本 bizId。
 import type { NewTask, TaskRow } from '../../db/schema.js';
-import { isUniqueViolation, type Db } from '../../infra/db.js';
+import type { Db } from '../../infra/db.js';
 import { ServiceError } from '../../infra/errors.js';
 import type { RedisLock } from '../../infra/lock.js';
 import type { Logger } from '../../infra/logger.js';
@@ -26,6 +26,7 @@ import {
   readAssignment,
   sameName,
   type AssignmentConfig,
+  type MemberConfig,
 } from './config.js';
 import {
   CaseStatus,
@@ -51,7 +52,6 @@ export const STAGE_DESC: Record<string, string> = {
   review: '初检',
   recheck: '复检',
 };
-const RATIO_TOTAL = 100;
 const DISPATCH_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
 const INIT_ROUND = 1;
 /** 可入池的 case 状态：运行中 / 已暂停。 */
@@ -171,26 +171,8 @@ export class DispatchEngine {
         updateTime: now,
       };
     });
-    try {
-      await tasks.batchInsert(rows);
-    } catch (err) {
-      if (!isUniqueViolation(err, 'uk_task_case_type_sample')) throw err;
-      // 并发入池：逐条插入，冲突的跳过。
-      let inserted = 0;
-      for (const row of rows) {
-        try {
-          await tasks.batchInsert([row]);
-          inserted += 1;
-        } catch (inner) {
-          if (!isUniqueViolation(inner, 'uk_task_case_type_sample')) throw inner;
-        }
-      }
-      if (inserted > 0) await groups.increaseTotalCount(pool.id, inserted, now);
-      result.inserted = inserted;
-      return result;
-    }
-    await groups.increaseTotalCount(pool.id, rows.length, now);
-    result.inserted = rows.length;
+    result.inserted = await tasks.batchInsert(rows);
+    if (result.inserted > 0) await groups.increaseTotalCount(pool.id, result.inserted, now);
     return result;
   }
 
@@ -281,7 +263,6 @@ export class DispatchEngine {
   ): Promise<number> {
     let preDispatchSize: number;
     let strategy: number | null = null;
-    let ratio: number | null = null;
     if (stage.ai) {
       const ai = aiConfigOf(assignment, stage);
       if (!ai?.aiCode || !sameName(ai.aiCode, executor)) {
@@ -296,7 +277,6 @@ export class DispatchEngine {
       if (!human || !member) throw ServiceError.of(CaseErrorCode.EXECUTOR_INACTIVE);
       preDispatchSize = human.preDispatchSize ?? DEFAULT_PRE_DISPATCH_SIZE;
       strategy = human.strategy;
-      ratio = member.ratio;
     }
 
     const pool = await this.deps.groups.selectPoolByCaseAndType(caseRow.id, stage.poolType);
@@ -311,7 +291,8 @@ export class DispatchEngine {
       if (need <= 0) return { dispatched: 0, outboxIds: [] } satisfies DispatchResult;
       if (strategy === Strategy.FIXED_RATIO) {
         const total = await this.resolveStageTotal(caseRow.datasetVersionId);
-        const memberLimit = Math.floor((total * (ratio ?? 0)) / RATIO_TOTAL);
+        const quotas = allocateFixedQuotas(total, humanConfigOf(assignment, stage)?.members ?? []);
+        const memberLimit = quotas.get(executor.toLowerCase()) ?? 0;
         const assigned = personal ? await tasks.countByGroup(personal.id) : 0;
         need = Math.min(need, memberLimit - assigned);
         if (need <= 0) return { dispatched: 0, outboxIds: [] } satisfies DispatchResult;
@@ -412,6 +393,27 @@ export class DispatchEngine {
     }
     return out;
   }
+}
+
+/** 最大余数法；同余数按配置顺序分配，active 成员配额之和始终等于总量。 */
+export function allocateFixedQuotas(
+  total: number,
+  members: readonly MemberConfig[],
+): Map<string, number> {
+  const active = members.filter((member) => isMemberActive(member) && member.username !== null);
+  const shares = active.map((member, index) => {
+    const exact = (total * (member.ratio ?? 0)) / 100;
+    return {
+      username: member.username!.toLowerCase(),
+      index,
+      quota: Math.floor(exact),
+      remainder: exact % 1,
+    };
+  });
+  const remaining = total - shares.reduce((sum, share) => sum + share.quota, 0);
+  const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  for (let i = 0; i < remaining && i < ranked.length; i += 1) ranked[i]!.quota += 1;
+  return new Map(shares.map((share) => [share.username, share.quota]));
 }
 
 /** 派入个人组后的状态：原为 REWORK 保持 5；否则标注类 → 2、审核类 → 3。 */

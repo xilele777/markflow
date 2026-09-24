@@ -10,7 +10,8 @@ import {
   type TaskDispatchedJob,
 } from '../../infra/queue.js';
 import { AiExecutionError } from './ai-task-executor.js';
-import { isTaskTypeCode, stageByCode, stageByType } from './enums.js';
+import { CaseStatus, TaskStatus, isTaskTypeCode, stageByCode } from './enums.js';
+import { nextStageInPlan, readTaskPlan } from './config.js';
 import type { TaskModule } from './module.js';
 
 const AUTO_RECYCLE_INTERVAL_MS = 60_000;
@@ -64,22 +65,7 @@ export function createTaskCompletedWorker(
         ctx.logger.warn({ jobId: job.id, data }, 'task-completed job invalid');
         return;
       }
-      if (data.nextStageType === null || data.nextStageType === undefined) {
-        // 末阶段完成：提交路径已尝试过一次自动结束，这里兜底（提交进程崩溃 / 重投时）。
-        await mod.taskService.finishCaseIfDone(data.caseId);
-        return;
-      }
-      const next = stageByType(data.nextStageType);
-      if (!next) {
-        ctx.logger.warn({ jobId: job.id, data }, 'task-completed: unknown nextStageType');
-        return;
-      }
-      await ctx.db
-        .transaction()
-        .execute((trx) =>
-          mod.dispatch.enqueueToPool(trx, data.caseId, next.poolType, [data.dataSampleId]),
-        );
-      await mod.dispatch.dispatchPool(data.caseId, next.poolType);
+      await processTaskCompleted(ctx, mod, data);
     },
     ctx.config,
     { concurrency: 1 },
@@ -92,6 +78,57 @@ export function createTaskCompletedWorker(
   });
   worker.on('error', (err) => ctx.logger.warn({ err }, 'task-completed worker error'));
   return worker;
+}
+
+/** 轮次校验、推进标记与下游入池同事务；重投仅重试事务外的派发。 */
+export async function processTaskCompleted(
+  ctx: AppContext,
+  mod: TaskModule,
+  data: TaskCompletedJob,
+): Promise<void> {
+  const next = await ctx.db.transaction().execute(async (trx) => {
+    const source = await trx
+      .selectFrom('label_task')
+      .selectAll()
+      .where('id', '=', data.taskId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (
+      !source ||
+      source.status !== TaskStatus.DONE ||
+      source.caseId !== data.caseId ||
+      source.dataSampleId !== data.dataSampleId
+    )
+      return undefined;
+    const round =
+      data.round ?? (source.updateTime === data.completedTime ? source.round : undefined);
+    if (round !== source.round) return undefined;
+    const current = stageByCode(source.taskType);
+    if (!current || current.type !== data.currentStageType) return undefined;
+    const caseRow = await trx
+      .selectFrom('label_case')
+      .selectAll()
+      .where('id', '=', source.caseId)
+      .executeTakeFirst();
+    if (!caseRow || caseRow.status === CaseStatus.FINISHED) return undefined;
+    const target = nextStageInPlan(readTaskPlan(caseRow.taskPlanConfig), current);
+    if ((target?.type ?? null) !== data.nextStageType) return undefined;
+    if (source.forwardedRound < round) {
+      if (target)
+        await mod.dispatch.enqueueToPool(trx, source.caseId, target.poolType, [
+          source.dataSampleId,
+        ]);
+      await trx
+        .updateTable('label_task')
+        .set({ forwardedRound: round })
+        .where('id', '=', source.id)
+        .execute();
+    }
+    return target;
+  });
+  if (next === undefined) return;
+  if (next === null) await mod.taskService.finishCaseIfDone(data.caseId);
+  else await mod.dispatch.dispatchPool(data.caseId, next.poolType);
 }
 
 /** case-export：导出服务内部消化全部异常，job 总是 completed。 */

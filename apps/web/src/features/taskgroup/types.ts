@@ -29,6 +29,7 @@ export interface GetMyTaskGroupsRequest extends PageRequest {
 /** 任务组内任务列表元素（getTaskListInGroup.list[]）。 */
 export interface TaskGroupTaskItem {
   taskId: number;
+  taskType: number;
   /** 业务 id（可能为 null —— 实测后端返回 null）。 */
   bizId: string | null;
   taskGroupSeq: number;

@@ -10,6 +10,10 @@ export const DELETED_NO = 0;
 export class LabelToolRepository {
   constructor(private readonly db: Db) {}
 
+  withDb(db: Db): LabelToolRepository {
+    return new LabelToolRepository(db);
+  }
+
   /** 只查未删除；label_tool_code 为 citext，大小写不敏感。 */
   selectByCode(labelToolCode: string): Promise<LabelToolRow | undefined> {
     return this.db

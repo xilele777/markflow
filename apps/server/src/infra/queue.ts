@@ -38,6 +38,8 @@ export interface TaskDispatchedJob {
 export interface TaskCompletedJob {
   caseId: number;
   taskId: number;
+  /** 旧队列载荷缺省时按 completedTime 校验当前轮次。新生产者必须携带。 */
+  round?: number;
   dataSampleId: number;
   currentStageType: string;
   nextStageType: string | null;

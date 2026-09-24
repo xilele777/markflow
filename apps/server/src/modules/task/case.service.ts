@@ -17,7 +17,7 @@ import type { PermissionService } from '../common/permission.js';
 import { hasText, isBlank, type Maybe } from '../common/strings.js';
 import type { DatasetSampleRepository } from '../dataset/dataset-sample.repo.js';
 import type { DatasetVersionRepository } from '../dataset/dataset-version.repo.js';
-import { UploadStatus } from '../dataset/enums.js';
+import { DatasetType, UploadStatus } from '../dataset/enums.js';
 import { LabelToolErrorCode } from '../labeltool/error-codes.js';
 import type { LabelToolRepository } from '../labeltool/labeltool.repo.js';
 import { UserErrorCode } from '../user/error-codes.js';
@@ -202,11 +202,15 @@ export class CaseService {
     if (input.dataSourceType === DataSourceType.STREAM) {
       throw ServiceError.of(CaseErrorCode.DATA_SOURCE_TYPE_INVALID, '流式模式暂不支持');
     }
-    const versionId = await this.validateDatasetVersion(input.datasetVersionId);
     const labelTool = input.labelTool as string;
     if (!(await this.deps.labelTools.selectByCode(labelTool))) {
       throw ServiceError.of(LabelToolErrorCode.LABEL_TOOL_NOT_FOUND);
     }
+    const versionId = await this.validateDatasetVersion(
+      input.datasetVersionId,
+      workspace.spaceCode,
+      labelTool,
+    );
     const stages = validateTaskPlan(plan);
     await this.validateAssignment(assignment, stages, labelTool, workspace.id);
     const deadline = validateDeadline(input.deadline);
@@ -585,12 +589,30 @@ export class CaseService {
     return workspace;
   }
 
-  private async validateDatasetVersion(versionId: Maybe<number>): Promise<number> {
+  private async validateDatasetVersion(
+    versionId: Maybe<number>,
+    spaceCode: string,
+    labelTool: string,
+  ): Promise<number> {
     if (typeof versionId !== 'number')
       throw ServiceError.of(CaseErrorCode.DATASET_VERSION_REQUIRED);
     const version = await this.deps.versions.selectById(versionId);
     if (!version || version.deleted !== DELETED_NO) {
       throw ServiceError.of(CaseErrorCode.DATASET_VERSION_NOT_FOUND);
+    }
+    const dataset = await this.deps.db
+      .selectFrom('markflow_dataset')
+      .selectAll()
+      .where('id', '=', version.datasetId)
+      .where('deleted', '=', DELETED_NO)
+      .where('spaceCode', '=', spaceCode)
+      .executeTakeFirst();
+    if (!dataset) throw ServiceError.of(CaseErrorCode.DATASET_VERSION_NOT_FOUND);
+    if (
+      dataset.datasetType !== DatasetType.ANNOTATION ||
+      dataset.serviceObjName?.toLowerCase() !== labelTool.toLowerCase()
+    ) {
+      throw ServiceError.of(CaseErrorCode.DATASET_TOOL_MISMATCH);
     }
     if (version.uploadStatus !== UploadStatus.READY) {
       throw ServiceError.of(CaseErrorCode.DATASET_VERSION_NOT_READY);

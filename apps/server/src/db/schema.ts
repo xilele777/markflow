@@ -149,6 +149,8 @@ export interface LabelTaskTable {
   /** 1 PENDING_DISPATCH / 2 LABELING / 3 REVIEWING / 4 DONE / 5 REWORK */
   status: number;
   round: Generated<number>;
+  /** 已推进下游的源任务轮次，与下游入池同事务更新。 */
+  forwardedRound: Generated<number>;
   dataSampleId: number;
   bizId: string | null;
   annotator: string | null;
