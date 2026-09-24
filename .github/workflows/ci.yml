@@ -103,17 +103,27 @@ jobs:
       # MinIO 需要自定义启动命令，GitHub services 不支持，故用容器手动起。
       - name: Configure Redis password
         run: docker exec "${{ job.services.redis.id }}" redis-cli CONFIG SET requirepass ci_redis_pwd
+      - uses: docker/setup-buildx-action@v3
+      - name: Build pinned MinIO community source
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/server/deploy
+          file: apps/server/deploy/Dockerfile.minio
+          load: true
+          tags: markflow-minio:ci
+          cache-from: type=gha,scope=minio
+          cache-to: type=gha,mode=max,scope=minio
       - name: Start MinIO
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER=ci-minio -e MINIO_ROOT_PASSWORD=ci_minio_pwd \
-            quay.io/minio/minio:latest server /data
+            markflow-minio:ci server /data
           for _attempt in $(seq 1 30); do
             curl -sf http://127.0.0.1:9000/minio/health/live && break
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:9000/minio/health/live
-          docker run --rm --network host --entrypoint /bin/sh quay.io/minio/mc:latest -c \
+          docker run --rm --network host --entrypoint /bin/sh markflow-minio:ci -c \
             "mc alias set local http://127.0.0.1:9000 ci-minio ci_minio_pwd && mc mb --ignore-existing local/markflow"
       - run: npm ci
       - run: npm test
