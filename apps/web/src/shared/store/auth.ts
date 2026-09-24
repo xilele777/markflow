@@ -2,7 +2,7 @@
 // 只放轻量态：token + 当前用户 + 角色。token 同步落 localStorage，刷新后仍在。
 import { create } from 'zustand';
 
-const TOKEN_KEY = 'lingshu.token';
+const TOKEN_KEY = 'markflow.token';
 
 /** 空间角色 code（成员分配等入参用）：1=标注员 2=审核员 3=标注管理员。 */
 export type RoleCode = 1 | 2 | 3;

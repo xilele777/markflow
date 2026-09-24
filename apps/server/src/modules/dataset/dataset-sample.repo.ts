@@ -15,7 +15,7 @@ export class DatasetSampleRepository {
 
   selectById(id: number): Promise<DatasetSampleRow | undefined> {
     return this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('id', '=', id)
       .executeTakeFirst();
@@ -25,7 +25,7 @@ export class DatasetSampleRepository {
   selectByIds(ids: readonly number[]): Promise<DatasetSampleRow[]> {
     if (ids.length === 0) return Promise.resolve([]);
     return this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('id', 'in', [...ids])
       .execute();
@@ -34,7 +34,7 @@ export class DatasetSampleRepository {
   /** 版本下全部未删除样本 id（id 升序；建 case 入首池用）。 */
   async selectIdListByVersionId(datasetVersionId: number): Promise<number[]> {
     const rows = await this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .select('id')
       .where('datasetVersionId', '=', datasetVersionId)
       .where('deleted', '=', DELETED_NO)
@@ -46,7 +46,7 @@ export class DatasetSampleRepository {
   /** 版本下前 limit 条未删除样本（id 升序），用于预览。 */
   selectPreviewByVersionId(datasetVersionId: number, limit: number): Promise<DatasetSampleRow[]> {
     return this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('datasetVersionId', '=', datasetVersionId)
       .where('deleted', '=', DELETED_NO)
@@ -61,7 +61,7 @@ export class DatasetSampleRepository {
     bizId: string,
   ): Promise<DatasetSampleRow | undefined> {
     return this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('datasetVersionId', '=', datasetVersionId)
       .where('bizId', '=', bizId)
@@ -78,7 +78,7 @@ export class DatasetSampleRepository {
     const out = new Map<string, DatasetSampleRow>();
     if (bizIds.length === 0) return out;
     const rows = await this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('datasetVersionId', '=', datasetVersionId)
       .where('bizId', 'in', [...bizIds])
@@ -98,7 +98,7 @@ export class DatasetSampleRepository {
     limit: number,
   ): Promise<DatasetSampleRow[]> {
     return this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('datasetVersionId', '=', datasetVersionId)
       .where('deleted', '=', DELETED_NO)
@@ -110,7 +110,7 @@ export class DatasetSampleRepository {
 
   async countByVersionId(datasetVersionId: number): Promise<number> {
     const row = await this.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .select(({ fn }) => fn.countAll<number>().as('n'))
       .where('datasetVersionId', '=', datasetVersionId)
       .where('deleted', '=', DELETED_NO)
@@ -120,7 +120,7 @@ export class DatasetSampleRepository {
 
   async insert(sample: NewDatasetSample): Promise<number> {
     const row = await this.db
-      .insertInto('lingshu_dataset_sample')
+      .insertInto('markflow_dataset_sample')
       .values(sample)
       .returning('id')
       .executeTakeFirstOrThrow();
@@ -130,7 +130,7 @@ export class DatasetSampleRepository {
   /** 批量插入（解析入库，一批一条多值 INSERT）。 */
   async batchInsert(samples: NewDatasetSample[]): Promise<void> {
     if (samples.length === 0) return;
-    await this.db.insertInto('lingshu_dataset_sample').values(samples).execute();
+    await this.db.insertInto('markflow_dataset_sample').values(samples).execute();
   }
 
   /** 覆盖结果样本内容（结果覆盖式写入）。 */
@@ -141,7 +141,7 @@ export class DatasetSampleRepository {
     updateTime: number,
   ): Promise<void> {
     await this.db
-      .updateTable('lingshu_dataset_sample')
+      .updateTable('markflow_dataset_sample')
       .set({ sampleDataJson: JSON.stringify(sampleData), operator, updateTime })
       .where('id', '=', id)
       .execute();
@@ -150,7 +150,7 @@ export class DatasetSampleRepository {
   /** 物理删除版本下全部样本（重解析前清场，保证幂等）；返回删除行数。 */
   async deleteByVersionId(datasetVersionId: number): Promise<number> {
     const result = await this.db
-      .deleteFrom('lingshu_dataset_sample')
+      .deleteFrom('markflow_dataset_sample')
       .where('datasetVersionId', '=', datasetVersionId)
       .executeTakeFirst();
     return Number(result.numDeletedRows);

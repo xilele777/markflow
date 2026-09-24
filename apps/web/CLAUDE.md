@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目身份
 
-灵枢前端（LingShu Web）= 灵枢数据生产与协同平台的 Web 前端，面向管理与标注 / 质检两类使用场景。
+markflow前端（markflow Web）= markflow数据生产与协同平台的 Web 前端，面向管理与标注 / 质检两类使用场景。
 后端是同一 monorepo 的 `../server`（Node + TS 重写，接口契约与本前端 `src/features/*/api.ts` 严格一致）；共享规划与交接文档在仓库根 `docs/`（相对本目录为 `../../docs/`）；历史 handoff 只增不改，当前索引随结构更新。下面命令在 `apps/web/` 执行。
 
 ## 技术栈（已定）

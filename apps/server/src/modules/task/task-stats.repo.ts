@@ -90,13 +90,13 @@ export class TaskStatsRepository {
     return this.db
       .selectFrom('label_task as t')
       .innerJoin('label_case as c', 'c.id', 't.caseId')
-      .innerJoin('lingshu_dataset_sample as ls', (join) =>
+      .innerJoin('markflow_dataset_sample as ls', (join) =>
         join
           .onRef('ls.datasetVersionId', '=', 'c.labelResultDatasetVersionId')
           .on(sql<boolean>`ls.biz_id = t.data_sample_id::varchar`)
           .on('ls.deleted', '=', 0),
       )
-      .innerJoin('lingshu_dataset_sample as rs', (join) =>
+      .innerJoin('markflow_dataset_sample as rs', (join) =>
         join
           .onRef('rs.datasetVersionId', '=', 'c.labelResultDatasetVersionId')
           .on(sql<boolean>`rs.biz_id = ls.id::varchar`)

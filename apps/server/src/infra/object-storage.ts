@@ -1,5 +1,5 @@
 // S3 兼容对象存储（本地 MinIO；线上 MinIO 或火山 TOS 的 S3 端点），对应 Java adapter/tos/TosClient。
-// 与 Java 的差异：连接配置来自环境变量（LINGSHU_S3_*）而非 sys_config[tos.config]；下载为流式而非整块读入内存。
+// 与 Java 的差异：连接配置来自环境变量（MARKFLOW_S3_*）而非 sys_config[tos.config]；下载为流式而非整块读入内存。
 // 两个客户端：internal 供后端进程读写（内网地址）；presigner 只用于生成预签名 URL（浏览器可达地址）——
 // SigV4 会把 host 签进 URL，所以必须用浏览器最终访问的地址来签名。
 // 错误码字符串沿用 Java TosErrorCode（TOS_*），保持契约不变。

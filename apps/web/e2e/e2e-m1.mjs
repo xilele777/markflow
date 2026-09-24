@@ -11,10 +11,10 @@ const baseUrl = process.argv[2] ?? 'http://localhost:5173';
 const browserExe =
   process.argv[3] ??
   join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe');
-// 系统管理员：与后端 .env 的首启引导账号一致（LINGSHU_ADMIN_USERNAME / LINGSHU_ADMIN_INITIAL_PASSWORD）。
+// 系统管理员：与后端 .env 的首启引导账号一致（MARKFLOW_ADMIN_USERNAME / MARKFLOW_ADMIN_INITIAL_PASSWORD）。
 const ADMIN = {
-  username: process.env.LINGSHU_ADMIN_USERNAME ?? 'admin',
-  password: process.env.LINGSHU_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
+  username: process.env.MARKFLOW_ADMIN_USERNAME ?? 'admin',
+  password: process.env.MARKFLOW_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
 };
 const stamp = Date.now().toString(36).slice(-5);
 const NEW_USER = {
@@ -49,7 +49,7 @@ const SCHEMA = JSON.stringify(
 );
 
 const port = 9300 + Math.floor(Math.random() * 200);
-const userDataDir = mkdtempSync(join(tmpdir(), 'lingshu-e2e-'));
+const userDataDir = mkdtempSync(join(tmpdir(), 'markflow-e2e-'));
 const browser = spawn(
   browserExe,
   [
@@ -240,7 +240,7 @@ async function login(username, password, expectedPath) {
   await fill('password', password);
   await evaluate(`document.querySelector('button[type="submit"]').click(); true`);
   await waitFor(`location.pathname === ${JSON.stringify(expectedPath)}`, `landing ${expectedPath}`);
-  await waitFor(`!!localStorage.getItem('lingshu.token')`, 'token stored');
+  await waitFor(`!!localStorage.getItem('markflow.token')`, 'token stored');
 }
 async function logout() {
   await evaluate(`document.querySelector('header .ant-avatar').click(); true`);

@@ -83,10 +83,10 @@ describe('validateResultAgainstSchema', () => {
 
 describe('isEmbedResultMessage', () => {
   it('识别协议消息', () => {
-    expect(isEmbedResultMessage({ type: 'lingshu:embed-result', taskId: 1, state: 'saved' })).toBe(
+    expect(isEmbedResultMessage({ type: 'markflow:embed-result', taskId: 1, state: 'saved' })).toBe(
       true,
     );
-    expect(isEmbedResultMessage({ type: 'lingshu:embed-result', taskId: '1' })).toBe(false);
+    expect(isEmbedResultMessage({ type: 'markflow:embed-result', taskId: '1' })).toBe(false);
     expect(isEmbedResultMessage({ type: 'other' })).toBe(false);
     expect(isEmbedResultMessage(null)).toBe(false);
     expect(isEmbedResultMessage('str')).toBe(false);

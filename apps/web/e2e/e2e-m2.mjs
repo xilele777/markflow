@@ -12,10 +12,10 @@ const apiBase = process.argv[3] ?? 'http://127.0.0.1:8080';
 const browserExe =
   process.argv[4] ??
   join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe');
-// 系统管理员：与后端 .env 的首启引导账号一致（LINGSHU_ADMIN_USERNAME / LINGSHU_ADMIN_INITIAL_PASSWORD）。
+// 系统管理员：与后端 .env 的首启引导账号一致（MARKFLOW_ADMIN_USERNAME / MARKFLOW_ADMIN_INITIAL_PASSWORD）。
 const ADMIN = {
-  username: process.env.LINGSHU_ADMIN_USERNAME ?? 'admin',
-  password: process.env.LINGSHU_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
+  username: process.env.MARKFLOW_ADMIN_USERNAME ?? 'admin',
+  password: process.env.MARKFLOW_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
 };
 const stamp = Date.now().toString(36).slice(-5);
 const USER = { username: `e2m${stamp}`, displayName: `验收管理员${stamp}`, password: 'e2epass1' };
@@ -29,7 +29,7 @@ const SCHEMA = {
   required: ['text'],
 };
 
-const workDir = mkdtempSync(join(tmpdir(), 'lingshu-e2e-m2-'));
+const workDir = mkdtempSync(join(tmpdir(), 'markflow-e2e-m2-'));
 const goodFile = join(workDir, 'good.jsonl');
 const mixedFile = join(workDir, 'mixed.jsonl');
 writeFileSync(
@@ -39,7 +39,7 @@ writeFileSync(
 writeFileSync(mixedFile, '{"text":"好行"}\n这不是 JSON\n{"bizId":"缺 text"}\n');
 
 const port = 9300 + Math.floor(Math.random() * 200);
-const userDataDir = mkdtempSync(join(tmpdir(), 'lingshu-e2e-'));
+const userDataDir = mkdtempSync(join(tmpdir(), 'markflow-e2e-'));
 const browser = spawn(
   browserExe,
   [
@@ -230,7 +230,7 @@ async function login(username, password, expectedPath) {
   await fill('password', password);
   await evaluate(`document.querySelector('button[type="submit"]').click(); true`);
   await waitFor(`location.pathname === ${JSON.stringify(expectedPath)}`, `landing ${expectedPath}`);
-  await waitFor(`!!localStorage.getItem('lingshu.token')`, 'token stored');
+  await waitFor(`!!localStorage.getItem('markflow.token')`, 'token stored');
 }
 /** 详情页不自动刷新解析状态（无 refetchInterval），验收时重新进入详情页直到出现目标状态文案。 */
 async function reloadDetailUntil(datasetId, text, timeoutMs = 30000) {

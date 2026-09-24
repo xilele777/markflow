@@ -49,9 +49,9 @@ function LoginPage({ theme, gotoHref = '数据集列表.html' }) {
         borderRight: `1px solid ${theme.hairline}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <BrandMark theme={theme} size={24} />
-          <span style={{ fontFamily: theme.font.display, fontWeight: 700, fontSize: 19, color: theme.text }}>灵枢</span>
+          <span style={{ fontFamily: theme.font.display, fontWeight: 700, fontSize: 19, color: theme.text }}>markflow</span>
           <span style={{ fontFamily: theme.font.mono, fontSize: 10, letterSpacing: '0.18em',
-            color: theme.weak, marginLeft: 2, marginTop: 3 }}>LINGSHU</span>
+            color: theme.weak, marginLeft: 2, marginTop: 3 }}>MARKFLOW</span>
         </div>
         <div>
           <div style={{ fontFamily: theme.font.mono, fontSize: 11.5, letterSpacing: '0.18em',

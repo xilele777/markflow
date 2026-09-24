@@ -1,6 +1,6 @@
-# 灵枢 LingShu · 后端（Node + TypeScript）
+# markflow · 后端（Node + TypeScript）
 
-灵枢数据标注平台后端的 TS 重写，接口契约与灵枢 React 前端（`../web`）严格一致。规格来源与里程碑见 [项目文档入口](../README.md)（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引，`handoff/` 最新一篇为当前状态）。
+markflow数据标注平台后端的 TS 重写，接口契约与markflow React 前端（`../web`）严格一致。规格来源与里程碑见 [项目文档入口](../README.md)（`plans/0002-*` 为当前规划，`reference/0002-*` 为 Java 后端索引，`handoff/` 最新一篇为当前状态）。
 
 M6 部署准备、生产配置、发布/回滚、备份恢复与切换验收见 [部署手册](deployment.md)。当前没有部署服务器，CD 默认关闭。
 
@@ -33,7 +33,7 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 | 命令 | 作用 |
 |---|---|
 | `npm run dev` | tsx watch 启动 |
-| `npm test` | vitest + supertest，连真实 pg/redis，库为 `lingshu_test`（每次重建） |
+| `npm test` | vitest + supertest，连真实 pg/redis，库为 `markflow_test`（每次重建） |
 | `npm run typecheck` / `npm run lint` | tsc / eslint |
 | `npm run build` && `npm start` | 编译到 `dist/` 并以 node 运行 |
 | `npm run migrate` | 单独执行迁移（启动时也会自动执行） |
@@ -44,7 +44,7 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 | 模块 | 端点（均在 `/api` 下；health / 登录 / 性能上报公开，metrics 独立 token，其余需 `Authorization: Bearer <jwt>`） |
 |---|---|
 | health | `GET /health`（公开；PG / Redis / 对象存储 / 队列 readiness） |
-| metrics | `GET /metrics`（Prometheus 文本；独立 `LINGSHU_METRICS_TOKEN`，未配置 404） |
+| metrics | `GET /metrics`（Prometheus 文本；独立 `MARKFLOW_METRICS_TOKEN`，未配置 404） |
 | auth | `POST /auth/login` |
 | user | `POST /user/create`、`getUserList`、`GET /user/getCurrentUser`、`POST /user/changePassword`、`updateStatus`（禁用 / 启用）、`getMyContribution` |
 | workspace | `POST /workspace/createWorkspace`、`getWorkspaceList`、`addWorkspaceMember`、`getWorkspaceDetail` |
@@ -61,19 +61,19 @@ curl -s http://127.0.0.1:8080/api/user/getCurrentUser -H "Authorization: Bearer 
 
 定时器（与 API 同进程，Redis 锁保证多实例只跑一份）：任务自动回收（每分钟）、case 截止扫描（每分钟：截止前 24h 提醒一次、逾期通知一次）、outbox 重投（30s）。
 
-数据集上传链路：前端 `getUploadPreSignedUrl` 取预签名 PUT URL → 浏览器直传对象存储（不经后端）→ `createDataset` / `createDatasetVersion` 落库并向 BullMQ `dataset-parse` 队列投递 `{versionId}` → 同进程的消费者从对象存储流式读取 jsonl，按标注工具的 JSON Schema 逐行校验，每 1000 行一批写入 `lingshu_dataset_sample`，最后回写 `upload_status`（2 就绪 / 3 解析失败）与 `ext` 统计（总行数、成功、跳过、前 100 条错误明细或整体失败原因）。
+数据集上传链路：前端 `getUploadPreSignedUrl` 取预签名 PUT URL → 浏览器直传对象存储（不经后端）→ `createDataset` / `createDatasetVersion` 落库并向 BullMQ `dataset-parse` 队列投递 `{versionId}` → 同进程的消费者从对象存储流式读取 jsonl，按标注工具的 JSON Schema 逐行校验，每 1000 行一批写入 `markflow_dataset_sample`，最后回写 `upload_status`（2 就绪 / 3 解析失败）与 `ext` 统计（总行数、成功、跳过、前 100 条错误明细或整体失败原因）。
 
 ## 配置
 
 全部来自环境变量（启动时读应用目录 `apps/server/.env`，已存在的进程变量优先），清单与说明见 `.env.example`。口令无默认值，缺失即退出。
 
-- 首启引导（幂等）：`sys_config` 缺 `jwt.secret` / `jwt.expireSeconds` 时从 `LINGSHU_JWT_SECRET` / `LINGSHU_JWT_EXPIRE_SECONDS` 写入；`LINGSHU_ADMIN_USERNAME`（默认 `admin`）不存在时用 `LINGSHU_ADMIN_INITIAL_PASSWORD` 创建。已有记录不会被修改。
-- `LINGSHU_CONFIG_ENC_KEY`：AI 配置的 apiKey 以 AES-256-GCM 加密后存入 `sys_config[ai.configList]`（密文形如 `enc:v1:…`；无前缀的历史明文可读、下次写入时自动加密）。更换密钥后历史密文无法解密。
-- `LINGSHU_TIMEZONE`：「我的贡献」按天统计与上传对象 key 日期段使用的 IANA 时区，默认 `Asia/Shanghai`。
-- `LINGSHU_S3_*`：S3 兼容对象存储（本地 MinIO；线上 MinIO 或火山 TOS 的 S3 端点）。`LINGSHU_S3_ENDPOINT` 供后端进程访问；`LINGSHU_S3_PUBLIC_ENDPOINT` 是浏览器直传时实际访问的地址，预签名 URL 以它签名（缺省同 ENDPOINT）；MinIO 需 `LINGSHU_S3_FORCE_PATH_STYLE=true`。compose 里的 MinIO 用 `LINGSHU_CORS_ALLOWED_ORIGINS` 作为 CORS 放行来源。
-- `LINGSHU_QUEUE_PREFIX`：BullMQ 在 Redis 中的键前缀（默认 `lingshu`，测试用 `lingshu_test`）。
-- `LINGSHU_SERVER_HOST`：默认 `127.0.0.1`，同机 Nginx 反代；容器内运行 API 时按网络模型改为 `0.0.0.0`。
-- `LINGSHU_METRICS_TOKEN`：可选，至少 32 字符；抓取时使用 Bearer token，与登录 JWT 无关。生产 Nginx 禁止公网访问 metrics。
+- 首启引导（幂等）：`sys_config` 缺 `jwt.secret` / `jwt.expireSeconds` 时从 `MARKFLOW_JWT_SECRET` / `MARKFLOW_JWT_EXPIRE_SECONDS` 写入；`MARKFLOW_ADMIN_USERNAME`（默认 `admin`）不存在时用 `MARKFLOW_ADMIN_INITIAL_PASSWORD` 创建。已有记录不会被修改。
+- `MARKFLOW_CONFIG_ENC_KEY`：AI 配置的 apiKey 以 AES-256-GCM 加密后存入 `sys_config[ai.configList]`（密文形如 `enc:v1:…`；无前缀的历史明文可读、下次写入时自动加密）。更换密钥后历史密文无法解密。
+- `MARKFLOW_TIMEZONE`：「我的贡献」按天统计与上传对象 key 日期段使用的 IANA 时区，默认 `Asia/Shanghai`。
+- `MARKFLOW_S3_*`：S3 兼容对象存储（本地 MinIO；线上 MinIO 或火山 TOS 的 S3 端点）。`MARKFLOW_S3_ENDPOINT` 供后端进程访问；`MARKFLOW_S3_PUBLIC_ENDPOINT` 是浏览器直传时实际访问的地址，预签名 URL 以它签名（缺省同 ENDPOINT）；MinIO 需 `MARKFLOW_S3_FORCE_PATH_STYLE=true`。compose 里的 MinIO 用 `MARKFLOW_CORS_ALLOWED_ORIGINS` 作为 CORS 放行来源。
+- `MARKFLOW_QUEUE_PREFIX`：BullMQ 在 Redis 中的键前缀（默认 `markflow`，测试用 `markflow_test`）。
+- `MARKFLOW_SERVER_HOST`：默认 `127.0.0.1`，同机 Nginx 反代；容器内运行 API 时按网络模型改为 `0.0.0.0`。
+- `MARKFLOW_METRICS_TOKEN`：可选，至少 32 字符；抓取时使用 Bearer token，与登录 JWT 无关。生产 Nginx 禁止公网访问 metrics。
 
 ## 约定
 
@@ -102,6 +102,6 @@ src/
                      （auth / user / workspace / labeltool / aiconfig / dataset(含解析服务与消费者) /
                       task(case / task / taskgroup / 派发引擎 / AI 执行器 / 导出 / 消费者与定时器) /
                       notification / monitoring / health）
-tests/               vitest + supertest；global-setup 重建 lingshu_test 并清测试队列；helpers/ 造数据
+tests/               vitest + supertest；global-setup 重建 markflow_test 并清测试队列；helpers/ 造数据
 deploy/              docker-compose.yml（pg / redis / minio）
 ```

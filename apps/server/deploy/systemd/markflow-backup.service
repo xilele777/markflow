@@ -1,0 +1,13 @@
+[Unit]
+Description=markflow PostgreSQL backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=markflow
+Group=markflow
+EnvironmentFile=/srv/markflow/shared/backup.env
+ExecStart=/usr/bin/bash /srv/markflow/shared/backup-pg.sh
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

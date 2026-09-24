@@ -1,8 +1,8 @@
 {
-  "name": "lingshu-server",
+  "name": "markflow-server",
   "version": "0.1.0",
   "private": true,
-  "description": "灵枢 LingShu 后端（Node + TypeScript 重写）",
+  "description": "markflow 后端（Node + TypeScript 重写）",
   "type": "module",
   "engines": {
     "node": ">=22"

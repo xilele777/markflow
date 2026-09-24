@@ -9,8 +9,8 @@
 
 - 后端：`apps/server` 已 `npm run infra:up` + `npm run dev`（8080）。
 - 前端：`npm run dev`（5173）。
-- Chrome：默认取 `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`（Windows）/ `/Applications/Google Chrome.app/...`（macOS）/ `google-chrome`（Linux）；可用第 3 个参数或环境变量 `LINGSHU_E2E_BROWSER` 覆盖。
-- 系统管理员账号默认 `admin / admin123456`，与后端 `.env` 的 `LINGSHU_ADMIN_USERNAME` / `LINGSHU_ADMIN_INITIAL_PASSWORD` 一致；不同时用同名环境变量覆盖。
+- Chrome：默认取 `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`（Windows）/ `/Applications/Google Chrome.app/...`（macOS）/ `google-chrome`（Linux）；可用第 3 个参数或环境变量 `MARKFLOW_E2E_BROWSER` 覆盖。
+- 系统管理员账号默认 `admin / admin123456`，与后端 `.env` 的 `MARKFLOW_ADMIN_USERNAME` / `MARKFLOW_ADMIN_INITIAL_PASSWORD` 一致；不同时用同名环境变量覆盖。
 
 ## 脚本
 

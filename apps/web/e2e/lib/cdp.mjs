@@ -15,7 +15,7 @@ import { join } from 'node:path';
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function defaultBrowserExe() {
-  if (process.env.LINGSHU_E2E_BROWSER) return process.env.LINGSHU_E2E_BROWSER;
+  if (process.env.MARKFLOW_E2E_BROWSER) return process.env.MARKFLOW_E2E_BROWSER;
   if (process.platform === 'win32') {
     return join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe');
   }
@@ -27,8 +27,8 @@ export function defaultBrowserExe() {
 
 /** 系统管理员账号：与后端 .env 首启引导一致，可用环境变量覆盖。 */
 export const ADMIN = {
-  username: process.env.LINGSHU_ADMIN_USERNAME ?? 'admin',
-  password: process.env.LINGSHU_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
+  username: process.env.MARKFLOW_ADMIN_USERNAME ?? 'admin',
+  password: process.env.MARKFLOW_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
 };
 
 /** 直接调后端接口（造数据用）。 */
@@ -58,7 +58,7 @@ export async function launch({
   windowSize = '1400,900',
 }) {
   const port = 9300 + Math.floor(Math.random() * 200);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'lingshu-e2e-'));
+  const userDataDir = mkdtempSync(join(tmpdir(), 'markflow-e2e-'));
   const browser = spawn(
     browserExe,
     [
@@ -296,7 +296,7 @@ export async function launch({
       `location.pathname === ${JSON.stringify(expectedPath)}`,
       `landing ${expectedPath}`,
     );
-    await waitFor(`!!localStorage.getItem('lingshu.token')`, 'token stored');
+    await waitFor(`!!localStorage.getItem('markflow.token')`, 'token stored');
   }
   /** 我的任务组 → 点开 caseName 对应、带某阶段标签的组。 */
   async function openMyGroup(caseName, stageLabel) {
@@ -394,7 +394,7 @@ export function createSteps() {
 /** 失败时统一收尾：截图 + URL + 页面文本。 */
 export async function dumpFailure(page, tag) {
   try {
-    const file = join(tmpdir(), `lingshu-${tag}-fail.png`);
+    const file = join(tmpdir(), `markflow-${tag}-fail.png`);
     await page.screenshot(file);
     console.error('screenshot:', file);
   } catch {

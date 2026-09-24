@@ -149,7 +149,7 @@ describe('/api/dataset', () => {
       expect(versionNumber).toBe(1);
 
       const dataset = await h.ctx.db
-        .selectFrom('lingshu_dataset')
+        .selectFrom('markflow_dataset')
         .selectAll()
         .where('id', '=', datasetId)
         .executeTakeFirstOrThrow();
@@ -164,7 +164,7 @@ describe('/api/dataset', () => {
         creator: labelAdminA.username,
       });
       const version = await h.ctx.db
-        .selectFrom('lingshu_dataset_version')
+        .selectFrom('markflow_dataset_version')
         .selectAll()
         .where('id', '=', versionId)
         .executeTakeFirstOrThrow();
@@ -328,7 +328,7 @@ describe('/api/dataset', () => {
       const numbers = results.map((r) => r.body.data?.versionNumber).sort((a, b) => a - b);
       expect(numbers).toEqual([3, 4, 5, 6, 7]);
       const dataset = await h.ctx.db
-        .selectFrom('lingshu_dataset')
+        .selectFrom('markflow_dataset')
         .select('latestVersionNumber')
         .where('id', '=', datasetId)
         .executeTakeFirstOrThrow();

@@ -116,8 +116,8 @@ const llmBase = `http://127.0.0.1:${llm.address().port}/v1`;
 
 try {
   const admin = await login(
-    process.env.LINGSHU_ADMIN_USERNAME ?? 'admin',
-    process.env.LINGSHU_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
+    process.env.MARKFLOW_ADMIN_USERNAME ?? 'admin',
+    process.env.MARKFLOW_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
   );
 
   // ---- 主数据 ----

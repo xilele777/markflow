@@ -18,7 +18,7 @@ SH
 cat > "$FIXTURE/bin/pm2" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ -z "${LINGSHU_CONFIG_ENC_KEY:-}" && -z "${LINGSHU_SMOKE_PASSWORD:-}" ]] || exit 99
+[[ -z "${MARKFLOW_CONFIG_ENC_KEY:-}" && -z "${MARKFLOW_SMOKE_PASSWORD:-}" ]] || exit 99
 state=$(cd -- "$(dirname -- "$0")/../state" && pwd)
 printf '%s\n' "$*" >> "$state/pm2.log"
 if [[ "$1" == start && -f "$state/fail-start" && "$2" == */bad/* ]]; then exit 1; fi
@@ -34,15 +34,15 @@ make_root() {
     cat > "$root/releases/$rel/scripts/smoke.sh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ -r "$LINGSHU_SMOKE_ENV_FILE" ]]
-current=$(basename "$(readlink -f "$LINGSHU_DEPLOY_ROOT/current")")
-[[ "$current" != bad && ! -f "$LINGSHU_TEST_STATE/fail-all-smoke" ]]
+[[ -r "$MARKFLOW_SMOKE_ENV_FILE" ]]
+current=$(basename "$(readlink -f "$MARKFLOW_DEPLOY_ROOT/current")")
+[[ "$current" != bad && ! -f "$MARKFLOW_TEST_STATE/fail-all-smoke" ]]
 SH
   done
 }
 run() {
-  LINGSHU_CONFIG_ENC_KEY=must-not-enter-pm2 LINGSHU_SMOKE_PASSWORD=must-not-enter-pm2 \
-  LINGSHU_TEST_STATE="$FIXTURE/state" LINGSHU_DEPLOY_ROOT="$1" LINGSHU_PUBLIC_BASE_URL=https://candidate.invalid \
+  MARKFLOW_CONFIG_ENC_KEY=must-not-enter-pm2 MARKFLOW_SMOKE_PASSWORD=must-not-enter-pm2 \
+  MARKFLOW_TEST_STATE="$FIXTURE/state" MARKFLOW_DEPLOY_ROOT="$1" MARKFLOW_PUBLIC_BASE_URL=https://candidate.invalid \
     bash "$HERE/activate.sh" "$2"
 }
 ROOT="$FIXTURE/app"

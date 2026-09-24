@@ -161,7 +161,7 @@ export async function createLabelToolRow(
 ): Promise<number> {
   const now = Date.now();
   const row = await ctx.db
-    .insertInto('lingshu_label_tool')
+    .insertInto('markflow_label_tool')
     .values({
       labelToolCode: input.labelToolCode,
       labelToolName: input.labelToolName ?? `工具 ${input.labelToolCode}`,

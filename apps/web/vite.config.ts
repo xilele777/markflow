@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
-// 开发期把 /api 代理到本地后端（lingshu-server，默认 8080）。
+// 开发期把 /api 代理到本地后端（markflow-server，默认 8080）。
 // 构建：手动分包，把框架 / 组件库 / Puck 拆成独立 chunk，入口只保留业务壳；
 //       体积预算由 scripts/check-bundle-size.cjs 守门（npm run build:check）。
 export default defineConfig({

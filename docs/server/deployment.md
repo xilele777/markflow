@@ -1,4 +1,4 @@
-# 灵枢 M6 部署与切换手册
+# markflow M6 部署与切换手册
 
 **当前仅完成部署前准备。服务器尚未准备好，未部署、未切域名，也未启用 CD。** 本文命令供后续服务器就绪后执行；本地构建、测试和打包不需要服务器。M6 的真实服务器、GitHub CI 和业务切换验收仍待完成。
 
@@ -9,7 +9,7 @@
 目标为 Linux（建议 Ubuntu 24.04 LTS）、Node 22+、PM2 单实例 fork、Nginx、PostgreSQL 16、Redis 7，以及 MinIO 或 TOS S3。建议至少 2 核 / 4 GB，给数据库、对象存储与构建留余量；生产不在服务器编译前端。Docker Compose 仍是开发/CI 资产，不直接当作生产配置。
 
 ```text
-/srv/lingshu/
+/srv/markflow/
   releases/<release>/
     server/{dist,package.json,package-lock.json,node_modules}
     web/{index.html,assets/...}
@@ -62,9 +62,9 @@ tar -C artifacts -czf artifacts/m6-candidate.tar.gz m6-candidate
 ## 3. 服务器初始化（待服务器就绪）
 
 1. 管理员安装 Node 22 LTS、固定版本 PM2、Nginx、PostgreSQL 16 客户端/服务、Redis 7、bash/coreutils/util-linux、fail2ban。记录版本与安装来源；`pg_dump` 不得低于服务端大版本。
-2. 创建专用非 root 系统用户 `lingshu`（home 可用 `/home/lingshu`，只允许 SSH 密钥）；运行应用/发布脚本/PM2 均用该用户。用户只拥有 `/srv/lingshu`，不授予任意 sudo；root 单独维护 Nginx、systemd、数据库系统配置。创建 `/srv/lingshu/{releases,incoming,shared,backups}`，根目录及 releases 为 0755，shared/backups 为 0700，归 lingshu 所有。Nginx 用户需能遍历目录并读取 web（目录 0755、文件 0644）。
-3. 防火墙只开放 80/443，SSH 限管理来源；5432、6379、8080、9000/9001 仅回环/受控私网。`LINGSHU_SERVER_HOST` 默认 `127.0.0.1`，Nginx 同机时 `LINGSHU_TRUST_PROXY=loopback`，不要使用 `true` 信任任意转发头。
-4. PostgreSQL 建 `lingshu` 登录角色（非超级用户）与其拥有的 `lingshu` 数据库；用 `psql` 的 `\password lingshu` 交互设置强密码。配置 `listen_addresses='localhost'`、SCRAM 认证与仅本机连接的 pg_hba。迁移需要 citext 扩展；库 owner 可创建可信扩展，也可先由 DBA 在目标库执行 `CREATE EXTENSION IF NOT EXISTS citext;`。不要在生产运行 npm test（它会重建 `*_test` schema）。
+2. 创建专用非 root 系统用户 `markflow`（home 可用 `/home/markflow`，只允许 SSH 密钥）；运行应用/发布脚本/PM2 均用该用户。用户只拥有 `/srv/markflow`，不授予任意 sudo；root 单独维护 Nginx、systemd、数据库系统配置。创建 `/srv/markflow/{releases,incoming,shared,backups}`，根目录及 releases 为 0755，shared/backups 为 0700，归 markflow 所有。Nginx 用户需能遍历目录并读取 web（目录 0755、文件 0644）。
+3. 防火墙只开放 80/443，SSH 限管理来源；5432、6379、8080、9000/9001 仅回环/受控私网。`MARKFLOW_SERVER_HOST` 默认 `127.0.0.1`，Nginx 同机时 `MARKFLOW_TRUST_PROXY=loopback`，不要使用 `true` 信任任意转发头。
+4. PostgreSQL 建 `markflow` 登录角色（非超级用户）与其拥有的 `markflow` 数据库；用 `psql` 的 `\password markflow` 交互设置强密码。配置 `listen_addresses='localhost'`、SCRAM 认证与仅本机连接的 pg_hba。迁移需要 citext 扩展；库 owner 可创建可信扩展，也可先由 DBA 在目标库执行 `CREATE EXTENSION IF NOT EXISTS citext;`。不要在生产运行 npm test（它会重建 `*_test` schema）。
 5. Redis 设置 `bind 127.0.0.1`、`protected-mode yes`、独立强密码、`appendonly yes`、`appendfsync everysec`、`maxmemory-policy noeviction`；容量按队列增长配置（初始至少 256 MB）。BullMQ 不应使用会逐出任务键的缓存策略。
 6. 安装并开启 fail2ban 的 sshd jail（如 maxretry=5、findtime=10m、bantime=1h）；确认 SSH key 登录成功后关闭密码与 root 远程登录。通过云控制台保留应急入口。应用登录已有失败限流，不将整个 API 的 401 直接作为 SSH 封禁规则。
 
@@ -80,39 +80,39 @@ tar -C artifacts -czf artifacts/m6-candidate.tar.gz m6-candidate
 | path style | `true` | 按实际 S3 兼容方式，通常 `false` |
 | 权限 | 专用桶访问账号，不用 root | 最小权限的专用访问密钥 |
 
-MinIO 以独立非 root 用户运行并用 systemd 管理；配置 `MINIO_API_CORS_ALLOW_ORIGIN=https://app.example.com`，创建私有桶 `lingshu`。API 仅本机监听，经 `deploy/nginx/minio.conf` 暴露 HTTPS；控制台只在管理网络访问。TOS 使用对应区域文档确认桶、S3 endpoint、凭据和 CORS。
+MinIO 以独立非 root 用户运行并用 systemd 管理；配置 `MINIO_API_CORS_ALLOW_ORIGIN=https://app.example.com`，创建私有桶 `markflow`。API 仅本机监听，经 `deploy/nginx/minio.conf` 暴露 HTTPS；控制台只在管理网络访问。TOS 使用对应区域文档确认桶、S3 endpoint、凭据和 CORS。
 
 应用账号需要桶 HEAD（通常依赖 ListBucket 授权）、对象 GET/HEAD/PUT，以及大文件 multipart 创建、上传、完成、终止权限；限制在本桶。CORS 允许实际前端 origin、PUT/GET/HEAD、所需 Content-Type/x-amz-* 请求头，暴露 ETag；不要给桶匿名公共写权限。后端 HEAD 桶通过只证明服务端读权限，不证明浏览器 CORS、写权限或公网 DNS，必须再跑上传/导出验收。
 
-`LINGSHU_S3_PUBLIC_ENDPOINT` 用于签名，必须是浏览器实际访问的地址；Nginx 保留 Host 和 URI，不加路径前缀，不重定向已签名请求。若虚拟主机寻址产生 `bucket.endpoint`，证书、DNS、CSP 的 connect-src 必须覆盖**最终签名 URL 的 origin**。
+`MARKFLOW_S3_PUBLIC_ENDPOINT` 用于签名，必须是浏览器实际访问的地址；Nginx 保留 Host 和 URI，不加路径前缀，不重定向已签名请求。若虚拟主机寻址产生 `bucket.endpoint`，证书、DNS、CSP 的 connect-src 必须覆盖**最终签名 URL 的 origin**。
 
 将 `deploy/server.env.example` 复制到 `shared/server.env`，手动填空白项。用 `openssl rand -base64 48` 分别生成 JWT、配置加密、metrics 密钥；不要复用本地示例值。env 文件可用单/双引号包裹含 `#`、空格的值，**不支持 shell 命令替换，不要 source 它**。所有 env 文件权限 0600。
 
-`jwt.secret` 与初始管理员只在首次引导时写入数据库，改 env 不会轮换已有账号/JWT。`LINGSHU_CONFIG_ENC_KEY` 丢失会导致 AI key 无法解密，必须独立加密异地备份。PM2 配置只保存 env-file 路径，脚本以干净父进程环境调用 PM2；须使用此专用账号创建干净 PM2 daemon，已有混入密钥的 daemon/dump 应先清理后重新建立。用 `pm2 startup` 生成并由管理员安装开机启动命令，然后核对其用户、home 与 Node 路径；升级 Node 后重新生成。
+`jwt.secret` 与初始管理员只在首次引导时写入数据库，改 env 不会轮换已有账号/JWT。`MARKFLOW_CONFIG_ENC_KEY` 丢失会导致 AI key 无法解密，必须独立加密异地备份。PM2 配置只保存 env-file 路径，脚本以干净父进程环境调用 PM2；须使用此专用账号创建干净 PM2 daemon，已有混入密钥的 daemon/dump 应先清理后重新建立。用 `pm2 startup` 生成并由管理员安装开机启动命令，然后核对其用户、home 与 Node 路径；升级 Node 后重新生成。
 
 ## 5. Nginx 与首发
 
-将 `deploy/nginx/lingshu-security.conf` 安装为 `/etc/nginx/snippets/lingshu-security.conf`，应用和可选对象存储模板安装到 conf.d。替换所有 example 域名、证书、目录与端口，调整 CSP 的对象存储/外链工具来源；在新候选域名下配置 DNS/TLS。安全头包含 nosniff、DENY、Referrer-Policy、Permissions-Policy、HSTS 与 CSP。验证 `nginx -t` 后由管理员 reload。不要在 HTTP 上照搬 HSTS 配置。
+将 `deploy/nginx/markflow-security.conf` 安装为 `/etc/nginx/snippets/markflow-security.conf`，应用和可选对象存储模板安装到 conf.d。替换所有 example 域名、证书、目录与端口，调整 CSP 的对象存储/外链工具来源；在新候选域名下配置 DNS/TLS。安全头包含 nosniff、DENY、Referrer-Policy、Permissions-Policy、HSTS 与 CSP。验证 `nginx -t` 后由管理员 reload。不要在 HTTP 上照搬 HSTS 配置。
 
-生产 API `127.0.0.1:8080`；若旧服务占用端口，须同时修改 server.env、Nginx upstream、`LINGSHU_SMOKE_BASE_URL` 和 Prometheus target。`shared/public-url` 保存候选 Nginx URL，例如 `https://candidate.example.com`（无尾斜杠），不应指向 LabelHub。`shared/smoke.env` 由 smoke.env.example 复制，先填首发可登录账号；首发验收后建立专用普通账号替换管理员凭据。
+生产 API `127.0.0.1:8080`；若旧服务占用端口，须同时修改 server.env、Nginx upstream、`MARKFLOW_SMOKE_BASE_URL` 和 Prometheus target。`shared/public-url` 保存候选 Nginx URL，例如 `https://candidate.example.com`（无尾斜杠），不应指向 LabelHub。`shared/smoke.env` 由 smoke.env.example 复制，先填首发可登录账号；首发验收后建立专用普通账号替换管理员凭据。
 
-后续就绪时，上传 tar.gz 与校验和到 incoming，在服务器以 lingshu 用户执行：
+后续就绪时，上传 tar.gz 与校验和到 incoming，在服务器以 markflow 用户执行：
 
 ```bash
-cd /srv/lingshu/incoming
+cd /srv/markflow/incoming
 sha256sum -c m6-candidate.tar.gz.sha256
-test ! -e /srv/lingshu/releases/m6-candidate
-tar --no-same-owner -xzf m6-candidate.tar.gz -C /srv/lingshu/releases
-bash /srv/lingshu/releases/m6-candidate/scripts/activate.sh m6-candidate
+test ! -e /srv/markflow/releases/m6-candidate
+tar --no-same-owner -xzf m6-candidate.tar.gz -C /srv/markflow/releases
+bash /srv/markflow/releases/m6-candidate/scripts/activate.sh m6-candidate
 ```
 
-脚本自动跑健康/登录/当前用户/匿名与坏 token 的 401、Nginx index 不缓存、JS immutable、安全头、SPA 深链和缺失资源 404。还核对 API health 的 `releaseId` 与前端 `/release.json`，防止错误 upstream/静态根目录指向旧版却被判定发布成功。PM2 自动设置非敏感的 `LINGSHU_RELEASE_ID`，不要在 server.env 手工设置。任何一项失败触发回滚。Node `--env-file` 的现有进程环境优先，因此不要在运行发布的 shell 中预先导出应用密钥。
+脚本自动跑健康/登录/当前用户/匿名与坏 token 的 401、Nginx index 不缓存、JS immutable、安全头、SPA 深链和缺失资源 404。还核对 API health 的 `releaseId` 与前端 `/release.json`，防止错误 upstream/静态根目录指向旧版却被判定发布成功。PM2 自动设置非敏感的 `MARKFLOW_RELEASE_ID`，不要在 server.env 手工设置。任何一项失败触发回滚。Node `--env-file` 的现有进程环境优先，因此不要在运行发布的 shell 中预先导出应用密钥。
 
 独立运行冒烟：
 
 ```bash
-LINGSHU_SMOKE_ENV_FILE=/srv/lingshu/shared/smoke.env \
-  bash /srv/lingshu/current/scripts/smoke.sh https://candidate.example.com
+MARKFLOW_SMOKE_ENV_FILE=/srv/markflow/shared/smoke.env \
+  bash /srv/markflow/current/scripts/smoke.sh https://candidate.example.com
 ```
 
 人工回滚同样调用某个已保留 release 的脚本，传旧 release 名；不修改数据库。若回滚后仍不健康，先查 PG/Redis/对象存储及 schema 兼容性，保留日志和失败 release。
@@ -122,37 +122,37 @@ LINGSHU_SMOKE_ENV_FILE=/srv/lingshu/shared/smoke.env \
 ## 6. 监控与告警
 
 - `/api/health` 为匿名 readiness：并发探测 PG、Redis、S3 HEAD 桶、四个 BullMQ 队列命令/暂停状态，单项最多等 2 秒、共享短缓存；故障 HTTP 503，不回显内部地址或凭据。它不调用 LLM，不写对象，不保证 worker 正在消费或浏览器上传正常。
-- `/api/metrics` 使用 `prom-client`，`LINGSHU_METRICS_TOKEN` 未配置时 404，错误凭据 401。Nginx 公网固定拒绝此路径，Prometheus 同机直连并以 `Authorization: Bearer …` 抓取。依赖采集失败/3 秒超时返回 503，避免把旧值当作健康状态。
-- 请求直方图 `lingshu_http_request_duration_seconds`：标签 method/路由模板/status；鉴权等在路由匹配前拒绝的请求归 `unmatched`，不含查询参数、username、caseId。业务错误仍遵循原契约 HTTP 200，因此 HTTP 5xx 不等于全部业务失败。
-- `lingshu_pool_pending_tasks{stage}`：未删除且运行/暂停 case 中、仍在池组的待派/重做任务；不包括个人组在手任务或已结束 case。stage=1–5，五阶段缺失时归零。
-- `lingshu_ai_executions_total{stage,outcome}`：success/retryable_failure/permanent_failure，重试每次计数、skipped 不计；进程重启归零，用 rate/increase 看趋势。
-- `lingshu_queue_jobs{queue,state}`：四队列各状态即时数量，failed 是最多保留 1000 条的历史失败任务，不是累计失败率。`lingshu_outbox_pending_messages`、`lingshu_outbox_oldest_age_seconds` 显示待投递数和最长等待时间。
-- Node 进程内存/GC/事件循环指标自动采集；默认 Prometheus 单实例配置见 `deploy/prometheus.yml`，告警见 `lingshu-alerts.yml`，按真实负载调整阈值并配置 Alertmanager 接收通道（本次不发送任何通知）。另对健康 URL 做 HTTP blackbox 检测，并监控磁盘容量、证书到期和备份任务失败。
+- `/api/metrics` 使用 `prom-client`，`MARKFLOW_METRICS_TOKEN` 未配置时 404，错误凭据 401。Nginx 公网固定拒绝此路径，Prometheus 同机直连并以 `Authorization: Bearer …` 抓取。依赖采集失败/3 秒超时返回 503，避免把旧值当作健康状态。
+- 请求直方图 `markflow_http_request_duration_seconds`：标签 method/路由模板/status；鉴权等在路由匹配前拒绝的请求归 `unmatched`，不含查询参数、username、caseId。业务错误仍遵循原契约 HTTP 200，因此 HTTP 5xx 不等于全部业务失败。
+- `markflow_pool_pending_tasks{stage}`：未删除且运行/暂停 case 中、仍在池组的待派/重做任务；不包括个人组在手任务或已结束 case。stage=1–5，五阶段缺失时归零。
+- `markflow_ai_executions_total{stage,outcome}`：success/retryable_failure/permanent_failure，重试每次计数、skipped 不计；进程重启归零，用 rate/increase 看趋势。
+- `markflow_queue_jobs{queue,state}`：四队列各状态即时数量，failed 是最多保留 1000 条的历史失败任务，不是累计失败率。`markflow_outbox_pending_messages`、`markflow_outbox_oldest_age_seconds` 显示待投递数和最长等待时间。
+- Node 进程内存/GC/事件循环指标自动采集；默认 Prometheus 单实例配置见 `deploy/prometheus.yml`，告警见 `markflow-alerts.yml`，按真实负载调整阈值并配置 Alertmanager 接收通道（本次不发送任何通知）。另对健康 URL 做 HTTP blackbox 检测，并监控磁盘容量、证书到期和备份任务失败。
 
 当前按规划使用 PM2 单实例。若扩多实例，DB/队列 gauge 是共享全局值，不要跨实例求和；AI/HTTP counter 可聚合。指标直接查表，数据量增长后应评估索引与采集频率。已读通知 90 天清理、截止扫描超过 500 case 的分页优化仍是后续运维事项，本次不自动删除通知。
 
 ## 7. 备份与恢复演练
 
-复制 backup.env.example 与 backup-pg.sh 到 shared，创建 `shared/pgpass`（0600，格式 `host:port:database:user:password`，密码中的 `:` 和 `\` 按 libpq 规则转义）。不要在命令行或日志放 PG 密码。安装 `deploy/systemd/lingshu-backup.{service,timer}` 到 `/etc/systemd/system`，管理员 daemon-reload，先手动启动 service 并检查 journal，再 enable --now timer；每日服务器本地时间 03:15 运行。服务使用 lingshu 用户，备份目录 0700。
+复制 backup.env.example 与 backup-pg.sh 到 shared，创建 `shared/pgpass`（0600，格式 `host:port:database:user:password`，密码中的 `:` 和 `\` 按 libpq 规则转义）。不要在命令行或日志放 PG 密码。安装 `deploy/systemd/markflow-backup.{service,timer}` 到 `/etc/systemd/system`，管理员 daemon-reload，先手动启动 service 并检查 journal，再 enable --now timer；每日服务器本地时间 03:15 运行。服务使用 markflow 用户，备份目录 0700。
 
 脚本先写 `.partial`、检查 `pg_restore --list` 再原子改名，保存 SHA256；这不等于恢复成功。备份完成后用组织选定的加密异地存储工具上传，检查远端校验和后才执行保留策略：建议本地至少 7 天、异地每日 30 天与每月 12 份。脚本不自动删除，需同时设置磁盘告警并落实保留作业。还要备份对象桶（MinIO 使用对象复制/版本化、TOS 配置跨区/备份策略）、加密配置密钥、服务器配置；仅 pg_dump 无法恢复上传和导出文件。
 
 上线前以及每月至少恢复一次到隔离环境：
 
 ```bash
-sha256sum -c lingshu-<timestamp>.dump.sha256
-createdb --owner=lingshu lingshu_restore
+sha256sum -c markflow-<timestamp>.dump.sha256
+createdb --owner=markflow_restore
 pg_restore --exit-on-error --no-owner --no-privileges \
-  --dbname=lingshu_restore lingshu-<timestamp>.dump
+  --dbname=markflow_restore markflow-<timestamp>.dump
 ```
 
 用具备建库权限的管理账户建隔离库，恢复时用目标 owner；不要覆盖生产库。运行恢复实例时使用独立 Redis/队列前缀、独立对象桶副本及端口，并关闭真实外部 LLM/通知出站能力，验证登录、样本、结果、下载与 AI 密钥解密。记录恢复时间、数据时间点、RPO/RTO；每日备份理论 RPO 约 24 小时，生产前由负责人确认是否需要 WAL/PITR。Redis 应保留 AOF 并做副本备份；outbox 在投递成功后删除，不能假设 PostgreSQL 备份可以重建全部已入 Redis 的任务，恢复队列需专项核对 DB 任务与 BullMQ 状态。
 
 ## 8. CI/CD（目前关闭）
 
-根 `.github/workflows/ci.yml` 支持 main push / PR / 手动运行，同一次 CI 检查前后端、集成测试、打包测试和部署脚本夹具。monorepo 的 origin 为私有仓库 [xilele777/lingshu](https://github.com/xilele777/lingshu)，部署变量 `LINGSHU_DEPLOY_ENABLED` 明确设置为 false。每次 push 的云端验证结果见 [CI 运行记录](https://github.com/xilele777/lingshu/actions/workflows/ci.yml)。旧前端 upstream 不作为新项目发布目标。
+根 `.github/workflows/ci.yml` 支持 main push / PR / 手动运行，同一次 CI 检查前后端、集成测试、打包测试和部署脚本夹具。monorepo 的 origin 为私有仓库 [xilele777/markflow](https://github.com/xilele777/markflow)，部署变量 `MARKFLOW_DEPLOY_ENABLED` 明确设置为 false。每次 push 的云端验证结果见 [CI 运行记录](https://github.com/xilele777/markflow/actions/workflows/ci.yml)。旧前端 upstream 不作为新项目发布目标。
 
-根 `.github/workflows/deploy.yml` 只有仓库变量 `LINGSHU_DEPLOY_ENABLED=true` 时才允许准备发布；未设置或 false 时所有部署 job 跳过。服务器未就绪前保持关闭。启用后，main 的成功 push CI 或 main 手动运行会检出该次 CI / 运行的精确 SHA，并从同一工作树重跑两端检查与后端集成测试，组装 tar / 校验和。production environment 的 job 才读取 SSH 凭据、上传、校验并激活。不会自动切换 LabelHub 域名。
+根 `.github/workflows/deploy.yml` 只有仓库变量 `MARKFLOW_DEPLOY_ENABLED=true` 时才允许准备发布；未设置或 false 时所有部署 job 跳过。服务器未就绪前保持关闭。启用后，main 的成功 push CI 或 main 手动运行会检出该次 CI / 运行的精确 SHA，并从同一工作树重跑两端检查与后端集成测试，组装 tar / 校验和。production environment 的 job 才读取 SSH 凭据、上传、校验并激活。不会自动切换 LabelHub 域名。
 
 合仓后不再需要单独的前端仓库变量、前端 SHA 变量或跨仓库读取 token；统一仓库的一次提交即配对版本。
 
@@ -160,10 +160,10 @@ pg_restore --exit-on-error --no-owner --no-privileges \
 
 | 类型 | 名称 | 内容 |
 |---|---|---|
-| Repository variable | `LINGSHU_DEPLOY_ENABLED` | 仅服务器首发、备份与回滚演练通过后设 `true` |
-| production environment secrets | `LINGSHU_DEPLOY_HOST/USER/PORT` | 服务器 DNS/IPv4、非 root lingshu、SSH 端口（显式填 22） |
-| production environment secrets | `LINGSHU_DEPLOY_KEY` | 专用 SSH 私钥 |
-| production environment secrets | `LINGSHU_DEPLOY_KNOWN_HOSTS` | 经服务器控制台/可信渠道核对的 host key；非默认端口使用 `[host]:port` |
+| Repository variable | `MARKFLOW_DEPLOY_ENABLED` | 仅服务器首发、备份与回滚演练通过后设 `true` |
+| production environment secrets | `MARKFLOW_DEPLOY_HOST/USER/PORT` | 服务器 DNS/IPv4、非 root markflow、SSH 端口（显式填 22） |
+| production environment secrets | `MARKFLOW_DEPLOY_KEY` | 专用 SSH 私钥 |
+| production environment secrets | `MARKFLOW_DEPLOY_KNOWN_HOSTS` | 经服务器控制台/可信渠道核对的 host key；非默认端口使用 `[host]:port` |
 
 production environment 限制 main，建议配置 reviewer；禁止免 host key 校验。密钥仅用于服务器上传/执行，不赋予 root。后端 API 密钥留在 shared/server.env，不进入 GitHub artifacts。首次手动部署成功后再启用自动发布；GitHub 实跑记录仍是 M6 待验收项。
 

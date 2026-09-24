@@ -1,0 +1,23 @@
+groups:
+  - name: markflow
+    rules:
+      - alert: markflowScrapeFailed
+        expr: up{job="markflow"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: 'markflow metrics unavailable; check process and dependencies' }
+      - alert: markflowOutboxStalled
+        expr: markflow_outbox_oldest_age_seconds > 300
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: 'Outbox delivery has been delayed for more than 5 minutes' }
+      - alert: markflowQueueBacklog
+        expr: sum by (queue) (markflow_queue_jobs{state=~"waiting|delayed|prioritized|waiting-children"}) > 1000
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: 'Queue backlog exceeds the initial capacity threshold' }
+      - alert: markflowAiFailureRate
+        expr: sum(rate(markflow_ai_executions_total{outcome=~".*failure"}[5m])) / clamp_min(sum(rate(markflow_ai_executions_total[5m])), 0.001) > 0.2
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: 'AI execution attempt failure ratio exceeds 20%' }

@@ -32,8 +32,8 @@ const login = async (username, password) =>
   ).data?.token;
 
 const admin = await login(
-  process.env.LINGSHU_ADMIN_USERNAME ?? 'admin',
-  process.env.LINGSHU_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
+  process.env.MARKFLOW_ADMIN_USERNAME ?? 'admin',
+  process.env.MARKFLOW_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
 );
 
 // 1. user

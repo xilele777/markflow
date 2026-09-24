@@ -264,7 +264,7 @@ describe('任务流水线（label → review → recheck）', () => {
         .executeTakeFirstOrThrow();
       expect(caseRow.labelResultDatasetVersionId).not.toBeNull();
       const resultDs = await h.ctx.db
-        .selectFrom('lingshu_dataset')
+        .selectFrom('markflow_dataset')
         .selectAll()
         .where('datasetName', '=', `结果集_case${caseId}`)
         .executeTakeFirstOrThrow();

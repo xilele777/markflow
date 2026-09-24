@@ -4,10 +4,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:8080').replace(/\/$/, '');
 const apiOnly = process.argv.includes('--api-only');
-const username = process.env.LINGSHU_SMOKE_USERNAME;
-const password = process.env.LINGSHU_SMOKE_PASSWORD;
-const expectedRelease = process.env.LINGSHU_EXPECTED_RELEASE;
-if (!username || !password) throw new Error('Set LINGSHU_SMOKE_USERNAME / LINGSHU_SMOKE_PASSWORD (dedicated active account)');
+const username = process.env.MARKFLOW_SMOKE_USERNAME;
+const password = process.env.MARKFLOW_SMOKE_PASSWORD;
+const expectedRelease = process.env.MARKFLOW_EXPECTED_RELEASE;
+if (!username || !password) throw new Error('Set MARKFLOW_SMOKE_USERNAME / MARKFLOW_SMOKE_PASSWORD (dedicated active account)');
 const get = (path, init = {}) => fetch(`${base}${path}`, { ...init, redirect: 'error', signal: AbortSignal.timeout(5000) });
 
 try {

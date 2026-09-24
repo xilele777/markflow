@@ -3,10 +3,10 @@ set -euo pipefail
 umask 077
 # 密码由 ~/.pgpass（0600）提供，连接参数使用 libpq 标准环境变量。
 : "${PGDATABASE:?Set PGDATABASE}" "${PGUSER:?Set PGUSER}"
-DEST=$(realpath -e -- "${LINGSHU_BACKUP_DIR:-/srv/lingshu/backups}")
+DEST=$(realpath -e -- "${MARKFLOW_BACKUP_DIR:-/srv/markflow/backups}")
 exec 9>"$DEST/.backup.lock"
 flock -n 9 || { echo 'Backup already running' >&2; exit 1; }
-FILE="$DEST/lingshu-$(date -u +%Y%m%dT%H%M%SZ).dump"
+FILE="$DEST/markflow-$(date -u +%Y%m%dT%H%M%SZ).dump"
 [[ ! -e "$FILE" ]]
 trap 'rm -f -- "$FILE.partial" "$FILE.sha256.partial"' EXIT
 pg_dump --no-password --format=custom --file="$FILE.partial"

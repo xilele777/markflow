@@ -35,19 +35,7 @@ function BrandPanel() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <BrandMark size={24} />
         <span style={{ fontFamily: fonts.display, fontWeight: 700, fontSize: 19, color: palette.text }}>
-          灵枢
-        </span>
-        <span
-          style={{
-            fontFamily: fonts.mono,
-            fontSize: 10,
-            letterSpacing: '0.18em',
-            color: palette.weak,
-            marginLeft: 2,
-            marginTop: 3,
-          }}
-        >
-          LINGSHU
+          markflow
         </span>
       </div>
       <div>

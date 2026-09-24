@@ -52,7 +52,7 @@ const kb = (bytes) => (bytes / 1024).toFixed(1);
 
 let entryRaw = 0;
 let entryGzip = 0;
-console.log('Bundle Size Report (lingshu-web)');
+console.log('Bundle Size Report (markflow-web)');
 console.log('─'.repeat(60));
 console.log(`Entry preload JS (${entryFiles.length} files, entry + modulepreload):`);
 for (const file of entryFiles) {

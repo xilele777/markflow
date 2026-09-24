@@ -5,7 +5,7 @@ const release = fs.realpathSync(__dirname);
 const root = path.resolve(release, '../..');
 module.exports = {
   apps: [{
-    name: 'lingshu',
+    name: 'markflow',
     cwd: path.join(release, 'server'),
     script: path.join(release, 'server/dist/main.js'),
     interpreter: 'node',
@@ -19,6 +19,6 @@ module.exports = {
     kill_timeout: 15000,
     max_memory_restart: '700M',
     time: true,
-    env: { NODE_ENV: 'production', LINGSHU_RELEASE_ID: path.basename(release) },
+    env: { NODE_ENV: 'production', MARKFLOW_RELEASE_ID: path.basename(release) },
   }],
 };

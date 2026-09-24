@@ -17,7 +17,7 @@
 | `smoke-m2.mjs` | dataset 六接口 + 预签名直传 MinIO + 异步解析                                | `node scripts/smoke/smoke-m2.mjs [baseUrl]` |
 | `smoke-m3.mjs` | case / task / taskgroup + 派发 + 驳回重标 + AI 预标预审（本地假 LLM）+ 导出 | `node scripts/smoke/smoke-m3.mjs [baseUrl]` |
 
-系统管理员账号默认 `admin / admin123456`（与 `.env` 首启引导一致），可用环境变量 `LINGSHU_ADMIN_USERNAME` / `LINGSHU_ADMIN_INITIAL_PASSWORD` 覆盖。
+系统管理员账号默认 `admin / admin123456`（与 `.env` 首启引导一致），可用环境变量 `MARKFLOW_ADMIN_USERNAME` / `MARKFLOW_ADMIN_INITIAL_PASSWORD` 覆盖。
 
 `smoke-m3.mjs` 会在本机起一个假 OpenAI 兼容服务供 AI 阶段调用，需要后端能访问 `127.0.0.1` 上的随机端口。
 

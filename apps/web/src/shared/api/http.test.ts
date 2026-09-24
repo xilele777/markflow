@@ -150,7 +150,7 @@ describe('HTTP 错误', () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe('UNAUTHORIZED');
     expect(useAuthStore.getState().token).toBeNull();
-    expect(localStorage.getItem('lingshu.token')).toBeNull();
+    expect(localStorage.getItem('markflow.token')).toBeNull();
     expect(useWorkspaceStore.getState().spaceCode).toBeNull();
     expect(assign).toHaveBeenCalledWith('/login');
     // 401 不弹 toast（登录页会自己提示）。

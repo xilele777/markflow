@@ -40,9 +40,9 @@ function Sidebar({ theme, active = '数据集' }) {
         <BrandMark theme={theme} size={22} color={dark ? (s.accentBarColor || theme.accent) : theme.accent} />
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
           <span style={{ fontFamily: theme.font.display, fontWeight: 700, fontSize: 17,
-            color: s.text, letterSpacing: theme.id === 'B' ? 0 : '-0.01em' }}>灵枢</span>
+            color: s.text, letterSpacing: theme.id === 'B' ? 0 : '-0.01em' }}>markflow</span>
           <span style={{ fontFamily: theme.font.mono, fontSize: 9.5, letterSpacing: '0.18em',
-            color: s.sub, marginTop: 2 }}>LINGSHU</span>
+            color: s.sub, marginTop: 2 }}>MARKFLOW</span>
         </div>
       </div>
 

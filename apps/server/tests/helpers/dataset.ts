@@ -35,7 +35,7 @@ export interface InsertDatasetInput {
 export async function insertDataset(ctx: AppContext, input: InsertDatasetInput): Promise<number> {
   const now = input.createTime ?? Date.now();
   const row = await ctx.db
-    .insertInto('lingshu_dataset')
+    .insertInto('markflow_dataset')
     .values({
       spaceCode: input.spaceCode,
       datasetName: input.datasetName,
@@ -71,14 +71,14 @@ export async function insertVersion(ctx: AppContext, input: InsertVersionInput):
   if (versionNumber === undefined) {
     // 缺省取该数据集当前最大版本号 + 1（uk_dataset_version 唯一）。
     const row = await ctx.db
-      .selectFrom('lingshu_dataset_version')
+      .selectFrom('markflow_dataset_version')
       .select(({ fn }) => fn.max('versionNumber').as('maxVersion'))
       .where('datasetId', '=', input.datasetId)
       .executeTakeFirst();
     versionNumber = (row?.maxVersion ?? 0) + 1;
   }
   const row = await ctx.db
-    .insertInto('lingshu_dataset_version')
+    .insertInto('markflow_dataset_version')
     .values({
       datasetId: input.datasetId,
       versionNumber,
@@ -100,7 +100,7 @@ export async function insertVersion(ctx: AppContext, input: InsertVersionInput):
 
 export function selectVersion(ctx: AppContext, versionId: number): Promise<DatasetVersionRow> {
   return ctx.db
-    .selectFrom('lingshu_dataset_version')
+    .selectFrom('markflow_dataset_version')
     .selectAll()
     .where('id', '=', versionId)
     .executeTakeFirstOrThrow();

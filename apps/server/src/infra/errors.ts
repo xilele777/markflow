@@ -1,4 +1,4 @@
-// 错误码与业务异常。code 字符串沿用灵枢 Java 各 *ErrorCode 的枚举名，message 为中文。
+// 错误码与业务异常。code 字符串沿用markflow Java 各 *ErrorCode 的枚举名，message 为中文。
 // HTTP 状态：UNAUTHORIZED→401、FORBIDDEN/PERMISSION_DENIED→403、TOO_MANY_REQUESTS→429，其余 200
 // （规划 0002 §1；这是相对原 Java 后端"恒 200"的有意改进，前端 http.ts 只在 401 时跳登录）。
 

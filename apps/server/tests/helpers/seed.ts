@@ -107,7 +107,7 @@ export async function insertSample(
 ): Promise<number> {
   const now = Date.now();
   const row = await ctx.db
-    .insertInto('lingshu_dataset_sample')
+    .insertInto('markflow_dataset_sample')
     .values({
       datasetVersionId: input.datasetVersionId,
       bizId: input.bizId,

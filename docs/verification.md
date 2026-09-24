@@ -1,5 +1,7 @@
 # 验收状态与迁移边界
 
+> 最新审阅（2026-09-24）：本轮现有测试全部通过，但专项 API / 浏览器检查确认了 8 项缺陷，包括跨空间数据访问、5000 条样本建任务失败、提交后结果覆盖、重复消费和执行页问题。完整证据、架构评价与功能进度见 [项目审阅报告](reviews/2026-09-24-project-review.md)。以下 2026-09-22 验收记录保留为历史证据，不代表上述缺陷已修复。
+
 核对日期：2026-09-22。依据：当前源码、[总规划](plans/0002-2026-09-22-规划-迁移总规划.md)、[M5 快照](handoff/0009-2026-09-22-状态快照-M5完成.md)、[M6 准备快照](handoff/0010-2026-09-22-状态快照-M6部署准备完成.md)。
 
 ## 结论
@@ -33,7 +35,7 @@ API 与浏览器验收针对本地真实前后端及 PG / Redis / MinIO。AI 冒
 | 其它已知遗留 | AI 耗尽重试后的手动重派、审核页草稿自动保存未实现；已读通知无定期清理；截止扫描每批最多 500 case；禁用用户跨实例缓存最多 10s；前端既有警告。 |
 | 历史数据 | 没有 LabelHub 历史数据自动迁移工具，也没有迁移验数。早期报告曾提出从新数据起步；实际切换前仍须明确保留旧库还是另做迁移。 |
 | 生产部署 | 服务器未就绪，未部署。真实域名 / TLS / 对象存储直传 / 云权限 / PM2 / systemd / 重启恢复 / 备份恢复待验收。 |
-| GitHub CI/CD | 代码与工作流提交到私有仓库 [xilele777/lingshu](https://github.com/xilele777/lingshu)。云端 CI 结果以 [Actions](https://github.com/xilele777/lingshu/actions/workflows/ci.yml) 为准；部署变量明确为 false，未部署。 |
+| GitHub CI/CD | 代码与工作流提交到私有仓库 [xilele777/markflow](https://github.com/xilele777/markflow)。云端 CI 结果以 [Actions](https://github.com/xilele777/markflow/actions/workflows/ci.yml) 为准；部署变量明确为 false，未部署。 |
 | 业务切换 | 未切换旧系统流量，LabelHub 未封存；切换后观察两周的阶段未开始。 |
 
 上线时还需按 [部署手册](server/deployment.md) 完成实机检查。迁移关闭前应逐项确认以上差异是补齐、延期还是正式排除，不能只依据里程碑标题判断全部完成。

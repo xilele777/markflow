@@ -28,7 +28,7 @@ export interface SampleError {
 }
 
 /**
- * lingshu_dataset_version.ext（对应 Java DatasetVersionExt）。
+ * markflow_dataset_version.ext（对应 Java DatasetVersionExt）。
  * 解析成功写统计与错误明细（parseFailureReason 为 null）；解析失败只写 parseFailureReason，其余为 null。
  */
 export interface DatasetVersionExt {

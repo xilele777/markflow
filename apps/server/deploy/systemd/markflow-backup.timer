@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily LingShu database backup
+Description=Daily markflow database backup
 
 [Timer]
 OnCalendar=*-*-* 03:15:00

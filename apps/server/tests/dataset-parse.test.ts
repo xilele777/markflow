@@ -77,7 +77,7 @@ describe('数据集解析', () => {
 
   const samplesOf = (versionId: number) =>
     h.ctx.db
-      .selectFrom('lingshu_dataset_sample')
+      .selectFrom('markflow_dataset_sample')
       .selectAll()
       .where('datasetVersionId', '=', versionId)
       .orderBy('id', 'asc')
@@ -276,7 +276,7 @@ describe('数据集解析', () => {
       const noSchemaTool = uniq('nst');
       const toolId = await createLabelToolRow(h.ctx, { labelToolCode: noSchemaTool });
       await h.ctx.db
-        .updateTable('lingshu_label_tool')
+        .updateTable('markflow_label_tool')
         .set({ labelToolJsonSchema: null })
         .where('id', '=', toolId)
         .execute();

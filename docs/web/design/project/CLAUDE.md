@@ -1,4 +1,4 @@
-# 灵枢前端 · 设计规则（项目内长期生效）
+# markflow前端 · 设计规则（项目内长期生效）
 
 ## 视觉方向（已确定）
 - **工坊 · 浅色**：IBM Plex 全家族（IBM Plex Sans / IBM Plex Sans SC / IBM Plex Mono）+ 蓝色点缀 `#2f6df0` + 冷调浅灰中性 + 发丝边框。

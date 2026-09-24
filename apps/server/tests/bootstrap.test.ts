@@ -13,24 +13,24 @@ describe('配置与首启引导', () => {
   afterAll(() => h.close());
 
   it('缺少口令类环境变量 → ConfigError 列出缺失项', () => {
-    expect(() => loadConfig({ LINGSHU_REDIS_PASSWORD: 'x' })).toThrow(ConfigError);
-    expect(() => loadConfig({ LINGSHU_REDIS_PASSWORD: 'x' })).toThrow(/LINGSHU_PG_PASSWORD/);
+    expect(() => loadConfig({ MARKFLOW_REDIS_PASSWORD: 'x' })).toThrow(ConfigError);
+    expect(() => loadConfig({ MARKFLOW_REDIS_PASSWORD: 'x' })).toThrow(/MARKFLOW_PG_PASSWORD/);
   });
 
   it('空字符串视为未设置', () => {
-    expect(() => loadConfig({ LINGSHU_PG_PASSWORD: '', LINGSHU_REDIS_PASSWORD: 'x' })).toThrow(
-      /LINGSHU_PG_PASSWORD/,
+    expect(() => loadConfig({ MARKFLOW_PG_PASSWORD: '', MARKFLOW_REDIS_PASSWORD: 'x' })).toThrow(
+      /MARKFLOW_PG_PASSWORD/,
     );
   });
 
   it('JWT 密钥过短 → ConfigError', () => {
     expect(() =>
       loadConfig({
-        LINGSHU_PG_PASSWORD: 'a',
-        LINGSHU_REDIS_PASSWORD: 'b',
-        LINGSHU_JWT_SECRET: 'short',
+        MARKFLOW_PG_PASSWORD: 'a',
+        MARKFLOW_REDIS_PASSWORD: 'b',
+        MARKFLOW_JWT_SECRET: 'short',
       }),
-    ).toThrow(/LINGSHU_JWT_SECRET/);
+    ).toThrow(/MARKFLOW_JWT_SECRET/);
   });
 
   it('重复执行引导是幂等的：不改密钥、不重复建管理员', async () => {

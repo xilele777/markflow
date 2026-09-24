@@ -1,21 +1,21 @@
 > 已归档：本计划已被替代，仅用于历史追溯，不作为当前执行指令。请阅读 [当前总规划](../../plans/0002-2026-09-22-规划-迁移总规划.md)。
 
-# 灵枢迁移 · 阶段 1：可复现 + 安全兜底 — 实施计划
+# markflow迁移 · 阶段 1：可复现 + 安全兜底 — 实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 让灵枢后端在任何一台装了 Docker + JDK 17/21 的机器上，从零 `docker compose up` → `./mvnw verify` → `java -jar` → 冒烟通过，且不再带默认口令、任意来源 CORS、无限流登录、硬绑定火山 TOS 这四类缺陷。
+**Goal:** 让markflow后端在任何一台装了 Docker + JDK 17/21 的机器上，从零 `docker compose up` → `./mvnw verify` → `java -jar` → 冒烟通过，且不再带默认口令、任意来源 CORS、无限流登录、硬绑定火山 TOS 这四类缺陷。
 
-**Architecture:** 保持灵枢现有 DDD 五层与 `@SpringBootTest` 集成测试风格不动；所有新增能力都放在 `infrastructure/`（横切）或 `adapter/`（外部系统）包下，通过 `application.yml` 中的 `lingshu.*` 配置项 + 环境变量注入，领域层只依赖新引入的 `ObjectStorageClient` 接口。数据库结构由 Flyway `V1__init.sql` 管理，首启由 `SystemBootstrapRunner` 幂等写入 JWT 密钥与 admin。
+**Architecture:** 保持markflow现有 DDD 五层与 `@SpringBootTest` 集成测试风格不动；所有新增能力都放在 `infrastructure/`（横切）或 `adapter/`（外部系统）包下，通过 `application.yml` 中的 `markflow.*` 配置项 + 环境变量注入，领域层只依赖新引入的 `ObjectStorageClient` 接口。数据库结构由 Flyway `V1__init.sql` 管理，首启由 `SystemBootstrapRunner` 幂等写入 JWT 密钥与 admin。
 
 **Tech Stack:** Java 17（CI）/ 21（本机）、Spring Boot 3.4.5、MyBatis-Plus 3.5.9、Redisson 3.39.0、RocketMQ Spring 2.3.1、Flyway（Boot 管理版本）、AWS SDK v2 `s3`（对接 MinIO）、Docker Compose v2、GitHub Actions、JUnit 5 + AssertJ + MockMvc。
 
 ## Global Constraints
 
-- 工作目录：后端 `F:/label/lingshu-backend/`（Task 0 从 `F:/label/submission/LingShu-后端/` 复制而来，含 `.git`）；前端 `F:/label/lingshu-web/`（从 `F:/label/submission/lingshu-web-前端/` 复制）。以下所有相对路径均相对于后端仓库根，除非写明"前端仓库"。
+- 工作目录：后端 `F:/label/markflow-backend/`（Task 0 从 `F:/label/submission/markflow-后端/` 复制而来，含 `.git`）；前端 `F:/label/markflow-web/`（从 `F:/label/submission/markflow-web-前端/` 复制）。以下所有相对路径均相对于后端仓库根，除非写明"前端仓库"。
 - 分支：两个仓库均在 `migration/phase-1` 上工作；原远端改名为 `upstream`，**不得 push 到 upstream**。
-- 前提：使用灵枢代码须已获得作者（GitHub onlyactwo）的书面授权（仓库无 LICENSE）。未获授权前只在本地进行，不发布。
-- 编码规范（灵枢 `docs/standards/`）：不引入 `record`；DO/PO 用 Lombok `@Data @Builder @NoArgsConstructor @AllArgsConstructor`；敏感字段 `@ToString.Exclude`；不用 BeanUtils；错误一律 `ServiceException.of(ErrorCode)`；日志中禁止出现密钥/口令/token。
+- 前提：使用markflow代码须已获得作者（GitHub onlyactwo）的书面授权（仓库无 LICENSE）。未获授权前只在本地进行，不发布。
+- 编码规范（markflow `docs/standards/`）：不引入 `record`；DO/PO 用 Lombok `@Data @Builder @NoArgsConstructor @AllArgsConstructor`；敏感字段 `@ToString.Exclude`；不用 BeanUtils；错误一律 `ServiceException.of(ErrorCode)`；日志中禁止出现密钥/口令/token。
 - 时间戳统一毫秒 `BIGINT`；库与表字符集 `utf8mb4` / `utf8mb4_general_ci`。
 - 测试：延续 `@SpringBootTest` 集成测试（需要 compose 中的中间件在线）；纯逻辑用普通 JUnit；需要外部云资源的测试打 `@Tag("external")`，默认排除。
 - 提交信息：Conventional Commits，英文标题 `type(scope): summary`（小写开头、无句号、≤72 字符），空一行后中文正文说明原因/变更/风险；**不要**添加任何署名/attribution 行；不得提交 `.env`、密钥、口令。
@@ -33,7 +33,7 @@
 |---|---|
 | `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties` | Maven Wrapper |
 | `.env`（gitignore）, `deploy/.env.example` | 环境变量契约 |
-| `src/main/resources/application.yml` | 去默认口令；`spring.config.import`；`lingshu.*` 配置节；Flyway；actuator |
+| `src/main/resources/application.yml` | 去默认口令；`spring.config.import`；`markflow.*` 配置节；Flyway；actuator |
 | `deploy/docker-compose.yml`, `deploy/rocketmq/broker.conf` | 本地中间件 |
 | `src/main/resources/db/migration/V1__init.sql` | 11 张表 DDL |
 | `src/main/java/.../infrastructure/bootstrap/{BootstrapProperties,SystemBootstrapRunner}.java` | 首启引导 |
@@ -48,14 +48,14 @@
 
 前端仓库新增：`.github/workflows/ci.yml`。
 
-包前缀 `com.onlyactwo.lingshu` 下文简写为 `...`。
+包前缀 `com.onlyactwo.markflow` 下文简写为 `...`。
 
 ---
 
 ### Task 0: 仓库落位与 Maven Wrapper
 
 **Files:**
-- Create: `F:/label/lingshu-backend/`（复制）、`F:/label/lingshu-web/`（复制）
+- Create: `F:/label/markflow-backend/`（复制）、`F:/label/markflow-web/`（复制）
 - Create: `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties`
 
 **Interfaces:**
@@ -65,11 +65,11 @@
 
 ```bash
 cd /f/label
-cp -r "submission/LingShu-后端" lingshu-backend
-cp -r "submission/lingshu-web-前端" lingshu-web
-cd /f/label/lingshu-backend && git remote rename origin upstream && git checkout -b migration/phase-1
-cd /f/label/lingshu-web && git remote rename origin upstream && git checkout -b migration/phase-1
-cd /f/label/lingshu-backend && git status --short | head
+cp -r "submission/markflow-后端" markflow-backend
+cp -r "submission/markflow-web-前端" markflow-web
+cd /f/label/markflow-backend && git remote rename origin upstream && git checkout -b migration/phase-1
+cd /f/label/markflow-web && git remote rename origin upstream && git checkout -b migration/phase-1
+cd /f/label/markflow-backend && git status --short | head
 ```
 
 Expected: 两个仓库 `git branch --show-current` 输出 `migration/phase-1`；`git remote -v` 只有 `upstream`；工作区干净（`.idea/`、`target/` 已被 gitignore）。
@@ -77,7 +77,7 @@ Expected: 两个仓库 `git branch --show-current` 输出 `migration/phase-1`；
 - [ ] **Step 2: 用临时 Maven 容器生成 Wrapper（本机无 Maven）**
 
 ```bash
-cd /f/label/lingshu-backend
+cd /f/label/markflow-backend
 docker run --rm -v "$(pwd -W 2>/dev/null || pwd):/app" -w /app maven:3.9.9-eclipse-temurin-17 \
   mvn -q -N wrapper:wrapper -Dmaven=3.9.9 -Dtype=only-script
 ls -la mvnw mvnw.cmd .mvn/wrapper/maven-wrapper.properties
@@ -90,7 +90,7 @@ Expected: 三个文件存在；`.mvn/wrapper/maven-wrapper.properties` 含 `dist
 - [ ] **Step 3: 验证 Wrapper 可用并能编译**
 
 ```bash
-cd /f/label/lingshu-backend && chmod +x mvnw && ./mvnw -v && ./mvnw -q -DskipTests compile
+cd /f/label/markflow-backend && chmod +x mvnw && ./mvnw -v && ./mvnw -q -DskipTests compile
 ```
 
 Expected: 打印 `Apache Maven 3.9.9` 与本机 JDK 21；`compile` 成功（`BUILD SUCCESS` 或静默返回 0）。
@@ -98,7 +98,7 @@ Expected: 打印 `Apache Maven 3.9.9` 与本机 JDK 21；`compile` 成功（`BUI
 - [ ] **Step 4: 提交**
 
 ```bash
-cd /f/label/lingshu-backend
+cd /f/label/markflow-backend
 git add mvnw mvnw.cmd .mvn/wrapper/maven-wrapper.properties
 git commit -m "build(maven): add maven wrapper
 
@@ -114,15 +114,15 @@ git commit -m "build(maven): add maven wrapper
 - Modify: `src/main/resources/application.yml`
 - Create: `deploy/.env.example`, `.env`（本地，不提交）
 - Modify: `.gitignore`
-- Test: `src/test/java/com/onlyactwo/lingshu/infrastructure/config/ApplicationYmlSecretGuardTest.java`
+- Test: `src/test/java/com/onlyactwo/markflow/infrastructure/config/ApplicationYmlSecretGuardTest.java`
 
 **Interfaces:**
-- Produces: 环境变量名 `LINGSHU_MYSQL_*`、`LINGSHU_REDIS_*`、`LINGSHU_ROCKETMQ_NAMESERVER`、`LINGSHU_JWT_SECRET`、`LINGSHU_JWT_EXPIRE_SECONDS`、`LINGSHU_ADMIN_INITIAL_PASSWORD`、`LINGSHU_CORS_ALLOWED_ORIGINS`、`LINGSHU_OSS_PROVIDER`、`LINGSHU_S3_*`、`LINGSHU_RATE_LIMIT_*`；仓库根 `.env` 同时被 Spring（`spring.config.import`）与 docker compose（`--env-file .env`）读取。
+- Produces: 环境变量名 `MARKFLOW_MYSQL_*`、`MARKFLOW_REDIS_*`、`MARKFLOW_ROCKETMQ_NAMESERVER`、`MARKFLOW_JWT_SECRET`、`MARKFLOW_JWT_EXPIRE_SECONDS`、`MARKFLOW_ADMIN_INITIAL_PASSWORD`、`MARKFLOW_CORS_ALLOWED_ORIGINS`、`MARKFLOW_OSS_PROVIDER`、`MARKFLOW_S3_*`、`MARKFLOW_RATE_LIMIT_*`；仓库根 `.env` 同时被 Spring（`spring.config.import`）与 docker compose（`--env-file .env`）读取。
 
 - [ ] **Step 1: 写守卫测试（纯 JUnit，不起 Spring）**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.config;
+package com.onlyactwo.markflow.infrastructure.config;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -182,29 +182,29 @@ Expected: FAIL，`noLeakedPassword` 断言 `doesNotContain("lzx2005")` 失败。
 
 ```yaml
 server:
-  port: ${LINGSHU_SERVER_PORT:8080}
+  port: ${MARKFLOW_SERVER_PORT:8080}
   forward-headers-strategy: native
 
 spring:
   application:
-    name: lingshu
+    name: markflow
   config:
     import: optional:file:./.env[.properties]
   datasource:
-    url: jdbc:mysql://${LINGSHU_MYSQL_HOST:127.0.0.1}:${LINGSHU_MYSQL_PORT:3306}/${LINGSHU_MYSQL_DB:lingshu}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-    username: ${LINGSHU_MYSQL_USERNAME:root}
-    password: ${LINGSHU_MYSQL_PASSWORD}
+    url: jdbc:mysql://${MARKFLOW_MYSQL_HOST:127.0.0.1}:${MARKFLOW_MYSQL_PORT:3306}/${MARKFLOW_MYSQL_DB:markflow}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: ${MARKFLOW_MYSQL_USERNAME:root}
+    password: ${MARKFLOW_MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: ${LINGSHU_REDIS_HOST:127.0.0.1}
-      port: ${LINGSHU_REDIS_PORT:6379}
-      password: ${LINGSHU_REDIS_PASSWORD}
+      host: ${MARKFLOW_REDIS_HOST:127.0.0.1}
+      port: ${MARKFLOW_REDIS_PORT:6379}
+      password: ${MARKFLOW_REDIS_PASSWORD}
 
 rocketmq:
-  name-server: ${LINGSHU_ROCKETMQ_NAMESERVER:127.0.0.1:9876}
+  name-server: ${MARKFLOW_ROCKETMQ_NAMESERVER:127.0.0.1:9876}
   producer:
-    group: lingshu-producer
+    group: markflow-producer
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -212,7 +212,7 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 ```
 
-说明：`spring.config.import` 让根目录 `.env`（`KEY=value` 行）作为属性源加载，`${LINGSHU_MYSQL_PASSWORD}` 直接从中解析；缺失时启动报 `Could not resolve placeholder 'LINGSHU_MYSQL_PASSWORD'`，这是期望行为。
+说明：`spring.config.import` 让根目录 `.env`（`KEY=value` 行）作为属性源加载，`${MARKFLOW_MYSQL_PASSWORD}` 直接从中解析；缺失时启动报 `Could not resolve placeholder 'MARKFLOW_MYSQL_PASSWORD'`，这是期望行为。
 
 - [ ] **Step 4: 创建 `deploy/.env.example` 与本地 `.env`**
 
@@ -220,47 +220,47 @@ mybatis-plus:
 
 ```properties
 # 复制为仓库根 .env 后按需修改。所有口令仅用于本地 compose，切勿用于生产。
-LINGSHU_SERVER_PORT=8080
+MARKFLOW_SERVER_PORT=8080
 
-LINGSHU_MYSQL_HOST=127.0.0.1
-LINGSHU_MYSQL_PORT=3306
-LINGSHU_MYSQL_DB=lingshu
-LINGSHU_MYSQL_USERNAME=root
-LINGSHU_MYSQL_PASSWORD=lingshu_dev_pwd
+MARKFLOW_MYSQL_HOST=127.0.0.1
+MARKFLOW_MYSQL_PORT=3306
+MARKFLOW_MYSQL_DB=markflow
+MARKFLOW_MYSQL_USERNAME=root
+MARKFLOW_MYSQL_PASSWORD=markflow_dev_pwd
 
-LINGSHU_REDIS_HOST=127.0.0.1
-LINGSHU_REDIS_PORT=6379
-LINGSHU_REDIS_PASSWORD=lingshu_dev_pwd
+MARKFLOW_REDIS_HOST=127.0.0.1
+MARKFLOW_REDIS_PORT=6379
+MARKFLOW_REDIS_PASSWORD=markflow_dev_pwd
 
-LINGSHU_ROCKETMQ_NAMESERVER=127.0.0.1:9876
+MARKFLOW_ROCKETMQ_NAMESERVER=127.0.0.1:9876
 
 # 首启写入 sys_config，之后修改无效。生产用 openssl rand -base64 48 生成。
-LINGSHU_JWT_SECRET=dev-only-jwt-secret-please-change-0123456789abcdef
-LINGSHU_JWT_EXPIRE_SECONDS=86400
+MARKFLOW_JWT_SECRET=dev-only-jwt-secret-please-change-0123456789abcdef
+MARKFLOW_JWT_EXPIRE_SECONDS=86400
 # 仅当 admin 账号不存在时使用。
-LINGSHU_ADMIN_INITIAL_PASSWORD=admin123456
+MARKFLOW_ADMIN_INITIAL_PASSWORD=admin123456
 
 # 逗号分隔的前端来源。
-LINGSHU_CORS_ALLOWED_ORIGINS=http://localhost:5173
+MARKFLOW_CORS_ALLOWED_ORIGINS=http://localhost:5173
 
 # 对象存储：s3（MinIO / AWS）或 tos（火山，配置在 sys_config.tos.config）。
-LINGSHU_OSS_PROVIDER=s3
-LINGSHU_S3_ENDPOINT=http://127.0.0.1:9000
-LINGSHU_S3_REGION=us-east-1
-LINGSHU_S3_ACCESS_KEY=lingshu-minio
-LINGSHU_S3_SECRET_KEY=lingshu_dev_pwd
-LINGSHU_S3_BUCKET=lingshu
-LINGSHU_S3_PUBLIC_BASE_URL=
+MARKFLOW_OSS_PROVIDER=s3
+MARKFLOW_S3_ENDPOINT=http://127.0.0.1:9000
+MARKFLOW_S3_REGION=us-east-1
+MARKFLOW_S3_ACCESS_KEY=markflow-minio
+MARKFLOW_S3_SECRET_KEY=markflow_dev_pwd
+MARKFLOW_S3_BUCKET=markflow
+MARKFLOW_S3_PUBLIC_BASE_URL=
 
-LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE=600
-LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES=5
-LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES=15
+MARKFLOW_RATE_LIMIT_GLOBAL_PER_MINUTE=600
+MARKFLOW_RATE_LIMIT_LOGIN_MAX_FAILURES=5
+MARKFLOW_RATE_LIMIT_LOGIN_WINDOW_MINUTES=15
 ```
 
 本地：
 
 ```bash
-cd /f/label/lingshu-backend && cp deploy/.env.example .env
+cd /f/label/markflow-backend && cp deploy/.env.example .env
 ```
 
 - [ ] **Step 5: `.gitignore` 追加**
@@ -282,7 +282,7 @@ Expected: PASS（2 tests）。
 ```bash
 git status --short   # 不应出现 .env
 git add src/main/resources/application.yml deploy/.env.example .gitignore \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/config/ApplicationYmlSecretGuardTest.java
+  src/test/java/com/onlyactwo/markflow/infrastructure/config/ApplicationYmlSecretGuardTest.java
 git commit -m "fix(config): remove default credentials from application.yml
 
 数据库与 Redis 口令不再有默认值，缺失即启动失败；通过
@@ -300,7 +300,7 @@ spring.config.import 读取仓库根 .env，并提供 deploy/.env.example
 
 **Interfaces:**
 - Consumes: Task 1 的 `.env` 变量。
-- Produces: 宿主机可达的 MySQL `127.0.0.1:3306`（库 `lingshu`，`utf8mb4_general_ci`）、Redis `6379`、RocketMQ namesrv `9876` + broker `10911`、MinIO API `9000` / 控制台 `9001`，桶 `lingshu` 已建且匿名可下载。
+- Produces: 宿主机可达的 MySQL `127.0.0.1:3306`（库 `markflow`，`utf8mb4_general_ci`）、Redis `6379`、RocketMQ namesrv `9876` + broker `10911`、MinIO API `9000` / 控制台 `9001`，桶 `markflow` 已建且匿名可下载。
 
 - [ ] **Step 1: 写 `deploy/rocketmq/broker.conf`**
 
@@ -323,7 +323,7 @@ autoCreateSubscriptionGroup=true
 - [ ] **Step 2: 写 `deploy/docker-compose.yml`**
 
 ```yaml
-name: lingshu
+name: markflow
 
 services:
   mysql:
@@ -333,10 +333,10 @@ services:
       - --collation-server=utf8mb4_general_ci
       - --default-time-zone=+08:00
     environment:
-      MYSQL_ROOT_PASSWORD: ${LINGSHU_MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${LINGSHU_MYSQL_DB:-lingshu}
+      MYSQL_ROOT_PASSWORD: ${MARKFLOW_MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MARKFLOW_MYSQL_DB:-markflow}
     ports:
-      - "${LINGSHU_MYSQL_PORT:-3306}:3306"
+      - "${MARKFLOW_MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -347,16 +347,16 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--requirepass", "${LINGSHU_REDIS_PASSWORD}"]
+    command: ["redis-server", "--requirepass", "${MARKFLOW_REDIS_PASSWORD}"]
     ports:
-      - "${LINGSHU_REDIS_PORT:-6379}:6379"
+      - "${MARKFLOW_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 20
     environment:
-      REDIS_PASSWORD: ${LINGSHU_REDIS_PASSWORD}
+      REDIS_PASSWORD: ${MARKFLOW_REDIS_PASSWORD}
 
   namesrv:
     image: apache/rocketmq:5.3.1
@@ -396,10 +396,10 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${LINGSHU_S3_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${LINGSHU_S3_SECRET_KEY}
+      MINIO_ROOT_USER: ${MARKFLOW_S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MARKFLOW_S3_SECRET_KEY}
       # 浏览器预签名直传需要 MinIO 放行前端来源。
-      MINIO_API_CORS_ALLOW_ORIGIN: ${LINGSHU_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MARKFLOW_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -417,9 +417,9 @@ services:
       minio:
         condition: service_healthy
     environment:
-      MINIO_ROOT_USER: ${LINGSHU_S3_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${LINGSHU_S3_SECRET_KEY}
-      BUCKET: ${LINGSHU_S3_BUCKET:-lingshu}
+      MINIO_ROOT_USER: ${MARKFLOW_S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MARKFLOW_S3_SECRET_KEY}
+      BUCKET: ${MARKFLOW_S3_BUCKET:-markflow}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
@@ -437,7 +437,7 @@ volumes:
 - [ ] **Step 3: 启动并等待全部健康**
 
 ```bash
-cd /f/label/lingshu-backend
+cd /f/label/markflow-backend
 docker compose --env-file .env -f deploy/docker-compose.yml up -d --wait
 docker compose --env-file .env -f deploy/docker-compose.yml ps
 ```
@@ -448,7 +448,7 @@ Expected: `mysql`、`redis`、`namesrv`、`broker`、`minio` 状态 `healthy`；
 
 ```bash
 docker compose --env-file .env -f deploy/docker-compose.yml exec mysql \
-  sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT @@character_set_database, @@collation_database" lingshu'
+  sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT @@character_set_database, @@collation_database" markflow'
 docker compose --env-file .env -f deploy/docker-compose.yml exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'
 docker compose --env-file .env -f deploy/docker-compose.yml exec broker sh mqadmin clusterList -n namesrv:9876
 curl -fsS http://127.0.0.1:9000/minio/health/live -o /dev/null -w '%{http_code}\n'
@@ -475,7 +475,7 @@ broker.conf 固定 brokerIP1=127.0.0.1 以适配 Docker Desktop。"
 - Modify: `pom.xml`（dependencies）
 - Modify: `src/main/resources/application.yml`（追加 `spring.flyway`）
 - Create: `src/main/resources/db/migration/V1__init.sql`
-- Test: `src/test/java/com/onlyactwo/lingshu/infrastructure/db/FlywayMigrationTest.java`
+- Test: `src/test/java/com/onlyactwo/markflow/infrastructure/db/FlywayMigrationTest.java`
 
 **Interfaces:**
 - Consumes: Task 2 的 MySQL。
@@ -484,7 +484,7 @@ broker.conf 固定 brokerIP1=127.0.0.1 以适配 Docker Desktop。"
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.db;
+package com.onlyactwo.markflow.infrastructure.db;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
@@ -502,7 +502,7 @@ class FlywayMigrationTest {
 
     private static final List<String> EXPECTED_TABLES = List.of(
             "sys_user", "workspace", "user_workspace_ship", "sys_config",
-            "lingshu_label_tool", "lingshu_dataset", "lingshu_dataset_version", "lingshu_dataset_sample",
+            "markflow_label_tool", "markflow_dataset", "markflow_dataset_version", "markflow_dataset_sample",
             "label_case", "label_task_group", "label_task");
 
     @Autowired
@@ -562,12 +562,12 @@ Expected: FAIL，`No qualifying bean of type 'org.flywaydb.core.Flyway'`。
     baseline-description: existing-schema
 ```
 
-含义：空库 → 执行 `V1`；已有表但无 `flyway_schema_history` 的老库（灵枢原线上库）→ 记 baseline=1、跳过 `V1`，从 `V2` 起生效。
+含义：空库 → 执行 `V1`；已有表但无 `flyway_schema_history` 的老库（markflow原线上库）→ 记 baseline=1、跳过 `V1`，从 `V2` 起生效。
 
 - [ ] **Step 5: 写 `src/main/resources/db/migration/V1__init.sql`**
 
 ```sql
--- 灵枢初始表结构（由 PO / Mapper XML / 仓储查询条件反推；上线前务必与线上 mysqldump --no-data 对比，见迁移报告 R3）。
+-- markflow初始表结构（由 PO / Mapper XML / 仓储查询条件反推；上线前务必与线上 mysqldump --no-data 对比，见迁移报告 R3）。
 -- 时间戳统一毫秒 BIGINT；json 列存 MyBatis 写入的 JSON 字符串。
 
 CREATE TABLE sys_user (
@@ -626,7 +626,7 @@ CREATE TABLE sys_config (
     UNIQUE KEY uk_config_key (config_key)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;
 
-CREATE TABLE lingshu_label_tool (
+CREATE TABLE markflow_label_tool (
     id                     BIGINT       NOT NULL AUTO_INCREMENT,
     label_tool_code        VARCHAR(64)  NOT NULL,
     label_tool_name        VARCHAR(128) NOT NULL,
@@ -644,7 +644,7 @@ CREATE TABLE lingshu_label_tool (
     UNIQUE KEY uk_code (label_tool_code)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;
 
-CREATE TABLE lingshu_dataset (
+CREATE TABLE markflow_dataset (
     id                    BIGINT       NOT NULL AUTO_INCREMENT,
     space_code            VARCHAR(32)  NOT NULL,
     dataset_name          VARCHAR(128) NOT NULL,
@@ -662,7 +662,7 @@ CREATE TABLE lingshu_dataset (
     KEY idx_space_name (space_code, dataset_name, deleted)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;
 
-CREATE TABLE lingshu_dataset_version (
+CREATE TABLE markflow_dataset_version (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     dataset_id     BIGINT       NOT NULL,
     version_number INT          NOT NULL,
@@ -680,7 +680,7 @@ CREATE TABLE lingshu_dataset_version (
     UNIQUE KEY uk_dataset_version (dataset_id, version_number)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci;
 
-CREATE TABLE lingshu_dataset_sample (
+CREATE TABLE markflow_dataset_sample (
     id                 BIGINT      NOT NULL AUTO_INCREMENT,
     dataset_version_id BIGINT      NOT NULL,
     biz_id             VARCHAR(64) NOT NULL,
@@ -768,7 +768,7 @@ CREATE TABLE label_task (
 - [ ] **Step 6: 运行迁移测试，确认通过**
 
 Run: `./mvnw -q test -Dtest=FlywayMigrationTest`
-Expected: PASS（2 tests）。日志中出现 `Successfully applied 1 migration to schema "lingshu"`。
+Expected: PASS（2 tests）。日志中出现 `Successfully applied 1 migration to schema "markflow"`。
 
 - [ ] **Step 7: 跑全部既有集成测试，确认 DDL 与代码一致（此时 TOS 相关 3 个测试和 init 下 2 个测试预期失败/跳过，其余应全绿）**
 
@@ -779,7 +779,7 @@ Expected: `Tests run: N, Failures: 0, Errors: 0`。若出现 `Unknown column` �
 
 ```bash
 git add pom.xml src/main/resources/application.yml src/main/resources/db/migration/V1__init.sql \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/db/FlywayMigrationTest.java
+  src/test/java/com/onlyactwo/markflow/infrastructure/db/FlywayMigrationTest.java
 git commit -m "feat(db): manage schema with flyway and add V1 init migration
 
 仓库此前没有任何 DDL，表结构只存在于线上库。引入 Flyway 并按 PO、
@@ -793,12 +793,12 @@ uk_case_type_sample。baseline-on-migrate=1 保证已有库跳过 V1。
 ### Task 4: 首启引导 SystemBootstrapRunner（报告 1.6）
 
 **Files:**
-- Create: `src/main/java/com/onlyactwo/lingshu/infrastructure/bootstrap/BootstrapProperties.java`
-- Create: `src/main/java/com/onlyactwo/lingshu/infrastructure/bootstrap/SystemBootstrapRunner.java`
-- Modify: `src/main/java/com/onlyactwo/lingshu/LingShuApplication.java`（加 `@ConfigurationPropertiesScan`）
-- Modify: `src/main/resources/application.yml`（追加 `lingshu.bootstrap`）
-- Delete: `src/test/java/com/onlyactwo/lingshu/init/SystemAdminInitTest.java`, `src/test/java/com/onlyactwo/lingshu/init/FixLabelToolSchemaTest.java`
-- Test: `src/test/java/com/onlyactwo/lingshu/infrastructure/bootstrap/SystemBootstrapRunnerTest.java`
+- Create: `src/main/java/com/onlyactwo/markflow/infrastructure/bootstrap/BootstrapProperties.java`
+- Create: `src/main/java/com/onlyactwo/markflow/infrastructure/bootstrap/SystemBootstrapRunner.java`
+- Modify: `src/main/java/com/onlyactwo/markflow/markflowApplication.java`（加 `@ConfigurationPropertiesScan`）
+- Modify: `src/main/resources/application.yml`（追加 `markflow.bootstrap`）
+- Delete: `src/test/java/com/onlyactwo/markflow/init/SystemAdminInitTest.java`, `src/test/java/com/onlyactwo/markflow/init/FixLabelToolSchemaTest.java`
+- Test: `src/test/java/com/onlyactwo/markflow/infrastructure/bootstrap/SystemBootstrapRunnerTest.java`
 
 **Interfaces:**
 - Consumes: `SysConfigDomainService.getContentOrNull(String)` / `saveOrUpdate(String key, String name, SysConfigTypeEnum type, String content, String operator)`；`UserRepository.selectByUsername(String)` / `save(UserDO)`；`PasswordEncoder`；`JwtUtil.CONFIG_KEY_JWT_SECRET`、`JwtUtil.CONFIG_KEY_JWT_EXPIRE_SECONDS`。
@@ -807,15 +807,15 @@ uk_case_type_sample。baseline-on-migrate=1 保证已有库跳过 V1。
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.bootstrap;
+package com.onlyactwo.markflow.infrastructure.bootstrap;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.onlyactwo.lingshu.domain.config.service.SysConfigDomainService;
-import com.onlyactwo.lingshu.domain.user.model.UserDO;
-import com.onlyactwo.lingshu.infrastructure.jwt.JwtUtil;
-import com.onlyactwo.lingshu.mapper.UserMapper;
-import com.onlyactwo.lingshu.po.UserPO;
-import com.onlyactwo.lingshu.repository.UserRepository;
+import com.onlyactwo.markflow.domain.config.service.SysConfigDomainService;
+import com.onlyactwo.markflow.domain.user.model.UserDO;
+import com.onlyactwo.markflow.infrastructure.jwt.JwtUtil;
+import com.onlyactwo.markflow.mapper.UserMapper;
+import com.onlyactwo.markflow.po.UserPO;
+import com.onlyactwo.markflow.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -875,7 +875,7 @@ Expected: 编译失败，`cannot find symbol: class SystemBootstrapRunner`。
 - [ ] **Step 3: 写 `BootstrapProperties`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.bootstrap;
+package com.onlyactwo.markflow.infrastructure.bootstrap;
 
 import lombok.Data;
 import lombok.ToString;
@@ -885,7 +885,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * 首启引导参数，来自环境变量（见 deploy/.env.example）。仅在对应数据不存在时使用。
  */
 @Data
-@ConfigurationProperties(prefix = "lingshu.bootstrap")
+@ConfigurationProperties(prefix = "markflow.bootstrap")
 public class BootstrapProperties {
 
     /** 首启写入 sys_config.jwt.secret；HS256 要求 ≥ 32 字节。 */
@@ -905,14 +905,14 @@ public class BootstrapProperties {
 - [ ] **Step 4: 写 `SystemBootstrapRunner`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.bootstrap;
+package com.onlyactwo.markflow.infrastructure.bootstrap;
 
-import com.onlyactwo.lingshu.domain.config.model.SysConfigTypeEnum;
-import com.onlyactwo.lingshu.domain.config.service.SysConfigDomainService;
-import com.onlyactwo.lingshu.domain.user.model.UserDO;
-import com.onlyactwo.lingshu.domain.user.model.UserStatusEnum;
-import com.onlyactwo.lingshu.infrastructure.jwt.JwtUtil;
-import com.onlyactwo.lingshu.repository.UserRepository;
+import com.onlyactwo.markflow.domain.config.model.SysConfigTypeEnum;
+import com.onlyactwo.markflow.domain.config.service.SysConfigDomainService;
+import com.onlyactwo.markflow.domain.user.model.UserDO;
+import com.onlyactwo.markflow.domain.user.model.UserStatusEnum;
+import com.onlyactwo.markflow.infrastructure.jwt.JwtUtil;
+import com.onlyactwo.markflow.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -953,7 +953,7 @@ public class SystemBootstrapRunner implements ApplicationRunner {
             String secret = properties.getJwtSecret();
             if (!StringUtils.hasText(secret) || secret.length() < MIN_SECRET_LENGTH) {
                 throw new IllegalStateException(
-                        "首次启动需设置 LINGSHU_JWT_SECRET（至少 32 字符，可用 openssl rand -base64 48 生成）");
+                        "首次启动需设置 MARKFLOW_JWT_SECRET（至少 32 字符，可用 openssl rand -base64 48 生成）");
             }
             sysConfigDomainService.saveOrUpdate(JwtUtil.CONFIG_KEY_JWT_SECRET, "JWT 签名密钥",
                     SysConfigTypeEnum.STRING, secret, SYSTEM_OPERATOR);
@@ -973,7 +973,7 @@ public class SystemBootstrapRunner implements ApplicationRunner {
         }
         String password = properties.getAdminInitialPassword();
         if (!StringUtils.hasText(password) || password.length() < MIN_PASSWORD_LENGTH) {
-            throw new IllegalStateException("首次启动需设置 LINGSHU_ADMIN_INITIAL_PASSWORD（至少 6 位）");
+            throw new IllegalStateException("首次启动需设置 MARKFLOW_ADMIN_INITIAL_PASSWORD（至少 6 位）");
         }
         long now = System.currentTimeMillis();
         Long id = userRepository.save(UserDO.builder()
@@ -993,28 +993,28 @@ public class SystemBootstrapRunner implements ApplicationRunner {
 }
 ```
 
-- [ ] **Step 5: `LingShuApplication` 加注解，`application.yml` 加配置节**
+- [ ] **Step 5: `markflowApplication` 加注解，`application.yml` 加配置节**
 
-`LingShuApplication.java` 在 `@SpringBootApplication` 下增加一行 `@ConfigurationPropertiesScan`（import `org.springframework.boot.context.properties.ConfigurationPropertiesScan`）。
+`markflowApplication.java` 在 `@SpringBootApplication` 下增加一行 `@ConfigurationPropertiesScan`（import `org.springframework.boot.context.properties.ConfigurationPropertiesScan`）。
 
 `application.yml` 末尾追加顶层节：
 
 ```yaml
-lingshu:
+markflow:
   bootstrap:
-    jwt-secret: ${LINGSHU_JWT_SECRET:}
-    jwt-expire-seconds: ${LINGSHU_JWT_EXPIRE_SECONDS:86400}
-    admin-initial-password: ${LINGSHU_ADMIN_INITIAL_PASSWORD:}
+    jwt-secret: ${MARKFLOW_JWT_SECRET:}
+    jwt-expire-seconds: ${MARKFLOW_JWT_EXPIRE_SECONDS:86400}
+    admin-initial-password: ${MARKFLOW_ADMIN_INITIAL_PASSWORD:}
 ```
 
 - [ ] **Step 6: 删除两个初始化"测试"**
 
 ```bash
-git rm src/test/java/com/onlyactwo/lingshu/init/SystemAdminInitTest.java \
-       src/test/java/com/onlyactwo/lingshu/init/FixLabelToolSchemaTest.java
+git rm src/test/java/com/onlyactwo/markflow/init/SystemAdminInitTest.java \
+       src/test/java/com/onlyactwo/markflow/init/FixLabelToolSchemaTest.java
 ```
 
-`FixLabelToolSchemaTest` 是一次性的数据修复脚本，历史库若仍需修复，从 git 历史 `git show upstream/main:src/test/java/com/onlyactwo/lingshu/init/FixLabelToolSchemaTest.java` 取回临时执行。
+`FixLabelToolSchemaTest` 是一次性的数据修复脚本，历史库若仍需修复，从 git 历史 `git show upstream/main:src/test/java/com/onlyactwo/markflow/init/FixLabelToolSchemaTest.java` 取回临时执行。
 
 - [ ] **Step 7: 运行测试，确认通过**
 
@@ -1024,18 +1024,18 @@ Expected: PASS（2 tests）；日志含 `[bootstrap] 已写入 sys_config.jwt.se
 - [ ] **Step 8: 验证 fail-fast**
 
 ```bash
-LINGSHU_JWT_SECRET= LINGSHU_ADMIN_INITIAL_PASSWORD= LINGSHU_MYSQL_DB=lingshu_empty_check ./mvnw -q spring-boot:run 2>&1 | grep -m1 "首次启动需设置" || echo "（已有库不会触发，属预期）"
+MARKFLOW_JWT_SECRET= MARKFLOW_ADMIN_INITIAL_PASSWORD= MARKFLOW_MYSQL_DB=markflow_empty_check ./mvnw -q spring-boot:run 2>&1 | grep -m1 "首次启动需设置" || echo "（已有库不会触发，属预期）"
 ```
 
-说明：只有空库才会触发；上面命令若报 `Unknown database` 则表示占位符已正确覆盖，改用 `docker compose exec mysql mysql -uroot -p... -e "CREATE DATABASE lingshu_empty_check"` 后重跑观察 `IllegalStateException` 信息，验毕 `DROP DATABASE lingshu_empty_check`。
+说明：只有空库才会触发；上面命令若报 `Unknown database` 则表示占位符已正确覆盖，改用 `docker compose exec mysql mysql -uroot -p... -e "CREATE DATABASE markflow_empty_check"` 后重跑观察 `IllegalStateException` 信息，验毕 `DROP DATABASE markflow_empty_check`。
 
 - [ ] **Step 9: 提交**
 
 ```bash
-git add src/main/java/com/onlyactwo/lingshu/LingShuApplication.java \
-  src/main/java/com/onlyactwo/lingshu/infrastructure/bootstrap \
+git add src/main/java/com/onlyactwo/markflow/markflowApplication.java \
+  src/main/java/com/onlyactwo/markflow/infrastructure/bootstrap \
   src/main/resources/application.yml \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/bootstrap/SystemBootstrapRunnerTest.java
+  src/test/java/com/onlyactwo/markflow/infrastructure/bootstrap/SystemBootstrapRunnerTest.java
 git commit -m "feat(bootstrap): seed jwt config and admin on first startup
 
 新增 SystemBootstrapRunner，在 sys_config 缺少 jwt.secret/jwt.expireSeconds
@@ -1049,10 +1049,10 @@ FixLabelToolSchemaTest。admin 初始密码不再固定为 admin。"
 ### Task 5: CORS 白名单（报告 1.2）
 
 **Files:**
-- Create: `src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/CorsProperties.java`
-- Modify: `src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/CorsConfig.java`
-- Modify: `src/main/resources/application.yml`（`lingshu.cors`）
-- Test: `src/test/java/com/onlyactwo/lingshu/infrastructure/web/config/CorsConfigTest.java`
+- Create: `src/main/java/com/onlyactwo/markflow/infrastructure/web/config/CorsProperties.java`
+- Modify: `src/main/java/com/onlyactwo/markflow/infrastructure/web/config/CorsConfig.java`
+- Modify: `src/main/resources/application.yml`（`markflow.cors`）
+- Test: `src/test/java/com/onlyactwo/markflow/infrastructure/web/config/CorsConfigTest.java`
 
 **Interfaces:**
 - Consumes: Task 4 的 `@ConfigurationPropertiesScan`。
@@ -1061,7 +1061,7 @@ FixLabelToolSchemaTest。admin 初始密码不再固定为 admin。"
 - [ ] **Step 1: 写测试**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.web.config;
+package com.onlyactwo.markflow.infrastructure.web.config;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1078,7 +1078,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "lingshu.cors.allowed-origins=http://allowed.example,http://second.example")
+@TestPropertySource(properties = "markflow.cors.allowed-origins=http://allowed.example,http://second.example")
 class CorsConfigTest {
 
     @Autowired
@@ -1116,7 +1116,7 @@ Expected: `preflight_fromUnknownOrigin_forbidden` FAIL（现在任意来源都�
 - [ ] **Step 3: 写 `CorsProperties`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.web.config;
+package com.onlyactwo.markflow.infrastructure.web.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -1124,7 +1124,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.List;
 
 @Data
-@ConfigurationProperties(prefix = "lingshu.cors")
+@ConfigurationProperties(prefix = "markflow.cors")
 public class CorsProperties {
 
     /** 允许的前端来源（完整 scheme://host[:port]），逗号分隔环境变量自动转 List。 */
@@ -1136,7 +1136,7 @@ public class CorsProperties {
 - [ ] **Step 4: 改写 `CorsConfig`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.web.config;
+package com.onlyactwo.markflow.infrastructure.web.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -1184,11 +1184,11 @@ public class CorsConfig {
 }
 ```
 
-- [ ] **Step 5: `application.yml` 的 `lingshu:` 节追加**
+- [ ] **Step 5: `application.yml` 的 `markflow:` 节追加**
 
 ```yaml
   cors:
-    allowed-origins: ${LINGSHU_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${MARKFLOW_CORS_ALLOWED_ORIGINS:http://localhost:5173}
 ```
 
 - [ ] **Step 6: 运行测试，确认通过**
@@ -1199,13 +1199,13 @@ Expected: PASS（2 tests）。
 - [ ] **Step 7: 提交**
 
 ```bash
-git add src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/CorsProperties.java \
-  src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/CorsConfig.java \
+git add src/main/java/com/onlyactwo/markflow/infrastructure/web/config/CorsProperties.java \
+  src/main/java/com/onlyactwo/markflow/infrastructure/web/config/CorsConfig.java \
   src/main/resources/application.yml \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/web/config/CorsConfigTest.java
+  src/test/java/com/onlyactwo/markflow/infrastructure/web/config/CorsConfigTest.java
 git commit -m "fix(web): restrict cors to configured origins
 
-CORS 从任意来源 + 携带凭据改为 LINGSHU_CORS_ALLOWED_ORIGINS 白名单且
+CORS 从任意来源 + 携带凭据改为 MARKFLOW_CORS_ALLOWED_ORIGINS 白名单且
 不开 credentials（鉴权走 Bearer，无需 cookie）。默认只放行本地 Vite
 开发地址；生产需在 .env 中显式配置前端域名。"
 ```
@@ -1215,21 +1215,21 @@ CORS 从任意来源 + 携带凭据改为 LINGSHU_CORS_ALLOWED_ORIGINS 白名单
 ### Task 6: 鉴权边界与 HTTP 状态码（报告 1.3 + F14）
 
 **Files:**
-- Modify: `src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/WebMvcConfig.java`
-- Create: `src/main/java/com/onlyactwo/lingshu/infrastructure/common/error/ErrorHttpStatus.java`
-- Modify: `src/main/java/com/onlyactwo/lingshu/infrastructure/common/exception/GlobalExceptionHandler.java`
-- Test: `src/test/java/com/onlyactwo/lingshu/infrastructure/common/error/ErrorHttpStatusTest.java`, `src/test/java/com/onlyactwo/lingshu/infrastructure/web/interceptor/AuthInterceptorStatusTest.java`
+- Modify: `src/main/java/com/onlyactwo/markflow/infrastructure/web/config/WebMvcConfig.java`
+- Create: `src/main/java/com/onlyactwo/markflow/infrastructure/common/error/ErrorHttpStatus.java`
+- Modify: `src/main/java/com/onlyactwo/markflow/infrastructure/common/exception/GlobalExceptionHandler.java`
+- Test: `src/test/java/com/onlyactwo/markflow/infrastructure/common/error/ErrorHttpStatusTest.java`, `src/test/java/com/onlyactwo/markflow/infrastructure/web/interceptor/AuthInterceptorStatusTest.java`
 
 **Interfaces:**
-- Produces: `ErrorHttpStatus.of(ErrorCode): HttpStatus`（UNAUTHORIZED→401、FORBIDDEN/PERMISSION_DENIED→403、TOO_MANY_REQUESTS→429、其他→200）；`GlobalExceptionHandler` 的三个 handler 返回 `ResponseEntity<LingShuServiceResponse<Void>>`；鉴权排除路径只剩 `/api/auth/login`、`/error`、`/actuator/**`。
+- Produces: `ErrorHttpStatus.of(ErrorCode): HttpStatus`（UNAUTHORIZED→401、FORBIDDEN/PERMISSION_DENIED→403、TOO_MANY_REQUESTS→429、其他→200）；`GlobalExceptionHandler` 的三个 handler 返回 `ResponseEntity<markflowServiceResponse<Void>>`；鉴权排除路径只剩 `/api/auth/login`、`/error`、`/actuator/**`。
 - 前端影响：`shared/api/http.ts` 已对 HTTP 401 执行 `onUnauthorized()`，对其他非 2xx 用 `error.response.data.message` 弹 toast，因此 403/429 带原包络返回不需要前端改动。
 
 - [ ] **Step 1: 写纯单元测试**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.common.error;
+package com.onlyactwo.markflow.infrastructure.common.error;
 
-import com.onlyactwo.lingshu.domain.user.model.UserErrorCode;
+import com.onlyactwo.markflow.domain.user.model.UserErrorCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -1258,7 +1258,7 @@ class ErrorHttpStatusTest {
 - [ ] **Step 2: 写 MockMvc 测试**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.web.interceptor;
+package com.onlyactwo.markflow.infrastructure.web.interceptor;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1328,7 +1328,7 @@ Expected: `ErrorHttpStatusTest` 编译失败（类不存在）；修到能编译
 - [ ] **Step 4: 写 `ErrorHttpStatus`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.common.error;
+package com.onlyactwo.markflow.infrastructure.common.error;
 
 import org.springframework.http.HttpStatus;
 
@@ -1362,11 +1362,11 @@ public final class ErrorHttpStatus {
 - [ ] **Step 5: 改写 `GlobalExceptionHandler`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.common.exception;
+package com.onlyactwo.markflow.infrastructure.common.exception;
 
-import com.onlyactwo.lingshu.infrastructure.common.error.CommonErrorCode;
-import com.onlyactwo.lingshu.infrastructure.common.error.ErrorHttpStatus;
-import com.onlyactwo.lingshu.infrastructure.common.response.LingShuServiceResponse;
+import com.onlyactwo.markflow.infrastructure.common.error.CommonErrorCode;
+import com.onlyactwo.markflow.infrastructure.common.error.ErrorHttpStatus;
+import com.onlyactwo.markflow.infrastructure.common.response.markflowServiceResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -1382,25 +1382,25 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ServiceException.class)
-    public ResponseEntity<LingShuServiceResponse<Void>> handleServiceException(ServiceException ex) {
+    public ResponseEntity<markflowServiceResponse<Void>> handleServiceException(ServiceException ex) {
         log.warn("ServiceException: code={}, message={}", ex.getErrorCode().getCode(), ex.getMessage());
         return ResponseEntity.status(ErrorHttpStatus.of(ex.getErrorCode()))
-                .body(LingShuServiceResponse.fail(ex.getErrorCode(), ex.getMessage()));
+                .body(markflowServiceResponse.fail(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
-    public ResponseEntity<LingShuServiceResponse<Void>> handleValidationException(BindException ex) {
+    public ResponseEntity<markflowServiceResponse<Void>> handleValidationException(BindException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(this::formatFieldError)
                 .collect(Collectors.joining("; "));
         log.warn("Param validation failed: {}", message);
-        return ResponseEntity.ok(LingShuServiceResponse.fail(CommonErrorCode.PARAM_INVALID, message));
+        return ResponseEntity.ok(markflowServiceResponse.fail(CommonErrorCode.PARAM_INVALID, message));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<LingShuServiceResponse<Void>> handleException(Exception ex) {
+    public ResponseEntity<markflowServiceResponse<Void>> handleException(Exception ex) {
         log.error("Unhandled exception", ex);
-        return ResponseEntity.ok(LingShuServiceResponse.fail(CommonErrorCode.SYSTEM_ERROR));
+        return ResponseEntity.ok(markflowServiceResponse.fail(CommonErrorCode.SYSTEM_ERROR));
     }
 
     private String formatFieldError(FieldError fieldError) {
@@ -1430,11 +1430,11 @@ Expected: PASS（6 tests）。
 - [ ] **Step 8: 提交**
 
 ```bash
-git add src/main/java/com/onlyactwo/lingshu/infrastructure/common/error/ErrorHttpStatus.java \
-  src/main/java/com/onlyactwo/lingshu/infrastructure/common/exception/GlobalExceptionHandler.java \
-  src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/WebMvcConfig.java \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/common/error/ErrorHttpStatusTest.java \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/web/interceptor/AuthInterceptorStatusTest.java
+git add src/main/java/com/onlyactwo/markflow/infrastructure/common/error/ErrorHttpStatus.java \
+  src/main/java/com/onlyactwo/markflow/infrastructure/common/exception/GlobalExceptionHandler.java \
+  src/main/java/com/onlyactwo/markflow/infrastructure/web/config/WebMvcConfig.java \
+  src/test/java/com/onlyactwo/markflow/infrastructure/common/error/ErrorHttpStatusTest.java \
+  src/test/java/com/onlyactwo/markflow/infrastructure/web/interceptor/AuthInterceptorStatusTest.java
 git commit -m "fix(web): return 401/403/429 for auth and rate limit failures
 
 鉴权失败此前返回 HTTP 200 + success=false，前端只在 401 时跳登录，
@@ -1449,12 +1449,12 @@ git commit -m "fix(web): return 401/403/429 for auth and rate limit failures
 
 **Files:**
 - Modify: `pom.xml`（AWS SDK BOM + `s3` + `url-connection-client`；surefire `excludedGroups`）
-- Create: `src/main/java/com/onlyactwo/lingshu/adapter/oss/{ObjectStorageClient,PreSignedUrl,OssErrorCode,S3Properties,S3ObjectStorageClient}.java`
-- Modify: `src/main/java/com/onlyactwo/lingshu/adapter/tos/TosClient.java`（实现接口、条件装配）；Delete: `adapter/tos/TosPreSignedUrl.java`
+- Create: `src/main/java/com/onlyactwo/markflow/adapter/oss/{ObjectStorageClient,PreSignedUrl,OssErrorCode,S3Properties,S3ObjectStorageClient}.java`
+- Modify: `src/main/java/com/onlyactwo/markflow/adapter/tos/TosClient.java`（实现接口、条件装配）；Delete: `adapter/tos/TosPreSignedUrl.java`
 - Modify: `domain/dataset/service/impl/DatasetDomainServiceImpl.java`, `domain/dataset/service/impl/FileParseDomainServiceImpl.java`, `domain/task/service/impl/CaseExportDomainServiceImpl.java`
 - Modify tests: `adapter/tos/TosClientTest.java`（`@Tag("external")`）、`domain/dataset/service/impl/FileParseDomainServiceTest.java`、`domain/task/service/impl/ExportCaseResultDomainServiceTest.java`（改用接口）
-- Modify: `src/main/resources/application.yml`（`lingshu.oss`）
-- Test: `src/test/java/com/onlyactwo/lingshu/adapter/oss/S3ObjectStorageClientTest.java`, `src/test/java/com/onlyactwo/lingshu/adapter/oss/S3ObjectStorageClientUrlTest.java`
+- Modify: `src/main/resources/application.yml`（`markflow.oss`）
+- Test: `src/test/java/com/onlyactwo/markflow/adapter/oss/S3ObjectStorageClientTest.java`, `src/test/java/com/onlyactwo/markflow/adapter/oss/S3ObjectStorageClientUrlTest.java`
 
 **Interfaces:**
 - Produces:
@@ -1467,13 +1467,13 @@ git commit -m "fix(web): return 401/403/429 for auth and rate limit failures
   }
   // PreSignedUrl { String signedUrl; Map<String,String> signedHeaders; }
   ```
-  装配规则：`lingshu.oss.provider=s3`（默认）→ `S3ObjectStorageClient`；`=tos` → `TosClient`。领域层只注入 `ObjectStorageClient`。
-- Consumes: Task 2 的 MinIO；Task 1 的 `LINGSHU_S3_*`。
+  装配规则：`markflow.oss.provider=s3`（默认）→ `S3ObjectStorageClient`；`=tos` → `TosClient`。领域层只注入 `ObjectStorageClient`。
+- Consumes: Task 2 的 MinIO；Task 1 的 `MARKFLOW_S3_*`。
 
 - [ ] **Step 1: 写单元测试（不连网）**
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
 import org.junit.jupiter.api.Test;
 
@@ -1487,7 +1487,7 @@ class S3ObjectStorageClientUrlTest {
         p.setRegion("us-east-1");
         p.setAccessKey("ak");
         p.setSecretKey("sk-not-real");
-        p.setBucket("lingshu");
+        p.setBucket("markflow");
         p.setPublicBaseUrl(publicBaseUrl);
         return p;
     }
@@ -1496,7 +1496,7 @@ class S3ObjectStorageClientUrlTest {
     void publicUrl_pathStyle_whenNoPublicBaseUrl() {
         try (S3ObjectStorageClient client = new S3ObjectStorageClient(props(""))) {
             assertThat(client.getPublicDownloadUrl("export/1.json"))
-                    .isEqualTo("http://127.0.0.1:9000/lingshu/export/1.json");
+                    .isEqualTo("http://127.0.0.1:9000/markflow/export/1.json");
         }
     }
 
@@ -1514,7 +1514,7 @@ class S3ObjectStorageClientUrlTest {
 - [ ] **Step 2: 写集成测试（连 MinIO）**
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1538,7 +1538,7 @@ class S3ObjectStorageClientTest {
     @DisplayName("上传后下载内容一致，且公共 URL 可匿名读取")
     void putGet_roundTrip_andPublicUrlReadable() throws Exception {
         String key = "test/oss-smoke-" + System.currentTimeMillis() + ".txt";
-        String content = "灵枢 MinIO smoke " + System.nanoTime();
+        String content = "markflow MinIO smoke " + System.nanoTime();
 
         String etag = objectStorageClient.putObject(key,
                 new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)));
@@ -1617,19 +1617,19 @@ Expected: 编译失败（`adapter.oss` 包不存在）。
             </plugin>
 ```
 
-并在 `<properties>` 加 `<test.excludedGroups>external</test.excludedGroups>`（运行 external 用 `./mvnw test -Dtest.excludedGroups=none -Dtest=TosClientTest -DLINGSHU_OSS_PROVIDER=tos`）。
+并在 `<properties>` 加 `<test.excludedGroups>external</test.excludedGroups>`（运行 external 用 `./mvnw test -Dtest.excludedGroups=none -Dtest=TosClientTest -DMARKFLOW_OSS_PROVIDER=tos`）。
 
 - [ ] **Step 5: 写接口、值对象、错误码**
 
 `adapter/oss/ObjectStorageClient.java`：
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
 import java.io.InputStream;
 
 /**
- * 对象存储抽象：领域层只依赖本接口；实现按 lingshu.oss.provider 选择（s3 / tos）。
+ * 对象存储抽象：领域层只依赖本接口；实现按 markflow.oss.provider 选择（s3 / tos）。
  * 失败一律抛 ServiceException，不打日志、不重试，由调用方决定处理。
  */
 public interface ObjectStorageClient {
@@ -1652,7 +1652,7 @@ public interface ObjectStorageClient {
 `adapter/oss/PreSignedUrl.java`：
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -1674,9 +1674,9 @@ public class PreSignedUrl {
 `adapter/oss/OssErrorCode.java`：
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
-import com.onlyactwo.lingshu.infrastructure.common.error.ErrorCode;
+import com.onlyactwo.markflow.infrastructure.common.error.ErrorCode;
 import lombok.Getter;
 
 @Getter
@@ -1705,14 +1705,14 @@ public enum OssErrorCode implements ErrorCode {
 `adapter/oss/S3Properties.java`：
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
 import lombok.Data;
 import lombok.ToString;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "lingshu.oss.s3")
+@ConfigurationProperties(prefix = "markflow.oss.s3")
 public class S3Properties {
 
     /** 浏览器可达的 API 地址（预签名直传要从前端发起），如 http://127.0.0.1:9000。 */
@@ -1737,9 +1737,9 @@ public class S3Properties {
 `adapter/oss/S3ObjectStorageClient.java`：
 
 ```java
-package com.onlyactwo.lingshu.adapter.oss;
+package com.onlyactwo.markflow.adapter.oss;
 
-import com.onlyactwo.lingshu.infrastructure.common.exception.ServiceException;
+import com.onlyactwo.markflow.infrastructure.common.exception.ServiceException;
 import jakarta.annotation.PreDestroy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -1769,7 +1769,7 @@ import java.util.Map;
  * S3 协议实现（MinIO / AWS S3 / 任何兼容服务）。path-style 访问以兼容 MinIO。
  */
 @Component
-@ConditionalOnProperty(name = "lingshu.oss.provider", havingValue = "s3", matchIfMissing = true)
+@ConditionalOnProperty(name = "markflow.oss.provider", havingValue = "s3", matchIfMissing = true)
 public class S3ObjectStorageClient implements ObjectStorageClient, AutoCloseable {
 
     private final S3Properties properties;
@@ -1867,7 +1867,7 @@ public class S3ObjectStorageClient implements ObjectStorageClient, AutoCloseable
                 || !StringUtils.hasText(p.getAccessKey()) || !StringUtils.hasText(p.getSecretKey())
                 || !StringUtils.hasText(p.getBucket())) {
             throw ServiceException.of(OssErrorCode.OSS_CONFIG_INVALID,
-                    "lingshu.oss.s3 需配置 endpoint/region/access-key/secret-key/bucket");
+                    "markflow.oss.s3 需配置 endpoint/region/access-key/secret-key/bucket");
         }
     }
 
@@ -1883,13 +1883,13 @@ public class S3ObjectStorageClient implements ObjectStorageClient, AutoCloseable
 - [ ] **Step 7: `TosClient` 实现接口并条件装配；删除 `TosPreSignedUrl`**
 
 `TosClient.java` 改动点：
-1. 类声明改为 `public class TosClient implements ObjectStorageClient`，并在 `@Component` 下加 `@ConditionalOnProperty(name = "lingshu.oss.provider", havingValue = "tos")`（import `org.springframework.boot.autoconfigure.condition.ConditionalOnProperty` 与 `com.onlyactwo.lingshu.adapter.oss.ObjectStorageClient`、`com.onlyactwo.lingshu.adapter.oss.PreSignedUrl`）。
+1. 类声明改为 `public class TosClient implements ObjectStorageClient`，并在 `@Component` 下加 `@ConditionalOnProperty(name = "markflow.oss.provider", havingValue = "tos")`（import `org.springframework.boot.autoconfigure.condition.ConditionalOnProperty` 与 `com.onlyactwo.markflow.adapter.oss.ObjectStorageClient`、`com.onlyactwo.markflow.adapter.oss.PreSignedUrl`）。
 2. 四个公共方法加 `@Override`；`preSignedPutUrl` 返回类型改为 `PreSignedUrl`，返回语句改为 `return new PreSignedUrl(output.getSignedUrl(), output.getSignedHeader());`。
-3. `git rm src/main/java/com/onlyactwo/lingshu/adapter/tos/TosPreSignedUrl.java`。
+3. `git rm src/main/java/com/onlyactwo/markflow/adapter/tos/TosPreSignedUrl.java`。
 
 - [ ] **Step 8: 三个领域服务改用接口**
 
-`DatasetDomainServiceImpl.java`：import 改为 `com.onlyactwo.lingshu.adapter.oss.ObjectStorageClient` 与 `com.onlyactwo.lingshu.adapter.oss.PreSignedUrl`；字段改为 `private final ObjectStorageClient objectStorageClient;`；`getUploadPreSignedUrl` 中：
+`DatasetDomainServiceImpl.java`：import 改为 `com.onlyactwo.markflow.adapter.oss.ObjectStorageClient` 与 `com.onlyactwo.markflow.adapter.oss.PreSignedUrl`；字段改为 `private final ObjectStorageClient objectStorageClient;`；`getUploadPreSignedUrl` 中：
 
 ```java
         PreSignedUrl presigned =
@@ -1902,25 +1902,25 @@ public class S3ObjectStorageClient implements ObjectStorageClient, AutoCloseable
 
 `CaseExportDomainServiceImpl.java`：import/字段同上；`tosClient.putObject(...)` → `objectStorageClient.putObject(...)`；`tosClient.getPublicDownloadUrl(objectKey)` → `objectStorageClient.getPublicDownloadUrl(objectKey)`。
 
-确认无残留：`grep -rn "TosClient\|tosClient\|TosPreSignedUrl" src/main/java/com/onlyactwo/lingshu/domain` 应无输出。
+确认无残留：`grep -rn "TosClient\|tosClient\|TosPreSignedUrl" src/main/java/com/onlyactwo/markflow/domain` 应无输出。
 
 - [ ] **Step 9: 测试改造**
 
-- `TosClientTest`：类上加 `@Tag("external")`（import `org.junit.jupiter.api.Tag`），类注释追加一句"需 `LINGSHU_OSS_PROVIDER=tos` 且 sys_config 已配置 tos.config"。
-- `FileParseDomainServiceTest`、`ExportCaseResultDomainServiceTest`：import `com.onlyactwo.lingshu.adapter.tos.TosClient` 改为 `com.onlyactwo.lingshu.adapter.oss.ObjectStorageClient`；字段 `private TosClient tosClient;` 改为 `private ObjectStorageClient objectStorageClient;`；所有 `tosClient.` 改为 `objectStorageClient.`；类注释中"真实 TOS"改为"对象存储（本地 MinIO）"。
+- `TosClientTest`：类上加 `@Tag("external")`（import `org.junit.jupiter.api.Tag`），类注释追加一句"需 `MARKFLOW_OSS_PROVIDER=tos` 且 sys_config 已配置 tos.config"。
+- `FileParseDomainServiceTest`、`ExportCaseResultDomainServiceTest`：import `com.onlyactwo.markflow.adapter.tos.TosClient` 改为 `com.onlyactwo.markflow.adapter.oss.ObjectStorageClient`；字段 `private TosClient tosClient;` 改为 `private ObjectStorageClient objectStorageClient;`；所有 `tosClient.` 改为 `objectStorageClient.`；类注释中"真实 TOS"改为"对象存储（本地 MinIO）"。
 
-- [ ] **Step 10: `application.yml` 的 `lingshu:` 节追加**
+- [ ] **Step 10: `application.yml` 的 `markflow:` 节追加**
 
 ```yaml
   oss:
-    provider: ${LINGSHU_OSS_PROVIDER:s3}
+    provider: ${MARKFLOW_OSS_PROVIDER:s3}
     s3:
-      endpoint: ${LINGSHU_S3_ENDPOINT:http://127.0.0.1:9000}
-      region: ${LINGSHU_S3_REGION:us-east-1}
-      access-key: ${LINGSHU_S3_ACCESS_KEY:}
-      secret-key: ${LINGSHU_S3_SECRET_KEY:}
-      bucket: ${LINGSHU_S3_BUCKET:lingshu}
-      public-base-url: ${LINGSHU_S3_PUBLIC_BASE_URL:}
+      endpoint: ${MARKFLOW_S3_ENDPOINT:http://127.0.0.1:9000}
+      region: ${MARKFLOW_S3_REGION:us-east-1}
+      access-key: ${MARKFLOW_S3_ACCESS_KEY:}
+      secret-key: ${MARKFLOW_S3_SECRET_KEY:}
+      bucket: ${MARKFLOW_S3_BUCKET:markflow}
+      public-base-url: ${MARKFLOW_S3_PUBLIC_BASE_URL:}
 ```
 
 - [ ] **Step 11: 运行测试**
@@ -1931,16 +1931,16 @@ Expected: PASS；`TosClientTest` 不在默认运行集内。再跑 `./mvnw -q te
 - [ ] **Step 12: 提交**
 
 ```bash
-git add pom.xml src/main/resources/application.yml src/main/java/com/onlyactwo/lingshu/adapter \
-  src/main/java/com/onlyactwo/lingshu/domain src/test/java/com/onlyactwo/lingshu/adapter \
-  src/test/java/com/onlyactwo/lingshu/domain/dataset/service/impl/FileParseDomainServiceTest.java \
-  src/test/java/com/onlyactwo/lingshu/domain/task/service/impl/ExportCaseResultDomainServiceTest.java
+git add pom.xml src/main/resources/application.yml src/main/java/com/onlyactwo/markflow/adapter \
+  src/main/java/com/onlyactwo/markflow/domain src/test/java/com/onlyactwo/markflow/adapter \
+  src/test/java/com/onlyactwo/markflow/domain/dataset/service/impl/FileParseDomainServiceTest.java \
+  src/test/java/com/onlyactwo/markflow/domain/task/service/impl/ExportCaseResultDomainServiceTest.java
 git commit -m "refactor(oss): abstract object storage and add s3/minio implementation
 
 领域层此前直接依赖火山 TOS 客户端，本地无法运行上传/解析/导出。
 抽取 ObjectStorageClient 接口，新增基于 AWS SDK v2 的 S3 实现（默认，
 对接 compose 中的 MinIO），TosClient 改为实现同一接口并仅在
-lingshu.oss.provider=tos 时装配。需要真实 TOS 的测试打 external 标签，
+markflow.oss.provider=tos 时装配。需要真实 TOS 的测试打 external 标签，
 surefire 默认排除。"
 ```
 
@@ -1949,9 +1949,9 @@ surefire 默认排除。"
 ### Task 8: 限流（报告 1.8）
 
 **Files:**
-- Create: `src/main/java/com/onlyactwo/lingshu/infrastructure/ratelimit/{RateLimitProperties,RateLimitedException,GlobalRateLimitInterceptor,LoginAttemptLimiter}.java`
+- Create: `src/main/java/com/onlyactwo/markflow/infrastructure/ratelimit/{RateLimitProperties,RateLimitedException,GlobalRateLimitInterceptor,LoginAttemptLimiter}.java`
 - Modify: `infrastructure/web/config/WebMvcConfig.java`, `infrastructure/common/exception/GlobalExceptionHandler.java`, `controller/AuthController.java`, `src/main/resources/application.yml`
-- Test: `src/test/java/com/onlyactwo/lingshu/infrastructure/ratelimit/{LoginAttemptLimiterTest,LoginRateLimitMockMvcTest,GlobalRateLimitInterceptorTest}.java`
+- Test: `src/test/java/com/onlyactwo/markflow/infrastructure/ratelimit/{LoginAttemptLimiterTest,LoginRateLimitMockMvcTest,GlobalRateLimitInterceptorTest}.java`
 
 **Interfaces:**
 - Produces: `RateLimitedException extends ServiceException`（`getRetryAfterSeconds(): long`）；`LoginAttemptLimiter.checkAllowed(ip, username)` / `recordFailure(ip, username)` / `reset(ip, username)`；429 响应带 `Retry-After` 头。
@@ -1962,7 +1962,7 @@ surefire 默认排除。"
 `LoginAttemptLimiterTest.java`：
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2008,7 +2008,7 @@ class LoginAttemptLimiterTest {
 `LoginRateLimitMockMvcTest.java`：
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2062,7 +2062,7 @@ class LoginRateLimitMockMvcTest {
 `GlobalRateLimitInterceptorTest.java`：
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2081,7 +2081,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "lingshu.rate-limit.global-per-minute=3")
+@TestPropertySource(properties = "markflow.rate-limit.global-per-minute=3")
 class GlobalRateLimitInterceptorTest {
 
     @Autowired
@@ -2111,13 +2111,13 @@ Expected: 编译失败（`ratelimit` 包不存在）。
 - [ ] **Step 3: 写 `RateLimitProperties` 与 `RateLimitedException`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "lingshu.rate-limit")
+@ConfigurationProperties(prefix = "markflow.rate-limit")
 public class RateLimitProperties {
 
     /** 每 IP 每分钟允许的 /api 请求数；<=0 关闭。 */
@@ -2133,10 +2133,10 @@ public class RateLimitProperties {
 ```
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
-import com.onlyactwo.lingshu.infrastructure.common.error.CommonErrorCode;
-import com.onlyactwo.lingshu.infrastructure.common.exception.ServiceException;
+import com.onlyactwo.markflow.infrastructure.common.error.CommonErrorCode;
+import com.onlyactwo.markflow.infrastructure.common.exception.ServiceException;
 import lombok.Getter;
 
 /** 限流拒绝：携带 Retry-After 秒数，由 GlobalExceptionHandler 写入响应头。 */
@@ -2156,7 +2156,7 @@ public class RateLimitedException extends ServiceException {
 - [ ] **Step 4: 写 `GlobalRateLimitInterceptor`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -2206,7 +2206,7 @@ public class GlobalRateLimitInterceptor implements HandlerInterceptor {
 - [ ] **Step 5: 写 `LoginAttemptLimiter`**
 
 ```java
-package com.onlyactwo.lingshu.infrastructure.ratelimit;
+package com.onlyactwo.markflow.infrastructure.ratelimit;
 
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RAtomicLong;
@@ -2255,17 +2255,17 @@ public class LoginAttemptLimiter {
 - [ ] **Step 6: 接入 `AuthController`**
 
 ```java
-package com.onlyactwo.lingshu.controller;
+package com.onlyactwo.markflow.controller;
 
-import com.onlyactwo.lingshu.controller.request.LoginRequest;
-import com.onlyactwo.lingshu.controller.response.LoginResponse;
-import com.onlyactwo.lingshu.domain.user.model.UserErrorCode;
-import com.onlyactwo.lingshu.domain.user.service.AuthDomainService;
-import com.onlyactwo.lingshu.domain.user.service.request.LoginDomainRequest;
-import com.onlyactwo.lingshu.domain.user.service.response.LoginDomainResponse;
-import com.onlyactwo.lingshu.infrastructure.common.exception.ServiceException;
-import com.onlyactwo.lingshu.infrastructure.common.response.LingShuServiceResponse;
-import com.onlyactwo.lingshu.infrastructure.ratelimit.LoginAttemptLimiter;
+import com.onlyactwo.markflow.controller.request.LoginRequest;
+import com.onlyactwo.markflow.controller.response.LoginResponse;
+import com.onlyactwo.markflow.domain.user.model.UserErrorCode;
+import com.onlyactwo.markflow.domain.user.service.AuthDomainService;
+import com.onlyactwo.markflow.domain.user.service.request.LoginDomainRequest;
+import com.onlyactwo.markflow.domain.user.service.response.LoginDomainResponse;
+import com.onlyactwo.markflow.infrastructure.common.exception.ServiceException;
+import com.onlyactwo.markflow.infrastructure.common.response.markflowServiceResponse;
+import com.onlyactwo.markflow.infrastructure.ratelimit.LoginAttemptLimiter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -2282,7 +2282,7 @@ public class AuthController {
     private final LoginAttemptLimiter loginAttemptLimiter;
 
     @PostMapping("/login")
-    public LingShuServiceResponse<LoginResponse> login(@RequestBody LoginRequest request,
+    public markflowServiceResponse<LoginResponse> login(@RequestBody LoginRequest request,
                                                        HttpServletRequest httpRequest) {
         String ip = httpRequest.getRemoteAddr();
         String username = request.getUsername();
@@ -2298,7 +2298,7 @@ public class AuthController {
             throw e;
         }
         loginAttemptLimiter.reset(ip, username);
-        return LingShuServiceResponse.success(buildLoginResponse(domainResponse));
+        return markflowServiceResponse.success(buildLoginResponse(domainResponse));
     }
 
     private LoginDomainRequest buildLoginDomainRequest(LoginRequest request) {
@@ -2339,27 +2339,27 @@ public class AuthController {
     }
 ```
 
-（import `com.onlyactwo.lingshu.infrastructure.ratelimit.GlobalRateLimitInterceptor`。）
+（import `com.onlyactwo.markflow.infrastructure.ratelimit.GlobalRateLimitInterceptor`。）
 
 `GlobalExceptionHandler` 在 `handleServiceException` 之前新增（import `HttpHeaders`、`HttpStatus`、`RateLimitedException`）：
 
 ```java
     @ExceptionHandler(RateLimitedException.class)
-    public ResponseEntity<LingShuServiceResponse<Void>> handleRateLimited(RateLimitedException ex) {
+    public ResponseEntity<markflowServiceResponse<Void>> handleRateLimited(RateLimitedException ex) {
         log.warn("Rate limited: retryAfter={}s", ex.getRetryAfterSeconds());
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
-                .body(LingShuServiceResponse.fail(ex.getErrorCode(), ex.getMessage()));
+                .body(markflowServiceResponse.fail(ex.getErrorCode(), ex.getMessage()));
     }
 ```
 
-- [ ] **Step 8: `application.yml` 的 `lingshu:` 节追加**
+- [ ] **Step 8: `application.yml` 的 `markflow:` 节追加**
 
 ```yaml
   rate-limit:
-    global-per-minute: ${LINGSHU_RATE_LIMIT_GLOBAL_PER_MINUTE:600}
-    login-max-failures: ${LINGSHU_RATE_LIMIT_LOGIN_MAX_FAILURES:5}
-    login-window-minutes: ${LINGSHU_RATE_LIMIT_LOGIN_WINDOW_MINUTES:15}
+    global-per-minute: ${MARKFLOW_RATE_LIMIT_GLOBAL_PER_MINUTE:600}
+    login-max-failures: ${MARKFLOW_RATE_LIMIT_LOGIN_MAX_FAILURES:5}
+    login-window-minutes: ${MARKFLOW_RATE_LIMIT_LOGIN_WINDOW_MINUTES:15}
 ```
 
 - [ ] **Step 9: 运行测试**
@@ -2370,17 +2370,17 @@ Expected: PASS。然后 `./mvnw -q test` 全量绿。
 - [ ] **Step 10: 提交**
 
 ```bash
-git add src/main/java/com/onlyactwo/lingshu/infrastructure/ratelimit \
-  src/main/java/com/onlyactwo/lingshu/infrastructure/web/config/WebMvcConfig.java \
-  src/main/java/com/onlyactwo/lingshu/infrastructure/common/exception/GlobalExceptionHandler.java \
-  src/main/java/com/onlyactwo/lingshu/controller/AuthController.java \
+git add src/main/java/com/onlyactwo/markflow/infrastructure/ratelimit \
+  src/main/java/com/onlyactwo/markflow/infrastructure/web/config/WebMvcConfig.java \
+  src/main/java/com/onlyactwo/markflow/infrastructure/common/exception/GlobalExceptionHandler.java \
+  src/main/java/com/onlyactwo/markflow/controller/AuthController.java \
   src/main/resources/application.yml \
-  src/test/java/com/onlyactwo/lingshu/infrastructure/ratelimit
+  src/test/java/com/onlyactwo/markflow/infrastructure/ratelimit
 git commit -m "feat(security): add per-ip rate limit and login attempt limiter
 
 基于 Redisson 实现每 IP 每分钟全局限流（默认 600）与登录失败计数
 （同一 ip+username 15 分钟内 5 次），超限返回 429 并带 Retry-After。
-阈值通过 LINGSHU_RATE_LIMIT_* 配置，多实例共享计数。"
+阈值通过 MARKFLOW_RATE_LIMIT_* 配置，多实例共享计数。"
 ```
 
 ---
@@ -2389,7 +2389,7 @@ git commit -m "feat(security): add per-ip rate limit and login attempt limiter
 
 **Files:**
 - Create（后端仓库）: `.github/workflows/ci.yml`
-- Create（前端仓库 `F:/label/lingshu-web/`）: `.github/workflows/ci.yml`
+- Create（前端仓库 `F:/label/markflow-web/`）: `.github/workflows/ci.yml`
 
 **Interfaces:**
 - Consumes: Task 2 compose、Task 7 的 `external` 分组、Task 1 的 `deploy/.env.example`。
@@ -2442,7 +2442,7 @@ jobs:
         run: docker compose --env-file .env -f deploy/docker-compose.yml down -v
 ```
 
-- [ ] **Step 2: 前端 `.github/workflows/ci.yml`（在 `F:/label/lingshu-web/`）**
+- [ ] **Step 2: 前端 `.github/workflows/ci.yml`（在 `F:/label/markflow-web/`）**
 
 ```yaml
 name: web-ci
@@ -2479,9 +2479,9 @@ jobs:
 - [ ] **Step 3: 本地校验 YAML 与前端脚本**
 
 ```bash
-cd /f/label/lingshu-backend && npx --yes js-yaml .github/workflows/ci.yml >/dev/null && echo backend-yaml-ok
-cd /f/label/lingshu-web && npx --yes js-yaml .github/workflows/ci.yml >/dev/null && echo web-yaml-ok
-cd /f/label/lingshu-web && npm ci && npm run lint && npx tsc --noEmit && npm run build
+cd /f/label/markflow-backend && npx --yes js-yaml .github/workflows/ci.yml >/dev/null && echo backend-yaml-ok
+cd /f/label/markflow-web && npx --yes js-yaml .github/workflows/ci.yml >/dev/null && echo web-yaml-ok
+cd /f/label/markflow-web && npm ci && npm run lint && npx tsc --noEmit && npm run build
 ```
 
 Expected: 两个 `*-yaml-ok`；前端三步均成功（若 `npm run lint` 有既有报错，记录到本任务提交正文，不在本阶段修复业务代码）。
@@ -2489,13 +2489,13 @@ Expected: 两个 `*-yaml-ok`；前端三步均成功（若 `npm run lint` 有既
 - [ ] **Step 4: 提交（两个仓库各一次）**
 
 ```bash
-cd /f/label/lingshu-backend && git add .github/workflows/ci.yml && git commit -m "ci: add backend workflow with compose-backed verify
+cd /f/label/markflow-backend && git add .github/workflows/ci.yml && git commit -m "ci: add backend workflow with compose-backed verify
 
 GitHub Actions 使用 temurin 17，启动 docker compose 中间件后执行
 ./mvnw verify；external 标签测试由 surefire 默认排除，失败时上传
 surefire 报告与中间件日志。"
 
-cd /f/label/lingshu-web && git add .github/workflows/ci.yml && git commit -m "ci: add web workflow for lint, typecheck and build
+cd /f/label/markflow-web && git add .github/workflows/ci.yml && git commit -m "ci: add web workflow for lint, typecheck and build
 
 新增 GitHub Actions：Node 22 下执行 eslint、tsc --noEmit 与
 vite build，作为前端合并前的最低门槛。测试步骤在阶段 2 接入。"
@@ -2575,10 +2575,10 @@ step "ALL PASS"
 - [ ] **Step 3: 写 `README.md`**
 
 ```markdown
-# 灵枢 LingShu · 后端
+# markflow · 后端
 
 数据标注平台后端（Spring Boot 3.4 / MyBatis-Plus / Redisson / RocketMQ / MinIO 或 TOS）。
-设计文档见 `docs/INDEX.md`，迁移背景见仓库外 `灵枢迁移报告与总体计划.md`。
+设计文档见 `docs/INDEX.md`，迁移背景见仓库外 `markflow迁移报告与总体计划.md`。
 
 ## 5 分钟起步
 
@@ -2592,10 +2592,10 @@ docker compose --env-file .env -f deploy/docker-compose.yml up -d --wait   # 2. 
 SMOKE_ADMIN_PASSWORD=admin123456 bash deploy/smoke.sh         # 5. 冒烟（另开终端）
 ```
 
-首启会按 `.env` 中的 `LINGSHU_JWT_SECRET` / `LINGSHU_ADMIN_INITIAL_PASSWORD` 写入 `sys_config` 与 `admin` 账号，
+首启会按 `.env` 中的 `MARKFLOW_JWT_SECRET` / `MARKFLOW_ADMIN_INITIAL_PASSWORD` 写入 `sys_config` 与 `admin` 账号，
 之后修改这两个变量不再生效（改密码走 `/api/user/changePassword`）。
 
-前端：`F:/label/lingshu-web` 执行 `npm ci && npm run dev`，访问 http://localhost:5173，用 admin 登录。
+前端：`F:/label/markflow-web` 执行 `npm ci && npm run dev`，访问 http://localhost:5173，用 admin 登录。
 
 ## 常用命令
 
@@ -2603,22 +2603,22 @@ SMOKE_ADMIN_PASSWORD=admin123456 bash deploy/smoke.sh         # 5. 冒烟（另�
 |---|---|
 | 重置本地数据 | `docker compose --env-file .env -f deploy/docker-compose.yml down -v` 后重新 `up -d --wait` |
 | 只跑某个测试 | `./mvnw -q test -Dtest=CreateCaseDomainServiceTest` |
-| 跑需要真实火山 TOS 的测试 | `LINGSHU_OSS_PROVIDER=tos ./mvnw test -Dtest.excludedGroups=none -Dtest=TosClientTest` |
-| MinIO 控制台 | http://127.0.0.1:9001（账号密码见 `.env` 的 `LINGSHU_S3_*`） |
-| 打包 | `./mvnw -DskipTests package` → `target/lingshu-0.0.1-SNAPSHOT.jar` |
+| 跑需要真实火山 TOS 的测试 | `MARKFLOW_OSS_PROVIDER=tos ./mvnw test -Dtest.excludedGroups=none -Dtest=TosClientTest` |
+| MinIO 控制台 | http://127.0.0.1:9001（账号密码见 `.env` 的 `MARKFLOW_S3_*`） |
+| 打包 | `./mvnw -DskipTests package` → `target/markflow-0.0.1-SNAPSHOT.jar` |
 
 ## 配置
 
 全部配置通过环境变量注入，清单与默认值见 `deploy/.env.example`。
-对象存储默认 `s3`（MinIO）；切到火山 TOS 时设 `LINGSHU_OSS_PROVIDER=tos` 并在 `sys_config` 写入 `tos.config`。
+对象存储默认 `s3`（MinIO）；切到火山 TOS 时设 `MARKFLOW_OSS_PROVIDER=tos` 并在 `sys_config` 写入 `tos.config`。
 ```
 
 - [ ] **Step 4: 端到端验证**
 
 ```bash
-cd /f/label/lingshu-backend
+cd /f/label/markflow-backend
 ./mvnw -q -DskipTests package
-(java -jar target/lingshu-0.0.1-SNAPSHOT.jar > /tmp/lingshu.log 2>&1 &) ; sleep 25
+(java -jar target/markflow-0.0.1-SNAPSHOT.jar > /tmp/markflow.log 2>&1 &) ; sleep 25
 SMOKE_ADMIN_PASSWORD=admin123456 bash deploy/smoke.sh
 ```
 
@@ -2626,7 +2626,7 @@ Expected: 依次打印 `[smoke] health`、`login as admin`、`getCurrentUser`、
 
 - [ ] **Step 5: 前端手工全流程（阶段验收）**
 
-`cd /f/label/lingshu-web && npm run dev`，浏览器 http://localhost:5173：admin 登录 → 创建工作空间与成员 → 创建标注工具 → 新建数据集并上传 `.jsonl`（直传 MinIO，控制台 9001 可见对象）→ 版本解析为 READY → 创建 Case（LABEL + REVIEW 两阶段）→ 标注员领取标注提交 → 审核通过 → 导出结果，下载链接可打开。任一步失败记录到 `docs/superpowers/plans/phase1-acceptance-notes.md` 后再修。
+`cd /f/label/markflow-web && npm run dev`，浏览器 http://localhost:5173：admin 登录 → 创建工作空间与成员 → 创建标注工具 → 新建数据集并上传 `.jsonl`（直传 MinIO，控制台 9001 可见对象）→ 版本解析为 READY → 创建 Case（LABEL + REVIEW 两阶段）→ 标注员领取标注提交 → 审核通过 → 导出结果，下载链接可打开。任一步失败记录到 `docs/superpowers/plans/phase1-acceptance-notes.md` 后再修。
 
 - [ ] **Step 6: 提交**
 

@@ -102,9 +102,9 @@ describe('M6 health and metrics', () => {
       const response = await scrape();
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toContain('text/plain');
-      expect(response.text).toMatch(/lingshu_outbox_pending_messages [1-9]/);
+      expect(response.text).toMatch(/markflow_outbox_pending_messages [1-9]/);
       expect(response.text).toMatch(
-        /lingshu_queue_jobs\{queue="case-export",state="delayed"\} [1-9]/,
+        /markflow_queue_jobs\{queue="case-export",state="delayed"\} [1-9]/,
       );
       expect(response.text).toContain('route="/api/user/getCurrentUser"');
       expect(response.text).toContain('route="unmatched"');
@@ -115,7 +115,7 @@ describe('M6 health and metrics', () => {
       await h.ctx.db.deleteFrom('mq_outbox').where('id', '=', row.id).execute();
     }
     const response = await scrape();
-    expect(response.text).toContain('lingshu_queue_jobs{queue="case-export",state="delayed"} 0');
+    expect(response.text).toContain('markflow_queue_jobs{queue="case-export",state="delayed"} 0');
   });
 
   it('failed collection returns 503 rather than healthy stale metrics', async () => {
@@ -135,7 +135,7 @@ describe('M6 health and metrics', () => {
     const gaugeValue = async () => {
       await h.ctx.metrics.refresh(h.ctx);
       const metric = await h.ctx.metrics.registry
-        .getSingleMetric('lingshu_pool_pending_tasks')!
+        .getSingleMetric('markflow_pool_pending_tasks')!
         .get();
       return metric.values.find((value) => value.labels['stage'] === '2')!.value;
     };
@@ -163,10 +163,10 @@ describe('M6 health and metrics', () => {
     const isolated = new Metrics();
     isolated.ai.inc({ stage: '1', outcome: 'retryable_failure' });
     expect(await isolated.registry.metrics()).toContain(
-      'lingshu_ai_executions_total{stage="1",outcome="retryable_failure"} 1',
+      'markflow_ai_executions_total{stage="1",outcome="retryable_failure"} 1',
     );
     expect(await h.ctx.metrics.registry.metrics()).not.toContain(
-      'lingshu_ai_executions_total{stage="1",outcome="retryable_failure"} 1',
+      'markflow_ai_executions_total{stage="1",outcome="retryable_failure"} 1',
     );
     isolated.registry.clear();
   });

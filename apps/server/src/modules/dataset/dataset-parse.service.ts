@@ -30,7 +30,7 @@ import { DatasetErrorCode } from './error-codes.js';
 export const PARSE_BATCH_SIZE = 1000;
 export const MAX_SAMPLE_ERRORS = 100;
 const FAILURE_REASON_MAX_LENGTH = 500;
-/** lingshu_dataset_sample.biz_id VARCHAR(64)。 */
+/** markflow_dataset_sample.biz_id VARCHAR(64)。 */
 const BIZ_ID_MAX_LENGTH = 64;
 const INVALID_ROW_MESSAGE = '非法 JSON 行或非对象';
 

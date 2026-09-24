@@ -10,7 +10,7 @@ const source = resolve(dirname(fileURLToPath(import.meta.url)), '../apps/server/
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), 'lingshu-monorepo-package-'));
+  const root = mkdtempSync(join(tmpdir(), 'markflow-monorepo-package-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const write = (path, content) => {
     mkdirSync(dirname(join(root, path)), { recursive: true });

@@ -50,7 +50,7 @@ export interface SysConfigTable extends AuditColumns {
   deleted: Generated<number>;
 }
 
-export interface LingshuLabelToolTable extends AuditColumns {
+export interface MarkflowLabelToolTable extends AuditColumns {
   id: Generated<number>;
   labelToolCode: string;
   labelToolName: string;
@@ -63,7 +63,7 @@ export interface LingshuLabelToolTable extends AuditColumns {
   ext: JsonNullable;
 }
 
-export interface LingshuDatasetTable extends AuditColumns {
+export interface MarkflowDatasetTable extends AuditColumns {
   id: Generated<number>;
   spaceCode: string;
   datasetName: string;
@@ -77,7 +77,7 @@ export interface LingshuDatasetTable extends AuditColumns {
   ext: JsonNullable;
 }
 
-export interface LingshuDatasetVersionTable extends AuditColumns {
+export interface MarkflowDatasetVersionTable extends AuditColumns {
   id: Generated<number>;
   datasetId: number;
   versionNumber: number;
@@ -90,7 +90,7 @@ export interface LingshuDatasetVersionTable extends AuditColumns {
   ext: JsonNullable;
 }
 
-export interface LingshuDatasetSampleTable extends AuditColumns {
+export interface MarkflowDatasetSampleTable extends AuditColumns {
   id: Generated<number>;
   datasetVersionId: number;
   bizId: string | null;
@@ -206,10 +206,10 @@ export interface Database {
   workspace: WorkspaceTable;
   user_workspace_ship: UserWorkspaceShipTable;
   sys_config: SysConfigTable;
-  lingshu_label_tool: LingshuLabelToolTable;
-  lingshu_dataset: LingshuDatasetTable;
-  lingshu_dataset_version: LingshuDatasetVersionTable;
-  lingshu_dataset_sample: LingshuDatasetSampleTable;
+  markflow_label_tool: MarkflowLabelToolTable;
+  markflow_dataset: MarkflowDatasetTable;
+  markflow_dataset_version: MarkflowDatasetVersionTable;
+  markflow_dataset_sample: MarkflowDatasetSampleTable;
   label_case: LabelCaseTable;
   label_task_group: LabelTaskGroupTable;
   label_task: LabelTaskTable;
@@ -225,14 +225,14 @@ export type WorkspaceRow = Selectable<WorkspaceTable>;
 export type UserWorkspaceShipRow = Selectable<UserWorkspaceShipTable>;
 export type NewWorkspace = Insertable<WorkspaceTable>;
 export type NewUserWorkspaceShip = Insertable<UserWorkspaceShipTable>;
-export type LabelToolRow = Selectable<LingshuLabelToolTable>;
-export type NewLabelTool = Insertable<LingshuLabelToolTable>;
-export type DatasetRow = Selectable<LingshuDatasetTable>;
-export type NewDataset = Insertable<LingshuDatasetTable>;
-export type DatasetVersionRow = Selectable<LingshuDatasetVersionTable>;
-export type NewDatasetVersion = Insertable<LingshuDatasetVersionTable>;
-export type DatasetSampleRow = Selectable<LingshuDatasetSampleTable>;
-export type NewDatasetSample = Insertable<LingshuDatasetSampleTable>;
+export type LabelToolRow = Selectable<MarkflowLabelToolTable>;
+export type NewLabelTool = Insertable<MarkflowLabelToolTable>;
+export type DatasetRow = Selectable<MarkflowDatasetTable>;
+export type NewDataset = Insertable<MarkflowDatasetTable>;
+export type DatasetVersionRow = Selectable<MarkflowDatasetVersionTable>;
+export type NewDatasetVersion = Insertable<MarkflowDatasetVersionTable>;
+export type DatasetSampleRow = Selectable<MarkflowDatasetSampleTable>;
+export type NewDatasetSample = Insertable<MarkflowDatasetSampleTable>;
 export type CaseRow = Selectable<LabelCaseTable>;
 export type NewCase = Insertable<LabelCaseTable>;
 export type TaskGroupRow = Selectable<LabelTaskGroupTable>;

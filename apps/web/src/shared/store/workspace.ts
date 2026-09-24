@@ -2,7 +2,7 @@
 // 当前空间 spaceCode 由侧栏切换器写入；需要 spaceCode 的接口由 http 封装自动带上，页面不重复传。
 import { create } from 'zustand';
 
-const SPACE_KEY = 'lingshu.spaceCode';
+const SPACE_KEY = 'markflow.spaceCode';
 
 /** 切换器用的空间项（来自 getCurrentUser.workspaces，《接口文档.md》三）。 */
 export interface Workspace {

@@ -60,12 +60,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: lingshu
+          POSTGRES_USER: markflow
           POSTGRES_PASSWORD: ci_pg_pwd
-          POSTGRES_DB: lingshu_test
+          POSTGRES_DB: markflow_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U lingshu -d lingshu_test"
+          --health-cmd "pg_isready -U markflow -d markflow_test"
           --health-interval 5s --health-timeout 3s --health-retries 10
       redis:
         image: redis:7-alpine
@@ -74,25 +74,25 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
     env:
-      LINGSHU_PG_HOST: 127.0.0.1
-      LINGSHU_PG_PORT: '5432'
-      LINGSHU_PG_DB: lingshu_test
-      LINGSHU_TEST_PG_DB: lingshu_test
-      LINGSHU_PG_USER: lingshu
-      LINGSHU_PG_PASSWORD: ci_pg_pwd
-      LINGSHU_REDIS_HOST: 127.0.0.1
-      LINGSHU_REDIS_PORT: '6379'
-      LINGSHU_REDIS_PASSWORD: ci_redis_pwd
-      LINGSHU_S3_ENDPOINT: http://127.0.0.1:9000
-      LINGSHU_S3_PUBLIC_ENDPOINT: http://127.0.0.1:9000
-      LINGSHU_S3_REGION: us-east-1
-      LINGSHU_S3_BUCKET: lingshu
-      LINGSHU_S3_ACCESS_KEY: ci-minio
-      LINGSHU_S3_SECRET_KEY: ci_minio_pwd
-      LINGSHU_S3_FORCE_PATH_STYLE: 'true'
-      LINGSHU_CORS_ALLOWED_ORIGINS: http://localhost:5173
-      LINGSHU_CONFIG_ENC_KEY: ci-only-config-enc-key-0123456789abcdef0123456789
-      LINGSHU_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789
+      MARKFLOW_PG_HOST: 127.0.0.1
+      MARKFLOW_PG_PORT: '5432'
+      MARKFLOW_PG_DB: markflow_test
+      MARKFLOW_TEST_PG_DB: markflow_test
+      MARKFLOW_PG_USER: markflow
+      MARKFLOW_PG_PASSWORD: ci_pg_pwd
+      MARKFLOW_REDIS_HOST: 127.0.0.1
+      MARKFLOW_REDIS_PORT: '6379'
+      MARKFLOW_REDIS_PASSWORD: ci_redis_pwd
+      MARKFLOW_S3_ENDPOINT: http://127.0.0.1:9000
+      MARKFLOW_S3_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      MARKFLOW_S3_REGION: us-east-1
+      MARKFLOW_S3_BUCKET: markflow
+      MARKFLOW_S3_ACCESS_KEY: ci-minio
+      MARKFLOW_S3_SECRET_KEY: ci_minio_pwd
+      MARKFLOW_S3_FORCE_PATH_STYLE: 'true'
+      MARKFLOW_CORS_ALLOWED_ORIGINS: http://localhost:5173
+      MARKFLOW_CONFIG_ENC_KEY: ci-only-config-enc-key-0123456789abcdef0123456789
+      MARKFLOW_JWT_SECRET: ci-only-jwt-secret-0123456789abcdef0123456789
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -114,7 +114,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:9000/minio/health/live
           docker run --rm --network host --entrypoint /bin/sh quay.io/minio/mc:latest -c \
-            "mc alias set local http://127.0.0.1:9000 ci-minio ci_minio_pwd && mc mb --ignore-existing local/lingshu"
+            "mc alias set local http://127.0.0.1:9000 ci-minio ci_minio_pwd && mc mb --ignore-existing local/markflow"
       - run: npm ci
       - run: npm test
 

@@ -1,4 +1,4 @@
-# 灵枢后端
+# markflow后端
 
 Node.js ≥ 22、TypeScript、Express、PostgreSQL、Redis / BullMQ、S3 兼容对象存储。源码位于 monorepo 的 `apps/server/`，前端在 `../web/`。
 

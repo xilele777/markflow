@@ -1,4 +1,4 @@
-// 全局前置：重建 lingshu_test 的 public schema → 跑迁移 → 首启引导 → 清限流键 → 清测试前缀下的队列。只允许对 *_test 库执行。
+// 全局前置：重建 markflow_test 的 public schema → 跑迁移 → 首启引导 → 清限流键 → 清测试前缀下的队列。只允许对 *_test 库执行。
 import './env.js';
 import { sql } from 'kysely';
 import { createContext, destroyContext } from '../../src/app/context.js';

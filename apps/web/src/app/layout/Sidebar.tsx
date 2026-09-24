@@ -26,18 +26,7 @@ function Brand() {
             letterSpacing: '-0.01em',
           }}
         >
-          灵枢
-        </span>
-        <span
-          style={{
-            fontFamily: fonts.mono,
-            fontSize: 9.5,
-            letterSpacing: '0.18em',
-            color: palette.weak,
-            marginTop: 2,
-          }}
-        >
-          LINGSHU
+          markflow
         </span>
       </div>
     </div>

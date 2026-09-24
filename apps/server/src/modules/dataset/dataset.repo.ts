@@ -4,7 +4,7 @@ import type { Db } from '../../infra/db.js';
 import { hasText, likePattern, type Maybe } from '../common/strings.js';
 import { DatasetType } from './enums.js';
 
-type DatasetQuery<O> = SelectQueryBuilder<Database, 'lingshu_dataset', O>;
+type DatasetQuery<O> = SelectQueryBuilder<Database, 'markflow_dataset', O>;
 
 export const DELETED_NO = 0;
 
@@ -19,7 +19,7 @@ export class DatasetRepository {
   /** 不过滤 deleted（与 Java 一致），由调用方判断。 */
   selectById(id: number): Promise<DatasetRow | undefined> {
     return this.db
-      .selectFrom('lingshu_dataset')
+      .selectFrom('markflow_dataset')
       .selectAll()
       .where('id', '=', id)
       .executeTakeFirst();
@@ -28,7 +28,7 @@ export class DatasetRepository {
   /** 事务内行锁读取（版本号递增用）。 */
   selectByIdForUpdate(id: number): Promise<DatasetRow | undefined> {
     return this.db
-      .selectFrom('lingshu_dataset')
+      .selectFrom('markflow_dataset')
       .selectAll()
       .where('id', '=', id)
       .forUpdate()
@@ -41,7 +41,7 @@ export class DatasetRepository {
     datasetName: string,
   ): Promise<DatasetRow | undefined> {
     return this.db
-      .selectFrom('lingshu_dataset')
+      .selectFrom('markflow_dataset')
       .selectAll()
       .where('spaceCode', '=', spaceCode)
       .where('datasetName', '=', datasetName)
@@ -51,7 +51,7 @@ export class DatasetRepository {
 
   async insert(dataset: NewDataset): Promise<number> {
     const row = await this.db
-      .insertInto('lingshu_dataset')
+      .insertInto('markflow_dataset')
       .values(dataset)
       .returning('id')
       .executeTakeFirstOrThrow();
@@ -65,7 +65,7 @@ export class DatasetRepository {
     updateTime: number,
   ): Promise<void> {
     await this.db
-      .updateTable('lingshu_dataset')
+      .updateTable('markflow_dataset')
       .set({ latestVersionNumber, operator, updateTime })
       .where('id', '=', id)
       .execute();
@@ -74,7 +74,7 @@ export class DatasetRepository {
   /** 空间内未删除、非 RESULT 类型的数据集总数；keyword 模糊匹配名称或描述。 */
   async countByCondition(spaceCode: string, keyword: Maybe<string>): Promise<number> {
     const row = await this.withCondition(
-      this.db.selectFrom('lingshu_dataset').select(({ fn }) => fn.countAll<number>().as('n')),
+      this.db.selectFrom('markflow_dataset').select(({ fn }) => fn.countAll<number>().as('n')),
       spaceCode,
       keyword,
     ).executeTakeFirstOrThrow();
@@ -88,7 +88,11 @@ export class DatasetRepository {
     offset: number,
     limit: number,
   ): Promise<DatasetRow[]> {
-    return this.withCondition(this.db.selectFrom('lingshu_dataset').selectAll(), spaceCode, keyword)
+    return this.withCondition(
+      this.db.selectFrom('markflow_dataset').selectAll(),
+      spaceCode,
+      keyword,
+    )
       .orderBy('createTime', 'desc')
       .orderBy('id', 'desc')
       .offset(offset)

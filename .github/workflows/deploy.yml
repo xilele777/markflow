@@ -11,14 +11,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: lingshu-production
+  group: markflow-production
   cancel-in-progress: false
 
 jobs:
   prepare:
     # 保持未设置/false。只有服务器验收准备完成后才启用；PR、失败 CI 不触发。
     if: >-
-      vars.LINGSHU_DEPLOY_ENABLED == 'true' &&
+      vars.MARKFLOW_DEPLOY_ENABLED == 'true' &&
       ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
@@ -84,9 +84,9 @@ jobs:
     environment: production
     env:
       RELEASE: release-${{ github.run_id }}-${{ github.run_attempt }}
-      DEPLOY_HOST: ${{ secrets.LINGSHU_DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.LINGSHU_DEPLOY_USER }}
-      DEPLOY_PORT: ${{ secrets.LINGSHU_DEPLOY_PORT }}
+      DEPLOY_HOST: ${{ secrets.MARKFLOW_DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.MARKFLOW_DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.MARKFLOW_DEPLOY_PORT }}
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -94,8 +94,8 @@ jobs:
           path: release
       - name: Install pinned SSH credentials
         env:
-          SSH_KEY: ${{ secrets.LINGSHU_DEPLOY_KEY }}
-          KNOWN_HOSTS: ${{ secrets.LINGSHU_DEPLOY_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.MARKFLOW_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MARKFLOW_DEPLOY_KNOWN_HOSTS }}
         run: |
           [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]
           [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
@@ -109,9 +109,9 @@ jobs:
         working-directory: release
         run: |
           sha256sum -c "$RELEASE.tar.gz.sha256"
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /srv/lingshu/incoming /srv/lingshu/releases'
-          scp -o BatchMode=yes -o StrictHostKeyChecking=yes -P "$DEPLOY_PORT" "$RELEASE.tar.gz" "$RELEASE.tar.gz.sha256" "$DEPLOY_USER@$DEPLOY_HOST:/srv/lingshu/incoming/"
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "set -eu; cd /srv/lingshu/incoming; sha256sum -c '$RELEASE.tar.gz.sha256'; test ! -e '/srv/lingshu/releases/$RELEASE'; tar --no-same-owner -xzf '$RELEASE.tar.gz' -C /srv/lingshu/releases; bash '/srv/lingshu/releases/$RELEASE/scripts/activate.sh' '$RELEASE'"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /srv/markflow/incoming /srv/markflow/releases'
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes -P "$DEPLOY_PORT" "$RELEASE.tar.gz" "$RELEASE.tar.gz.sha256" "$DEPLOY_USER@$DEPLOY_HOST:/srv/markflow/incoming/"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "set -eu; cd /srv/markflow/incoming; sha256sum -c '$RELEASE.tar.gz.sha256'; test ! -e '/srv/markflow/releases/$RELEASE'; tar --no-same-owner -xzf '$RELEASE.tar.gz' -C /srv/markflow/releases; bash '/srv/markflow/releases/$RELEASE/scripts/activate.sh' '$RELEASE'"
       - name: Remove runner SSH key
         if: always()
         run: rm -f ~/.ssh/id_ed25519

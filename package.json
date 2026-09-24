@@ -1,8 +1,8 @@
 {
-  "name": "lingshu",
+  "name": "markflow",
   "private": true,
   "version": "0.1.0",
-  "description": "灵枢数据标注平台 monorepo",
+  "description": "markflow数据标注平台 monorepo",
   "engines": {
     "node": ">=22"
   },

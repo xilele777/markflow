@@ -98,7 +98,7 @@ describe('LoginPage', () => {
     await screen.findByText('PAGE:my-groups');
     expect(loginMock).toHaveBeenCalledWith({ username: 'alice', password: 'secret' });
     expect(useAuthStore.getState().token).toBe('jwt-1');
-    expect(localStorage.getItem('lingshu.token')).toBe('jwt-1');
+    expect(localStorage.getItem('markflow.token')).toBe('jwt-1');
     expect(useAuthStore.getState().user?.username).toBe('alice');
     expect(useWorkspaceStore.getState().spaceCode).toBe('SPACE_A');
     expect(useWorkspaceStore.getState().workspaces).toHaveLength(1);
@@ -152,7 +152,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(meMock).toHaveBeenCalled());
     await waitFor(() => expect(useAuthStore.getState().token).toBeNull());
-    expect(localStorage.getItem('lingshu.token')).toBeNull();
+    expect(localStorage.getItem('markflow.token')).toBeNull();
     expect(router.state.location.pathname).toBe('/login');
   });
 });

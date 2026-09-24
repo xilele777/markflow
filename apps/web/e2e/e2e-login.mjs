@@ -16,7 +16,7 @@ if (!browserExe || !baseUrl || !username || !password || !expectedPath) {
 }
 
 const port = 9300 + Math.floor(Math.random() * 200);
-const userDataDir = mkdtempSync(join(tmpdir(), 'lingshu-e2e-'));
+const userDataDir = mkdtempSync(join(tmpdir(), 'markflow-e2e-'));
 const browser = spawn(
   browserExe,
   [
@@ -146,8 +146,8 @@ try {
   );
   await sleep(800);
   const pathname = await evaluate(ws, sessionId, 'location.pathname');
-  const tokenStored = await evaluate(ws, sessionId, `!!localStorage.getItem('lingshu.token')`);
-  const spaceCode = await evaluate(ws, sessionId, `localStorage.getItem('lingshu.spaceCode')`);
+  const tokenStored = await evaluate(ws, sessionId, `!!localStorage.getItem('markflow.token')`);
+  const spaceCode = await evaluate(ws, sessionId, `localStorage.getItem('markflow.spaceCode')`);
   const toastText = await evaluate(
     ws,
     sessionId,

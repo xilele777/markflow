@@ -17,10 +17,10 @@ const apiBase = process.argv[3] ?? 'http://127.0.0.1:8080';
 const browserExe =
   process.argv[4] ??
   join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe');
-// 系统管理员：与后端 .env 的首启引导账号一致（LINGSHU_ADMIN_USERNAME / LINGSHU_ADMIN_INITIAL_PASSWORD）。
+// 系统管理员：与后端 .env 的首启引导账号一致（MARKFLOW_ADMIN_USERNAME / MARKFLOW_ADMIN_INITIAL_PASSWORD）。
 const ADMIN = {
-  username: process.env.LINGSHU_ADMIN_USERNAME ?? 'admin',
-  password: process.env.LINGSHU_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
+  username: process.env.MARKFLOW_ADMIN_USERNAME ?? 'admin',
+  password: process.env.MARKFLOW_ADMIN_INITIAL_PASSWORD ?? 'admin123456',
 };
 const stamp = Date.now().toString(36).slice(-5);
 const LA = { username: `e3a${stamp}`, displayName: `验收管理员${stamp}`, password: 'e2epass1' };
@@ -44,7 +44,7 @@ const JSONL =
   '{"content":"服务很好，下次还来","bizId":"e1"}\n{"content":"等了很久，体验一般","bizId":"e2"}\n{"content":"物超所值","bizId":"e3"}\n';
 
 const port = 9300 + Math.floor(Math.random() * 200);
-const userDataDir = mkdtempSync(join(tmpdir(), 'lingshu-e2e-'));
+const userDataDir = mkdtempSync(join(tmpdir(), 'markflow-e2e-'));
 const browser = spawn(
   browserExe,
   [
@@ -270,7 +270,7 @@ async function login(username, password, expectedPath) {
   await fill('password', password);
   await evaluate(`document.querySelector('button[type="submit"]').click(); true`);
   await waitFor(`location.pathname === ${JSON.stringify(expectedPath)}`, `landing ${expectedPath}`);
-  await waitFor(`!!localStorage.getItem('lingshu.token')`, 'token stored');
+  await waitFor(`!!localStorage.getItem('markflow.token')`, 'token stored');
 }
 /** 我的任务组 → 点开 caseName 对应、带某阶段标签的组。 */
 async function openMyGroup(stageLabel) {
@@ -522,8 +522,8 @@ try {
   try {
     const png = await send(ws, 'Page.captureScreenshot', { format: 'png' }, sessionId);
     const { writeFileSync } = await import('node:fs');
-    writeFileSync(join(tmpdir(), 'lingshu-e2e-m3-fail.png'), Buffer.from(png.data, 'base64'));
-    console.error('screenshot:', join(tmpdir(), 'lingshu-e2e-m3-fail.png'));
+    writeFileSync(join(tmpdir(), 'markflow-e2e-m3-fail.png'), Buffer.from(png.data, 'base64'));
+    console.error('screenshot:', join(tmpdir(), 'markflow-e2e-m3-fail.png'));
   } catch {
     /* ignore */
   }

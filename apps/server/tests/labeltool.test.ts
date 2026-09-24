@@ -213,7 +213,7 @@ describe('/api/labeltool', () => {
     it('已删除工具不出现在列表与详情', async () => {
       const id = await createLabelToolRow(h.ctx, { labelToolCode: uniq('del') });
       await h.ctx.db
-        .updateTable('lingshu_label_tool')
+        .updateTable('markflow_label_tool')
         .set({ deleted: 1 })
         .where('id', '=', id)
         .execute();

@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 
   const app = createApp(ctx);
   const server = app.listen(config.server.port, config.server.host, () => {
-    logger.info({ port: config.server.port }, 'lingshu-server listening');
+    logger.info({ port: config.server.port }, 'markflow-server listening');
   });
   const workers = startWorkers(ctx);
 

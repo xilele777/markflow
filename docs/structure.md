@@ -59,16 +59,16 @@ label/
 
 | 旧路径 | 当前路径 |
 |---|---|
-| `lingshu-server/` | `apps/server/` |
-| `lingshu-web/` | `apps/web/` |
-| `lingshu-server/DEPLOY.md` 或 `lingshu-server/docs/deployment.md` | `docs/server/deployment.md` |
-| 原后端长 README 或 `lingshu-server/docs/development.md` | `docs/server/development.md` |
-| `lingshu-server/scripts/smoke/README.md` 或 `lingshu-server/docs/testing.md` | `docs/server/testing.md` |
-| `lingshu-web/docs/` | `docs/web/` |
-| `lingshu-web/e2e/README.md` | `docs/web/testing.md` |
-| `lingshu-web/claudeDesign/lingshu/` | `docs/web/design/` |
+| `markflow-server/` | `apps/server/` |
+| `markflow-web/` | `apps/web/` |
+| `markflow-server/DEPLOY.md` 或 `markflow-server/docs/deployment.md` | `docs/server/deployment.md` |
+| 原后端长 README 或 `markflow-server/docs/development.md` | `docs/server/development.md` |
+| `markflow-server/scripts/smoke/README.md` 或 `markflow-server/docs/testing.md` | `docs/server/testing.md` |
+| `markflow-web/docs/` | `docs/web/` |
+| `markflow-web/e2e/README.md` | `docs/web/testing.md` |
+| `markflow-web/claudeDesign/markflow/` | `docs/web/design/` |
 | 前端根 JSONL 样例 | `apps/web/examples/datasets/` 与 `apps/web/examples/users/` |
-| `lingshu-server/artifacts/` | 根 `artifacts/`；旧实验 / 解包目录仍在其 archive/ |
+| `markflow-server/artifacts/` | 根 `artifacts/`；旧实验 / 解包目录仍在其 archive/ |
 | 根两份早期评估报告 | `docs/reference/` 内同名文件 |
 | `docs/plans/0001-*`、`docs/superpowers/plans/*` | `docs/archive/plans/` |
 | 两个应用各自的 `.github/workflows/` | 根 `.github/workflows/`，已合并与改写 |

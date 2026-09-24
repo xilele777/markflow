@@ -1,7 +1,7 @@
 // BullMQ 队列（对应 Java RocketMQ 的四个 topic，后端索引 §6.6；载荷字段与 Java 事件类一致）。
 // 生产者统一经 infra/outbox.ts 投递（事务内落 mq_outbox 行、提交后 add），消费者见各模块 *.worker.ts。
 // 生产者 Queue 与消费者 Worker 各自持有 Redis 连接（BullMQ 要求 Worker 连接 maxRetriesPerRequest=null）；
-// 所有键带 LINGSHU_QUEUE_PREFIX 前缀，测试用另一个前缀隔离。
+// 所有键带 MARKFLOW_QUEUE_PREFIX 前缀，测试用另一个前缀隔离。
 import {
   Queue,
   Worker,

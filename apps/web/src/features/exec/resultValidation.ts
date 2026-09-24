@@ -39,7 +39,7 @@ export function describeMissing(missing: SchemaField[]): string {
 
 // —— 父页（执行页）与嵌入页（iframe）之间的保存状态协议 ——
 // 嵌入页在 setField 后立即发 dirty、保存成功后发 saved；父页提交前若 dirty 则等待 saved（有超时）。
-export const EMBED_MESSAGE_TYPE = 'lingshu:embed-result';
+export const EMBED_MESSAGE_TYPE = 'markflow:embed-result';
 export type EmbedResultState = 'dirty' | 'saving' | 'saved' | 'error';
 export interface EmbedResultMessage {
   type: typeof EMBED_MESSAGE_TYPE;

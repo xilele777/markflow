@@ -1,4 +1,4 @@
-# 灵枢前端
+# markflow前端
 
 React 18、TypeScript、Vite 6、Ant Design、TanStack Query、Puck。源码位于 monorepo 的 `apps/web/`，后端在 `../server/`。
 

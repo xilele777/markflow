@@ -13,7 +13,7 @@ export class DatasetVersionRepository {
 
   async insert(version: NewDatasetVersion): Promise<number> {
     const row = await this.db
-      .insertInto('lingshu_dataset_version')
+      .insertInto('markflow_dataset_version')
       .values(version)
       .returning('id')
       .executeTakeFirstOrThrow();
@@ -23,7 +23,7 @@ export class DatasetVersionRepository {
   /** 含逻辑删除，由调用方判断。 */
   selectById(id: number): Promise<DatasetVersionRow | undefined> {
     return this.db
-      .selectFrom('lingshu_dataset_version')
+      .selectFrom('markflow_dataset_version')
       .selectAll()
       .where('id', '=', id)
       .executeTakeFirst();
@@ -32,7 +32,7 @@ export class DatasetVersionRepository {
   /** 数据集下未删除版本，按 version_number 降序。 */
   selectActiveByDatasetId(datasetId: number): Promise<DatasetVersionRow[]> {
     return this.db
-      .selectFrom('lingshu_dataset_version')
+      .selectFrom('markflow_dataset_version')
       .selectAll()
       .where('datasetId', '=', datasetId)
       .where('deleted', '=', DELETED_NO)
@@ -50,11 +50,11 @@ export class DatasetVersionRepository {
     updateTime: number,
   ): Promise<void> {
     await this.db
-      .updateTable('lingshu_dataset_version')
+      .updateTable('markflow_dataset_version')
       .set({ uploadStatus, sampleCount, ext: JSON.stringify(ext), operator, updateTime })
       .where('id', '=', id)
       .execute();
   }
 }
 
-export type DatasetVersionTable = Database['lingshu_dataset_version'];
+export type DatasetVersionTable = Database['markflow_dataset_version'];

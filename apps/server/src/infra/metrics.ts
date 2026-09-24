@@ -7,44 +7,44 @@ import { QUEUE_NAMES } from './queue.js';
 export class Metrics {
   readonly registry = new Registry();
   readonly ai = new Counter({
-    name: 'lingshu_ai_executions_total',
+    name: 'markflow_ai_executions_total',
     help: 'AI execution attempts (retries counted separately; skipped excluded)',
     labelNames: ['stage', 'outcome'] as const,
     registers: [this.registry],
   });
   private readonly requests = new Histogram({
-    name: 'lingshu_http_request_duration_seconds',
+    name: 'markflow_http_request_duration_seconds',
     help: 'HTTP response duration, including failures',
     labelNames: ['method', 'route', 'status'] as const,
     buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
     registers: [this.registry],
   });
   private readonly pools = new Gauge({
-    name: 'lingshu_pool_pending_tasks',
+    name: 'markflow_pool_pending_tasks',
     help: 'Unassigned tasks in running or paused cases, by stage',
     labelNames: ['stage'] as const,
     registers: [this.registry],
   });
   private readonly queues = new Gauge({
-    name: 'lingshu_queue_jobs',
+    name: 'markflow_queue_jobs',
     help: 'BullMQ jobs by queue and state (failed retains at most 1000)',
     labelNames: ['queue', 'state'] as const,
     registers: [this.registry],
   });
   private readonly outbox = new Gauge({
-    name: 'lingshu_outbox_pending_messages',
+    name: 'markflow_outbox_pending_messages',
     help: 'Messages awaiting delivery to BullMQ',
     registers: [this.registry],
   });
   private readonly outboxAge = new Gauge({
-    name: 'lingshu_outbox_oldest_age_seconds',
+    name: 'markflow_outbox_oldest_age_seconds',
     help: 'Age of oldest pending outbox message, zero when empty',
     registers: [this.registry],
   });
   private collecting: Promise<void> | undefined;
 
   constructor() {
-    collectDefaultMetrics({ register: this.registry, prefix: 'lingshu_' });
+    collectDefaultMetrics({ register: this.registry, prefix: 'markflow_' });
   }
 
   middleware(): RequestHandler {

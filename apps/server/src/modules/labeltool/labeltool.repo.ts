@@ -3,7 +3,7 @@ import type { Database, LabelToolRow, NewLabelTool } from '../../db/schema.js';
 import type { Db } from '../../infra/db.js';
 import { hasText, likePattern, type Maybe } from '../common/strings.js';
 
-type LabelToolQuery<O> = SelectQueryBuilder<Database, 'lingshu_label_tool', O>;
+type LabelToolQuery<O> = SelectQueryBuilder<Database, 'markflow_label_tool', O>;
 
 export const DELETED_NO = 0;
 
@@ -13,7 +13,7 @@ export class LabelToolRepository {
   /** 只查未删除；label_tool_code 为 citext，大小写不敏感。 */
   selectByCode(labelToolCode: string): Promise<LabelToolRow | undefined> {
     return this.db
-      .selectFrom('lingshu_label_tool')
+      .selectFrom('markflow_label_tool')
       .selectAll()
       .where('labelToolCode', '=', labelToolCode)
       .where('deleted', '=', DELETED_NO)
@@ -23,7 +23,7 @@ export class LabelToolRepository {
   /** 不过滤 deleted（与 Java selectById 一致），由调用方判断。 */
   selectById(id: number): Promise<LabelToolRow | undefined> {
     return this.db
-      .selectFrom('lingshu_label_tool')
+      .selectFrom('markflow_label_tool')
       .selectAll()
       .where('id', '=', id)
       .executeTakeFirst();
@@ -31,7 +31,7 @@ export class LabelToolRepository {
 
   async insert(labelTool: NewLabelTool): Promise<number> {
     const row = await this.db
-      .insertInto('lingshu_label_tool')
+      .insertInto('markflow_label_tool')
       .values(labelTool)
       .returning('id')
       .executeTakeFirstOrThrow();
@@ -41,7 +41,7 @@ export class LabelToolRepository {
   /** 未删除工具总数；keyword 模糊匹配 code / name。 */
   async countByCondition(keyword: Maybe<string>): Promise<number> {
     const row = await this.withCondition(
-      this.db.selectFrom('lingshu_label_tool').select(({ fn }) => fn.countAll<number>().as('n')),
+      this.db.selectFrom('markflow_label_tool').select(({ fn }) => fn.countAll<number>().as('n')),
       keyword,
     ).executeTakeFirstOrThrow();
     return row.n;
@@ -53,7 +53,7 @@ export class LabelToolRepository {
     offset: number,
     limit: number,
   ): Promise<LabelToolRow[]> {
-    return this.withCondition(this.db.selectFrom('lingshu_label_tool').selectAll(), keyword)
+    return this.withCondition(this.db.selectFrom('markflow_label_tool').selectAll(), keyword)
       .orderBy('createTime', 'desc')
       .orderBy('id', 'desc')
       .offset(offset)

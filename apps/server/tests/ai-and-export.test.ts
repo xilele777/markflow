@@ -343,12 +343,12 @@ describe('AI 预标 / 预审 与 导出（消费者在进程内）', () => {
     // 已完成再执行 → skipped
     expect(await h.mod.aiExecutor.execute(t5.id)).toBe('skipped');
     const metrics = await h.ctx.metrics.registry.metrics();
-    expect(metrics).toMatch(/lingshu_ai_executions_total\{stage="1",outcome="success"\} [1-9]/);
+    expect(metrics).toMatch(/markflow_ai_executions_total\{stage="1",outcome="success"\} [1-9]/);
     expect(metrics).toMatch(
-      /lingshu_ai_executions_total\{stage="1",outcome="permanent_failure"\} [1-9]/,
+      /markflow_ai_executions_total\{stage="1",outcome="permanent_failure"\} [1-9]/,
     );
     expect(metrics).toMatch(
-      /lingshu_ai_executions_total\{stage="1",outcome="retryable_failure"\} [1-9]/,
+      /markflow_ai_executions_total\{stage="1",outcome="retryable_failure"\} [1-9]/,
     );
   });
 

@@ -1,6 +1,8 @@
-# 灵枢 LingShu
+# markflow
 
 数据标注平台，采用 **monorepo**：React 前端与 Node.js / TypeScript 后端共享提交历史、文档和 CI，独立管理依赖与构建。
+
+项目名称统一为 `markflow`，不使用中文品牌名；已有环境的命名与数据衔接见 [改名记录](docs/handoff/0014-2026-09-24-状态快照-markflow改名.md)。
 
 核心流程已通过本地验收，仍有规划差异待收口；M6 部署准备完成，尚未上线、迁移历史数据或切换业务。服务器就绪前不部署，CD 默认关闭。详见 [验收状态](docs/verification.md)。
 
@@ -46,4 +48,4 @@ label/                       Git 仓库根，main 分支
 - [部署、备份和回滚](docs/server/deployment.md)
 - [目录规范与历史迁移](docs/structure.md)
 
-原前后端完整提交历史已合并，旧提交号保留。GitHub 私有仓库为 [xilele777/lingshu](https://github.com/xilele777/lingshu)，对应 origin；原前端 upstream 不作为新项目推送目标。CI 结果见 [Actions](https://github.com/xilele777/lingshu/actions/workflows/ci.yml)，部署变量 `LINGSHU_DEPLOY_ENABLED=false`。本机原 Git 元数据和 bundle 在被忽略的 `.migration-backup/20260922-monorepo/`，历史已进入新仓库，备份不参与运行。
+原前后端完整提交历史已合并，旧提交号保留。GitHub 私有仓库为 [xilele777/markflow](https://github.com/xilele777/markflow)，对应 origin；原前端 upstream 不作为新项目推送目标。CI 结果见 [Actions](https://github.com/xilele777/markflow/actions/workflows/ci.yml)，部署变量 `MARKFLOW_DEPLOY_ENABLED=false`。本机原 Git 元数据和 bundle 在被忽略的 `.migration-backup/20260922-monorepo/`，历史已进入新仓库，备份不参与运行。

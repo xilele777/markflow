@@ -1,4 +1,4 @@
-// 敏感配置加密（AI 配置 apiKey 等）：AES-256-GCM，密钥由 LINGSHU_CONFIG_ENC_KEY 经 SHA-256 派生。
+// 敏感配置加密（AI 配置 apiKey 等）：AES-256-GCM，密钥由 MARKFLOW_CONFIG_ENC_KEY 经 SHA-256 派生。
 // 密文格式 `enc:v1:<base64url(iv ‖ tag ‖ ciphertext)>`；无前缀的值视为历史明文原样返回（兼容从 Java 版导入的数据）。
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 

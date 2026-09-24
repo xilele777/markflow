@@ -1,4 +1,4 @@
-// BrandMark —— 几何品牌标（2×2 错位方格，「枢/pivot」意象）。仅用简单 rect。
+// BrandMark —— markflow 几何品牌标（2×2 方格）。仅用简单 rect。
 import { palette } from '@/app/theme';
 
 export function BrandMark({ size = 22, color = palette.accent }: { size?: number; color?: string }) {

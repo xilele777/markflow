@@ -4,7 +4,7 @@
 // - 建数据集 / 建版本在 Kysely 事务内落库并写 outbox，提交后投递 dataset-parse（投递失败由 outbox 定时重投）；
 // - 空间内同名还有部分唯一索引兜底（迁移 0002）；建版本时对 dataset 行 FOR UPDATE，版本号唯一键冲突转 OPERATION_CONFLICT；
 // - getUploadPreSignedUrl 收紧为「系统管理员 或 任意空间 LABEL_ADMIN」（Java 任何登录用户可用，索引 §9.4）；
-// - 对象 key 的日期段按 LINGSHU_TIMEZONE 取当天。
+// - 对象 key 的日期段按 MARKFLOW_TIMEZONE 取当天。
 import { randomUUID } from 'node:crypto';
 import { isUniqueViolation, type Db } from '../../infra/db.js';
 import { ServiceError } from '../../infra/errors.js';
@@ -113,7 +113,7 @@ export interface DatasetServiceDeps {
   storage: ObjectStorage;
   outbox: OutboxService;
   logger: Logger;
-  /** 对象 key 日期段所用时区（LINGSHU_TIMEZONE）。 */
+  /** 对象 key 日期段所用时区（MARKFLOW_TIMEZONE）。 */
   timeZone: string;
 }
 
