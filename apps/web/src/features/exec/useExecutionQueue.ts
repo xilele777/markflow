@@ -10,6 +10,22 @@ interface ExecState {
   group?: MyTaskGroupItem;
 }
 
+/** 后端 pageSize 上限（common/pagination.ts：1-100）。 */
+const PAGE_SIZE = 100;
+
+/** 拉一个在手状态的全量列表：循环翻页，不足一页即停。 */
+async function fetchAllInHand(
+  taskGroupId: number,
+  status: number,
+): Promise<Array<{ taskId: number; taskGroupSeq: number }>> {
+  const out: Array<{ taskId: number; taskGroupSeq: number }> = [];
+  for (let pageNum = 1; ; pageNum += 1) {
+    const page = await getTaskListInGroup({ taskGroupId, status, pageNum, pageSize: PAGE_SIZE });
+    out.push(...page.list.map((t) => ({ taskId: t.taskId, taskGroupSeq: t.taskGroupSeq })));
+    if (page.list.length < PAGE_SIZE) return out;
+  }
+}
+
 /** 两种执行页共用：提交响应已完成补题后，再查询在手任务，查询失败可单独重试。 */
 export function useExecutionQueue(kind: 'label' | 'review') {
   const { taskId: taskIdParam } = useParams();
@@ -44,14 +60,13 @@ export function useExecutionQueue(kind: 'label' | 'review') {
     setQueueError(false);
     try {
       const taskGroupId = state.taskGroupId ?? (await getTaskDetail(taskId)).taskGroupId;
-      const pages = await Promise.all(
-        [kind === 'label' ? 2 : 3, 5].map((status) =>
-          getTaskListInGroup({ taskGroupId, status, pageNum: 1, pageSize: 20 }),
-        ),
-      );
+      // 在手状态：label 查 2/5（标注中 / 打回重标），review 查 3/5（质检中 / 打回重标）。
+      // 翻页拉全量（R6，2026-09-25）：固定 pageSize:20 在 preDispatchSize>20 时计数失真、窗口外不可达。
+      const statuses = kind === 'label' ? [2, 5] : [3, 5];
+      const pages = await Promise.all(statuses.map((status) => fetchAllInHand(taskGroupId, status)));
       // 使用最新在手列表，避免旧队列里已回收/已完成的任务；过去做过但又被打回的任务也可再次进入。
       const pending = pages
-        .flatMap((page) => page.list)
+        .flat()
         .sort((a, b) => a.taskGroupSeq - b.taskGroupSeq);
       const nextIds = [...new Set(pending.map((task) => task.taskId))];
       if (nextIds.length === 0) {

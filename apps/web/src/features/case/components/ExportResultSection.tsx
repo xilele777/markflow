@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 import { Btn, confirmModal, toast } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import { formatDateTime } from '@/shared/utils/format';
 import { useCurrentRoles } from '@/shared/auth/permissions';
 import type { ExportFormat, LastExport } from '../types';
@@ -279,25 +280,22 @@ function Body({
 
 function StatusBadge({ st }: { st?: LastExport['status'] }) {
   if (!st) return null;
-  const meta = STATUS_META[st];
+  // 导出状态色沿用语义色板 STATUS（EXPORTING/DONE/FAILED 恰为 running/done/failed），
+  // 不自建状态色 map（tones.ts 头注释约束）；仅「导出中」文案保留场景化覆盖。
+  const tone = st === 'EXPORTING' ? STATUS.running : st === 'DONE' ? STATUS.done : STATUS.failed;
+  const label = st === 'EXPORTING' ? '导出中' : tone.label;
   return (
-    <span style={badgeStyle(meta.bg, meta.fg)}>
-      <span style={badgeDot(meta.fg)} />
-      {meta.label}
+    <span style={badgeStyle(tone.bg, tone.fg)}>
+      <span style={badgeDot(tone.fg)} />
+      {label}
     </span>
   );
 }
 
 // —— 视觉 token ————————————————————————————————————————————————
 
-const doneFg = '#2c7a52';
-const failureFg = '#a8423a';
-
-const STATUS_META: Record<LastExport['status'], { bg: string; fg: string; label: string }> = {
-  EXPORTING: { bg: '#e9eff8', fg: '#3a5ea8', label: '导出中' },
-  DONE: { bg: '#e7f4ec', fg: doneFg, label: '已完成' },
-  FAILED: { bg: '#fbe9e7', fg: failureFg, label: '失败' },
-};
+const doneFg = STATUS.done.fg;
+const failureFg = STATUS.failed.fg;
 
 const sectionStyle: CSSProperties = {
   background: palette.surface,
@@ -356,8 +354,8 @@ const actionsRight: CSSProperties = {
 };
 
 const failureBox: CSSProperties = {
-  background: '#fbe9e7',
-  border: `1px solid #f3c2bd`,
+  background: STATUS.failed.bg,
+  border: `1px solid ${palette.hairline}`,
   borderRadius: 8,
   padding: '12px 14px',
   display: 'flex',

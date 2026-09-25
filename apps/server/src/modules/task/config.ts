@@ -223,6 +223,26 @@ export function prevStageInPlan(plan: TaskPlanConfig | null, current: StageDef):
   return idx <= 0 ? null : (stages[idx - 1] ?? null);
 }
 
+/**
+ * 驳回目标阶段（2026-09-25 R1）：人工审核阶段（review / recheck）驳回时，从紧邻上一阶段起
+ * 向前跳过 AI 预审（aiPreReview）——它不生产数据，重审未变化的输入无信息增量，
+ * 会形成「驳回 → AI 重审 → 重开驳回者 → 再驳回」的乒乓循环。取最近的数据生产阶段
+ * （aiPreLabel / label）。aiPreReview 自身驳回不经过这里（其 prev 本就是 label / aiPreLabel），链不变。
+ */
+export function rejectTargetStageInPlan(
+  plan: TaskPlanConfig | null,
+  current: StageDef,
+): StageDef | null {
+  const stages = planStages(plan);
+  const idx = stages.findIndex((s) => s.type === current.type);
+  if (idx <= 0) return null;
+  for (let i = idx - 1; i >= 0; i -= 1) {
+    const stage = stages[i];
+    if (stage && stage.type !== 'aiPreReview') return stage;
+  }
+  return null;
+}
+
 /** 某 stage 当前的执行者列表：AI → [aiCode]；人工 → active 成员 username（配置顺序）。 */
 export function activeExecutors(assignment: AssignmentConfig | null, stage: StageDef): string[] {
   if (stage.ai) {

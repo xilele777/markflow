@@ -7,6 +7,7 @@ import { Puck, Render, type Data } from '@measured/puck';
 import { Input, App, Drawer as AntDrawer } from 'antd';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { palette, fonts } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import { puckConfig } from './config';
 import { AnnotationRuntimeProvider } from './runtime';
 import { DataSourceFieldsProvider, parseDataSource, type FieldInfo } from './datasource';
@@ -151,7 +152,7 @@ function DataSourcePanel({
         spellCheck={false}
       />
       {error ? (
-        <div style={{ fontSize: 12.5, color: '#a8423a' }}>{error}</div>
+        <div style={{ fontSize: 12.5, color: STATUS.failed.fg }}>{error}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, overflow: 'auto' }}>
           <div style={{ fontSize: 11, color: palette.weak }}>解析出 {fields.length} 个可绑定字段：</div>

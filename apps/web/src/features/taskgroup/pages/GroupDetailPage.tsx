@@ -21,6 +21,7 @@ import {
 import { STAGE_TYPE, TASK_STATUS, metaOf } from '@/shared/constants';
 import { formatDateTime } from '@/shared/utils/format';
 import { palette, fonts } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import type {
   GetTaskListInGroupRequest,
   MyTaskGroupItem,
@@ -152,7 +153,7 @@ export default function GroupDetailPage() {
           style={{
             fontFamily: fonts.mono,
             fontSize: 12.5,
-            color: t.round > 1 ? '#a8423a' : palette.sub,
+            color: t.round > 1 ? STATUS.failed.fg : palette.sub,
           }}
         >
           第 {t.round} 轮

@@ -214,4 +214,45 @@ describe('B8 连续作业', () => {
     expect(await screen.findByText(/本组已全部处理完/)).toBeTruthy();
     expect(submitLabelTask).toHaveBeenCalledTimes(1);
   });
+
+  it('R6：超过一页的在手任务翻页拉全量（pageSize=100、pageNum 递增、不足一页即停）', async () => {
+    vi.mocked(submitLabelTask).mockResolvedValue(undefined);
+    const fullPage = Array.from({ length: 100 }, (_, i) => row(i + 1, 2, 2));
+    const tail = Array.from({ length: 30 }, (_, i) => row(101 + i, 2, 2));
+    const requests: Array<{ status?: number; pageNum?: number; pageSize?: number }> = [];
+    vi.mocked(getTaskListInGroup).mockImplementation((request) => {
+      requests.push(request);
+      // label 页查状态 2 与 5；状态 5 返回空，状态 2 返回 100 + 30 两页。
+      if (request.status === 5) return Promise.resolve(pageOf([]));
+      return Promise.resolve(
+        pageOf(request.pageNum === 1 ? fullPage : tail),
+      );
+    });
+    mount('/exec/label/1', { taskGroupId: 12 });
+    fireEvent.click(await screen.findByRole('button', { name: /提交标注/ }));
+    // 队列含全部 130 条补题 + 1 条历史 = 131（旧实现固定 pageSize:20 时只有 21）。
+    await waitFor(() => expect(screen.getByText(/131 题/)).toBeTruthy());
+    // 翻页参数正确：pageSize=100 且对状态 2 连续拉了 2 页
+    expect(
+      requests.every((r) => r.pageSize === 100),
+    ).toBe(true);
+    const status2 = requests.filter((r) => r.status === 2);
+    expect(status2.map((r) => r.pageNum)).toEqual([1, 2]);
+  });
+
+  it('R9：后端提交失败只由全局拦截器提示，页面不再重复弹（不切题）', async () => {
+    vi.mocked(submitLabelTask).mockRejectedValue(new Error('结果不能为空'));
+    vi.mocked(getTaskListInGroup).mockResolvedValue(pageOf([row(1, 2, 2)]));
+    const router = mount('/exec/label/1', { taskGroupId: 12 });
+    fireEvent.click(await screen.findByRole('button', { name: /提交标注/ }));
+    // 等待 mutation 结束（失败后按钮恢复）；页面不再弹与全局拦截器重复的错误文案
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: /提交标注/ }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+    expect(screen.queryByText('结果不能为空')).toBeNull();
+    // 也不切题
+    expect(router.state.location.pathname).toBe('/exec/label/1');
+  });
 });

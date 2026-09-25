@@ -15,6 +15,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import { getTaskDetail, getTaskResult, submitLabelTask } from '@/features/task/api';
 import {
   describeMissing,
@@ -116,8 +117,9 @@ export default function LabelExecPage() {
       await advance();
     },
     onError: (e) => {
-      // 客户端校验 / 后端 message 原文显示（常见：未保存结果 / 校验未通过）；不切题。
-      message.error((e as Error)?.message || '提交失败');
+      // 只弹本地校验错误（ClientValidationError 未走 http，全局拦截器覆盖不到）；
+      // 后端 / 网络错误由 http.ts 拦截器统一 toast，这里再弹会同屏双提示（R9，2026-09-25）。
+      if (e instanceof ClientValidationError) message.error(e.message);
     },
   });
 
@@ -305,21 +307,20 @@ const vDivider: CSSProperties = {
   flex: 'none',
 };
 
-/** 顶栏与 iframe 之间的「打回原因」提醒条。可折叠，默认展开。
- *  样式参考 STATUS.failed tone（浅红底 + 深红字）保持全站状态色一致。 */
+/** 顶栏与 iframe 之间的「打回原因」提醒条。可折叠，默认展开。取 STATUS.failed 语义色保持全站状态色一致。 */
 function ReboundBanner({ comment, round }: { comment: string; round: number }) {
   const [open, setOpen] = useState(true);
   return (
     <div
       style={{
         flex: 'none',
-        background: '#fbe9e7',
-        borderBottom: `1px solid #f3c2bd`,
+        background: STATUS.failed.bg,
+        borderBottom: `1px solid ${palette.hairline}`,
         padding: '10px 18px',
         display: 'flex',
         alignItems: 'flex-start',
         gap: 10,
-        color: '#a8423a',
+        color: STATUS.failed.fg,
         fontFamily: fonts.body,
         fontSize: 13,
       }}
@@ -372,7 +373,7 @@ function DonePanel({ onBack }: { onBack: () => void }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-        <CheckCircleFilled style={{ fontSize: 48, color: '#2c7a52' }} />
+        <CheckCircleFilled style={{ fontSize: 48, color: STATUS.done.fg }} />
         <div style={{ textAlign: 'center' }}>
           <div
             style={{

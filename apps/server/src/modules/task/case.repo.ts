@@ -76,8 +76,10 @@ export class CaseRepository {
   }
 
   /**
-   * 合并式更新 ext：顶层键按 patch 覆盖（jsonb ||），未给的键保留。
-   * lastExport / deadline 等各自独立写入互不覆盖；要删除某键给 null。
+   * 合并式更新 ext：顶层键按 patch 覆盖（jsonb ||），未给的键保留；
+   * patch 中值为 null 的键从 ext 删除（jsonb - text[]），兑现「要删除某键给 null」的语义
+   * （R4，2026-09-25：此前 `||` 会保留 `{deadline: null}` 僵尸键，让截止扫描查询永久取回该行）。
+   * 本 repo 仅被 case 服务使用，全部 null 语义均为「清除」，无兼容风险。
    */
   async updateExt(
     caseId: number,
@@ -85,10 +87,20 @@ export class CaseRepository {
     operator: string,
     updateTime: number,
   ): Promise<void> {
+    const nullKeys = Object.keys(patch).filter(
+      (key) => (patch as Record<string, unknown>)[key] === null,
+    );
+    // Postgres 数组字面量 '{"a","b"}'；键名来自 CaseExt 固定键集，引号转义兜底。
+    const nullKeysLiteral = `{${nullKeys
+      .map((key) => `"${key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+      .join(',')}}`;
     await this.db
       .updateTable('label_case')
       .set({
-        ext: sql`COALESCE(ext, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`,
+        ext:
+          nullKeys.length > 0
+            ? sql`(COALESCE(ext, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb) - ${nullKeysLiteral}::text[]`
+            : sql`COALESCE(ext, '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb`,
         operator,
         updateTime,
       })
@@ -113,17 +125,20 @@ export class CaseRepository {
     return Number(result.numUpdatedRows);
   }
 
-  /** 运行中且 ext.deadline 已设置的未删除 case（截止扫描用）。 */
+  /** 运行中且 ext.deadline 为数值的未删除 case（截止扫描用）。 */
   selectRunningWithDeadline(limit: number): Promise<CaseRow[]> {
-    return this.db
-      .selectFrom('label_case')
-      .selectAll()
-      .where('status', '=', 2)
-      .where('deleted', '=', DELETED_NO)
-      .where(sql`ext ? 'deadline'`, '=', sql`true`)
-      .orderBy('id')
-      .limit(limit)
-      .execute();
+    return (
+      this.db
+        .selectFrom('label_case')
+        .selectAll()
+        .where('status', '=', 2)
+        .where('deleted', '=', DELETED_NO)
+        // jsonb_typeof 而非键存在性：对历史 `{"deadline": null}` 僵尸数据免疫（R4 双修兜底）。
+        .where(sql`jsonb_typeof(ext->'deadline')`, '=', sql.lit('number'))
+        .orderBy('id')
+        .limit(limit)
+        .execute()
+    );
   }
 
   async countByCondition(

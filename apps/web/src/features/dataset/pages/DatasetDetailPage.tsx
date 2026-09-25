@@ -20,6 +20,7 @@ import {
 import { UPLOAD_STATUS, metaOf } from '@/shared/constants';
 import { formatDate, formatDateTime } from '@/shared/utils/format';
 import { palette, fonts } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import { getDatasetDetail, getVersionSamplePreview } from '../api';
 import type { DatasetVersion } from '../types';
 
@@ -162,7 +163,7 @@ function VersionSampleDrawer({ version, onClose }: { version: DatasetVersion | n
               总行数 {ext.totalRowCount} · 成功 {ext.successRowCount} · 跳过 {ext.skippedRowCount}
             </div>
             {ext.parseFailureReason && (
-              <div style={{ marginTop: 8, fontSize: 13, color: '#a8423a' }}>失败原因：{ext.parseFailureReason}</div>
+              <div style={{ marginTop: 8, fontSize: 13, color: STATUS.failed.fg }}>失败原因：{ext.parseFailureReason}</div>
             )}
             {ext.sampleErrors?.length > 0 && (
               <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12.5, color: palette.sub, lineHeight: 1.8 }}>

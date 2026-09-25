@@ -7,6 +7,7 @@ import type { CaseRow, DatasetSampleRow } from '../../db/schema.js';
 import type { Logger } from '../../infra/logger.js';
 import type { ObjectStorage } from '../../infra/object-storage.js';
 import type { DatasetSampleRepository } from '../dataset/dataset-sample.repo.js';
+import { datePart } from '../common/datetime.js';
 import { DELETED_NO, type CaseRepository } from './case.repo.js';
 import { readCaseExt, type LastExport } from './config.js';
 import { CaseExportStatus } from './enums.js';
@@ -185,17 +186,6 @@ function jsonlRow(
       reviewResult: review ? (review.sampleDataJson ?? null) : null,
     }) + '\n'
   );
-}
-
-function datePart(timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-    .format(new Date())
-    .replace(/-/g, '');
 }
 
 export function buildObjectKey(caseId: number, format: string, timeZone: string): string {

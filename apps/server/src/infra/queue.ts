@@ -73,6 +73,17 @@ const DEFAULT_JOB_OPTIONS: JobsOptions = {
   removeOnFail: { count: 1000 },
 };
 
+/**
+ * task-completed 的覆盖项（2026-09-25 R2）：入池事务已提交、outbox 行已删，派发失败属可无损重试的
+ * 操作，重试窗口必须覆盖派发锁租期（30s）与连环提交高峰。默认 3 次（指数退避 5s 起）总窗口仅约
+ * 15s，高峰期 3 次都撞锁后 job 永久 failed、样本滞留池中再无派发触发。10 次退避后第 10 次约在
+ * 42 分钟后，覆盖锁租期；仍失败则保留 removeOnFail 记录供人工介入（更新 case 状态即可全池补派）。
+ */
+const TASK_COMPLETED_JOB_OPTIONS: JobsOptions = {
+  ...DEFAULT_JOB_OPTIONS,
+  attempts: 10,
+};
+
 export function queueConnectionOptions(
   redis: AppConfig['redis'],
   role: 'producer' | 'worker',
@@ -89,15 +100,18 @@ export function queueConnectionOptions(
 
 export function createQueues(config: AppConfig): Queues {
   const connection = queueConnectionOptions(config.redis, 'producer');
-  const make = <T>(name: QueueName) =>
+  const make = <T>(name: QueueName, defaultJobOptions: JobsOptions = DEFAULT_JOB_OPTIONS) =>
     new Queue<T>(name, {
       connection,
       prefix: config.queue.prefix,
-      defaultJobOptions: DEFAULT_JOB_OPTIONS,
+      defaultJobOptions,
     });
   const datasetParse = make<DatasetParseJob>(QUEUE_NAMES.datasetParse);
   const taskDispatched = make<TaskDispatchedJob>(QUEUE_NAMES.taskDispatched);
-  const taskCompleted = make<TaskCompletedJob>(QUEUE_NAMES.taskCompleted);
+  const taskCompleted = make<TaskCompletedJob>(
+    QUEUE_NAMES.taskCompleted,
+    TASK_COMPLETED_JOB_OPTIONS,
+  );
   const caseExport = make<CaseExportJob>(QUEUE_NAMES.caseExport);
   const all: Record<string, Queue> = {
     [QUEUE_NAMES.datasetParse]: datasetParse as Queue,

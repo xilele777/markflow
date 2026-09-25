@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDatasetParseService } from '../src/modules/dataset/dataset-parse.worker.js';
 import { allocateFixedQuotas } from '../src/modules/task/dispatch-engine.js';
+import { rejectTargetStageInPlan } from '../src/modules/task/config.js';
+import { STAGES, TaskStatus, type StageTypeName } from '../src/modules/task/enums.js';
 import { processTaskCompleted } from '../src/modules/task/task.workers.js';
 import { createLabelToolRow, uniq } from './helpers/app.js';
 import { insertDataset, insertVersion } from './helpers/dataset.js';
@@ -9,10 +11,12 @@ import {
   createCaseOk,
   createFixture,
   createPipelineHarness,
+  FakeLlm,
   labelAndSubmit,
   post,
   review,
   selectTasks,
+  waitForTask,
   type Fixture,
   type PipelineHarness,
 } from './helpers/pipeline.js';
@@ -347,5 +351,190 @@ describe('2026-09-24 审查回归', () => {
     const mixedQuotas = allocateFixedQuotas(10, mixed);
     expect([...mixedQuotas.values()].reduce((sum, n) => sum + n, 0)).toBe(10);
     expect(mixedQuotas.get('a')).toBe(4);
+  });
+});
+
+describe('2026-09-25 审查回归（R1 / R2 / R3）', () => {
+  const planOf = (...types: StageTypeName[]) => ({
+    stages: types.map((type) => ({
+      stage: STAGES.find((s) => s.type === type)!.code,
+      type,
+    })),
+  });
+  const stageOf = (type: StageTypeName) => STAGES.find((s) => s.type === type)!;
+
+  describe('R1：驳回目标阶段', () => {
+    it('纯函数：连续组合驳回目标 = 紧邻上一阶段；非连续组合跳过 aiPreReview 取数据生产阶段', () => {
+      // 连续组合（无 aiPreReview 夹在中间）：行为与旧 prevStageInPlan 一致。
+      expect(rejectTargetStageInPlan(planOf('label', 'review'), stageOf('review'))!.type).toBe(
+        'label',
+      );
+      expect(
+        rejectTargetStageInPlan(planOf('label', 'review', 'recheck'), stageOf('recheck'))!.type,
+      ).toBe('review');
+      expect(
+        rejectTargetStageInPlan(
+          planOf('aiPreLabel', 'label', 'aiPreReview', 'review', 'recheck'),
+          stageOf('recheck'),
+        )!.type,
+      ).toBe('review');
+      // 非连续组合：紧邻上一阶段是 aiPreReview → 跳过取 label。
+      expect(
+        rejectTargetStageInPlan(planOf('label', 'aiPreReview', 'recheck'), stageOf('recheck'))!
+          .type,
+      ).toBe('label');
+      // aiPreLabel → label 夹 aiPreReview：审核驳回到 label（数据生产），不到 aiPreLabel。
+      expect(
+        rejectTargetStageInPlan(
+          planOf('aiPreLabel', 'label', 'aiPreReview', 'review'),
+          stageOf('review'),
+        )!.type,
+      ).toBe('label');
+      // aiPreReview 自身的驳回链不经过这里（其 target 是 label / aiPreLabel），但函数语义一并验证：
+      expect(
+        rejectTargetStageInPlan(planOf('aiPreLabel', 'aiPreReview'), stageOf('aiPreReview'))!.type,
+      ).toBe('aiPreLabel');
+      // 无上一阶段 → null（首阶段驳回）。
+      expect(rejectTargetStageInPlan(planOf('label'), stageOf('label'))).toBeNull();
+      expect(rejectTargetStageInPlan(null, stageOf('review'))).toBeNull();
+    });
+
+    it('API 层：recheck 驳回经 aiPreReview 时打回的是标注任务而非 AI 预审任务', async () => {
+      const h = await createPipelineHarness();
+      const f = await createFixture(h.ctx, h.app, 1);
+      try {
+        // 启动 worker：AI 预审执行与 recheck 派发都走队列。
+        await h.startWorkers();
+        // AI 预审固定通过：验证 recheck 驳回后由标注员重做，而非 AI 预审无限重审。
+        h.llm.handler = (req) => {
+          if (FakeLlm.isReview(req)) {
+            return {
+              content: JSON.stringify({ reviewAction: 1, reviewComment: 'ai fine' }),
+              finishReason: 'stop',
+              promptTokens: null,
+              completionTokens: null,
+            };
+          }
+          return {
+            content: '{}',
+            finishReason: 'stop',
+            promptTokens: null,
+            completionTokens: null,
+          };
+        };
+        const caseId = await createCaseOk(
+          h.app,
+          f.labelAdmin.token,
+          caseBody(f, {
+            stages: ['label', 'aiPreReview', 'recheck'],
+            labelers: [f.labeler1.username],
+            recheckers: [f.reviewer.username],
+            preDispatchSize: 1,
+          }),
+        );
+        const sid = f.sampleIds[0]!;
+        // 标注 → AI 预审通过 → recheck 派发
+        const l = await waitForTask(h.ctx, caseId, 2, sid, (t) => t.status === 2);
+        await labelAndSubmit(h.app, f.labeler1.token, l.id, { label: 'v1' });
+        const rc = await waitForTask(h.ctx, caseId, 5, sid, (t) => t.status === 3);
+        expect(rc.annotator).toBe(f.reviewer.username);
+        // recheck 驳回：旧实现打回紧邻上一阶段 aiPreReview（AI 重审 → 乒乓）；
+        // 现在应打回 label（数据生产阶段），标注员收 TASK_REJECTED。
+        expect((await review(h.app, f.reviewer.token, rc.id, 0, '复检不过')).body.success).toBe(
+          true,
+        );
+        const labelTask = await waitForTask(
+          h.ctx,
+          caseId,
+          2,
+          sid,
+          (t) => t.status === TaskStatus.REWORK,
+          'label task rejected to rework',
+        );
+        expect(labelTask.round).toBe(2);
+        // AI 预审任务保持 DONE（未被重开、round 不变）——重做的标注提交后才会经它重审。
+        const aiReview = await h.ctx.db
+          .selectFrom('label_task')
+          .selectAll()
+          .where('caseId', '=', caseId)
+          .where('taskType', '=', 3)
+          .executeTakeFirstOrThrow();
+        expect(aiReview.status).toBe(TaskStatus.DONE);
+        // 标注员收到打回通知（旧实现的乒乓循环里标注员永远收不到）。
+        const rejected = await h.ctx.db
+          .selectFrom('sys_notification')
+          .selectAll()
+          .where('username', '=', f.labeler1.username)
+          .where('type', '=', 'TASK_REJECTED')
+          .execute();
+        expect(rejected.length).toBeGreaterThanOrEqual(1);
+      } finally {
+        await h.close();
+      }
+    });
+  });
+
+  describe('R3：导出触发并发防护', () => {
+    it('EXPORTING 中重复触发被拒（OPERATION_CONFLICT）；DONE 后可再次触发', async () => {
+      const h = await createPipelineHarness();
+      const f = await createFixture(h.ctx, h.app, 1);
+      try {
+        const caseId = await createCaseOk(h.app, f.labelAdmin.token, caseBody(f));
+        const trigger = () =>
+          post(h.app, '/api/case/exportCaseResult', f.labelAdmin.token, {
+            caseId,
+            format: 'csv',
+          });
+        expect((await trigger()).body.success).toBe(true);
+        // 不启动 case-export worker，lastExport 停留在 EXPORTING → 第二次触发被拒。
+        expect((await trigger()).body.code).toBe('OPERATION_CONFLICT');
+        // 手工推进 lastExport 为 DONE（模拟导出完成）→ 允许再次触发。
+        await h.ctx.db
+          .updateTable('label_case')
+          .set({
+            ext: JSON.stringify({
+              lastExport: { status: 'DONE', format: 'csv', objectKey: 'k', finishTime: 1 },
+            }),
+          })
+          .where('id', '=', caseId)
+          .execute();
+        const again = await trigger();
+        expect(again.body.success).toBe(true);
+        const detail = await post(h.app, '/api/case/getCaseDetail', f.labelAdmin.token, { caseId });
+        expect(detail.body.data.ext.lastExport.status).toBe('EXPORTING');
+      } finally {
+        await h.close();
+      }
+    });
+  });
+
+  it('R2：task-completed job 的默认重试次数为 10（覆盖派发锁租期，非全局默认 3）', async () => {
+    const h = await createPipelineHarness();
+    try {
+      const jobId = `r2-${Date.now()}`;
+      const payload = {
+        caseId: 1,
+        taskId: 1,
+        round: 1,
+        dataSampleId: 1,
+        currentStageType: 'label',
+        nextStageType: null,
+        annotator: 'x',
+        completedTime: Date.now(),
+      };
+      const outboxId = await h.ctx.outbox.enqueueTx(h.ctx.db, {
+        queue: 'task-completed' as never,
+        jobName: 'completed',
+        jobId,
+        payload,
+      });
+      await h.ctx.outbox.deliver([outboxId]);
+      const job = await h.ctx.queues.taskCompleted.getJob(jobId);
+      // 未启动 task-completed worker，job 停在等待队列；opts.attempts 来自 createQueues 的 TASK_COMPLETED_JOB_OPTIONS。
+      expect(job?.opts.attempts).toBe(10);
+      await h.ctx.queues.taskCompleted.remove(jobId);
+    } finally {
+      await h.close();
+    }
   });
 });

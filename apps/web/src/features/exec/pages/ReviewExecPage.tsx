@@ -8,6 +8,7 @@ import { ArrowLeftOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import { getTaskDetail, getTaskResult, submitReviewTask } from '@/features/task/api';
 import { useExecutionQueue } from '../useExecutionQueue';
 
@@ -73,9 +74,7 @@ export default function ReviewExecPage() {
       lastHydratedTaskId.current = null;
       await advance();
     },
-    onError: (e) => {
-      message.error((e as Error)?.message || '提交失败');
-    },
+    // 失败提示由 http.ts 拦截器统一 toast，页面不再重复弹（R9，2026-09-25）。
   });
 
   const submitReview = (action: number) => {
@@ -295,22 +294,22 @@ const vDivider: CSSProperties = {
   flex: 'none',
 };
 
-// 通过=就绪绿；不通过=失败红。颜色取自配色规范的 STATUS。
+// 通过=就绪绿；不通过=失败红。颜色取自语义色板 STATUS（tones.ts）。
 const passBtnStyle: CSSProperties = {
-  background: '#2c7a52',
-  borderColor: '#2c7a52',
+  background: STATUS.ready.fg,
+  borderColor: STATUS.ready.fg,
   color: '#fff',
 };
 const rejectBtnStyle: CSSProperties = {
-  borderColor: '#a8423a',
-  color: '#a8423a',
+  borderColor: STATUS.failed.fg,
+  color: STATUS.failed.fg,
 };
 
 function DonePanel({ onBack }: { onBack: () => void }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-        <CheckCircleFilled style={{ fontSize: 48, color: '#2c7a52' }} />
+        <CheckCircleFilled style={{ fontSize: 48, color: STATUS.done.fg }} />
         <div style={{ textAlign: 'center' }}>
           <div
             style={{

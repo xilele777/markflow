@@ -1,6 +1,7 @@
 // M5 功能补齐：case 状态控制（暂停 / 恢复 / 结束 + 自动结束）、站内通知（派发 / 驳回 / 结束 / 截止）、
 // 截止时间（设置 / 校验 / 扫描提醒与逾期）、个人组 status / doneCount 重算。消费者在本进程内启动。
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { sql } from 'kysely';
 import { CaseStatus, TaskGroupStatus, TaskStatus, TaskType } from '../src/modules/task/enums.js';
 import { DEADLINE_REMINDER_AHEAD_MS } from '../src/modules/task/case.service.js';
 import { startDeadlineScheduler } from '../src/modules/task/task.workers.js';
@@ -19,6 +20,7 @@ import {
   type Fixture,
   type PipelineHarness,
 } from './helpers/pipeline.js';
+import { uniq } from './helpers/app.js';
 
 describe('M5 · case 状态 / 通知 / 截止 / 个人组统计', () => {
   let h: PipelineHarness;
@@ -333,7 +335,9 @@ describe('M5 · case 状态 / 通知 / 截止 / 个人组统计', () => {
         deadline: null,
       });
       expect(cleared.body.data).toEqual({ caseId, deadline: null });
-      expect((await caseRow(caseId)).ext).toMatchObject({ deadline: null });
+      // R4（2026-09-25）：清除后 ext 中 deadline 键整体删除（不再残留 null 值），截止扫描不再取回该行。
+      expect((await caseRow(caseId)).ext).toMatchObject({});
+      expect((await caseRow(caseId)).ext).not.toHaveProperty('deadline');
       await setStatus(f.labelAdmin.token, caseId, CaseStatus.FINISHED);
       expect(
         (
@@ -391,6 +395,45 @@ describe('M5 · case 状态 / 通知 / 截止 / 个人组统计', () => {
       } finally {
         await scheduler.stop();
       }
+    });
+
+    it('R4：清除截止后僵尸行不占扫描名额——updateExt 删除键 + 扫描按 jsonb_typeof 过滤', async () => {
+      const caseId = await createCaseOk(h.app, f.labelAdmin.token, {
+        ...caseBody(f, { name: `R4 扫描 ${uniq('d')}` }),
+        deadline: Date.now() + 60_000,
+      });
+      // 清除 → ext.deadline 键整体删除（updateExt null 语义）
+      await post(h.app, '/api/case/updateCaseDeadline', f.labelAdmin.token, {
+        caseId,
+        deadline: null,
+      });
+      const rows = await h.ctx.db
+        .selectFrom('label_case')
+        .selectAll()
+        .where('id', '=', caseId)
+        .executeTakeFirstOrThrow();
+      expect(rows.ext).not.toHaveProperty('deadline');
+      // 扫描查询不再取回该行（旧实现 `ext ? 'deadline'` 键存在性永真）。
+      const scanned = await h.ctx.db
+        .selectFrom('label_case')
+        .select('id')
+        .where('id', '=', caseId)
+        .where(sql`jsonb_typeof(ext->'deadline')`, '=', sql.lit('number'))
+        .execute();
+      expect(scanned).toHaveLength(0);
+      // 历史僵尸数据兜底：手工写回 `{"deadline": null}` 也不进扫描。
+      await h.ctx.db
+        .updateTable('label_case')
+        .set({ ext: JSON.stringify({ deadline: null }) })
+        .where('id', '=', caseId)
+        .execute();
+      const scannedAgain = await h.ctx.db
+        .selectFrom('label_case')
+        .select('id')
+        .where('id', '=', caseId)
+        .where(sql`jsonb_typeof(ext->'deadline')`, '=', sql.lit('number'))
+        .execute();
+      expect(scannedAgain).toHaveLength(0);
     });
   });
 });

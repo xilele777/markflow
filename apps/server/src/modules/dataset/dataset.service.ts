@@ -14,6 +14,7 @@ import type { ObjectStorage } from '../../infra/object-storage.js';
 import type { OutboxService } from '../../infra/outbox.js';
 import { QUEUE_NAMES } from '../../infra/queue.js';
 import type { Operator } from '../common/operator.js';
+import { datePart } from '../common/datetime.js';
 import { emptyPage, normalizePage, type PageInput, type PageResult } from '../common/pagination.js';
 import type { PermissionService } from '../common/permission.js';
 import { hasText, isBlank, type Maybe } from '../common/strings.js';
@@ -421,18 +422,6 @@ function validateVersionParam(input: CreateDatasetVersionInput): {
     throw ServiceError.of(DatasetErrorCode.VERSION_DESC_TOO_LONG);
   }
   return { ossPath: input.ossPath as string, versionDesc };
-}
-
-/** 当天日期段 yyyyMMdd（按配置时区）。 */
-function datePart(timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-    .format(new Date())
-    .replace(/-/g, '');
 }
 
 /** 取文件名后缀（含点，如 `.jsonl`）；无后缀或后缀含非字母数字返回空串。 */

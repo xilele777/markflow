@@ -8,6 +8,7 @@ import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Btn, FooterActionBar, PageBackHeader, SectionCard, Tag, toast } from '@/shared/components';
 import { palette, fonts, sizing } from '@/app/theme';
+import { STATUS } from '@/shared/constants/tones';
 import { useAuthStore } from '@/shared/store/auth';
 import { useWorkspaceStore } from '@/shared/store/workspace';
 import { getLabelToolList } from '@/features/labeltool/api';
@@ -372,7 +373,7 @@ export default function CaseNewPage() {
               ))}
             </div>
             {!stageConstraint && (
-              <div style={{ marginTop: 12, fontSize: 12.5, color: '#a8423a' }}>
+              <div style={{ marginTop: 12, fontSize: 12.5, color: STATUS.failed.fg }}>
                 「AI 预标」与「人工标注」至少需启用一个。
               </div>
             )}
@@ -772,7 +773,7 @@ function HumanStageCard({
                   style={{
                     fontFamily: fonts.body,
                     fontSize: 12.5,
-                    color: ratioSum === 100 ? '#2c7a52' : '#a8423a',
+                    color: ratioSum === 100 ? STATUS.done.fg : STATUS.failed.fg,
                   }}
                 >
                   启用成员比例合计 <span style={{ fontFamily: fonts.mono }}>{ratioSum}%</span> /

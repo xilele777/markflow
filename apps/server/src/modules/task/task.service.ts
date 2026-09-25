@@ -31,9 +31,9 @@ import {
   isExecutorActiveInStage,
   nextStageInPlan,
   planStages,
-  prevStageInPlan,
   readAssignment,
   readTaskPlan,
+  rejectTargetStageInPlan,
   sameName,
 } from './config.js';
 import { DispatchEngine, STAGE_DESC, SYSTEM_OPERATOR } from './dispatch-engine.js';
@@ -347,7 +347,9 @@ export class TaskService {
       return;
     }
 
-    const prevStage = prevStageInPlan(plan, currentStage);
+    // R1（2026-09-25）：人工审核阶段驳回时跳过 aiPreReview，取最近的数据生产阶段，
+    // 避免打回 AI 重审未变化的输入形成乒乓循环（标注员永远收不到打回通知）。
+    const prevStage = rejectTargetStageInPlan(plan, currentStage);
     if (!prevStage) throw ServiceError.of(TaskErrorCode.PREVIOUS_STAGE_NOT_FOUND);
     const target = await this.deps.tasks.selectByCaseTypeAndSample(
       task.caseId,
@@ -424,6 +426,9 @@ export class TaskService {
     const caseCache = new Map<number, CaseRow | undefined>();
     const poolCache = new Map<string, { id: number } | undefined>();
     const targets = new Map<number, Set<number>>();
+    // R5（2026-09-25）：受影响的个人组收集后循环结束统一重算一次统计（聚合结果等价），
+    // 替代逐条 refreshPersonalGroupStats —— 满载 500 条时语句数 1500 → 约 1000。
+    const affectedGroups = new Set<number>();
     let recycled = 0;
     for (const task of candidates) {
       try {
@@ -452,6 +457,7 @@ export class TaskService {
           );
           continue;
         }
+        // 逐条取 seq：与驳回路径并发写池时保证 seq 唯一，正确性优先（按池批量分配见已知边界）。
         const seq = (await this.deps.tasks.maxSeqInGroup(pool.id)) + 1;
         const affected = await this.deps.tasks.recycleToPool(
           task.id,
@@ -462,7 +468,7 @@ export class TaskService {
           now,
         );
         if (affected === 0) continue;
-        await this.deps.groups.refreshPersonalGroupStats([task.taskGroupId], now);
+        affectedGroups.add(task.taskGroupId);
         recycled += 1;
         this.deps.logger.info(
           {
@@ -480,6 +486,9 @@ export class TaskService {
       } catch (err) {
         this.deps.logger.error({ err, taskId: task.id }, 'auto-recycle single task failed');
       }
+    }
+    if (affectedGroups.size > 0) {
+      await this.deps.groups.refreshPersonalGroupStats([...affectedGroups], now);
     }
     for (const [caseId, poolTypes] of targets) {
       for (const poolType of poolTypes)

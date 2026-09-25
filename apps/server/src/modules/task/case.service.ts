@@ -70,6 +70,8 @@ const RATIO_TOTAL = 100;
 const CREATE_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
 const DOWNLOAD_URL_EXPIRES_SECONDS = 3600;
 const STATUS_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
+/** 导出触发锁（R3，2026-09-25）：防止 EXPORTING 中重复触发，并发导出互相覆盖 lastExport、桶中累积孤儿对象。 */
+const EXPORT_LOCK = { waitMs: 3_000, leaseMs: 30_000 };
 /** 截止前多久发一次提醒。 */
 export const DEADLINE_REMINDER_AHEAD_MS = 24 * 60 * 60 * 1000;
 const DEADLINE_SCAN_LIMIT = 500;
@@ -348,7 +350,7 @@ export class CaseService {
     };
   }
 
-  /** 导出触发：格式 → case → 权限 → ext.lastExport=EXPORTING → outbox。 */
+  /** 导出触发：格式 → case → 权限 → 锁内确认非 EXPORTING → ext.lastExport=EXPORTING → outbox。 */
   async exportCaseResult(
     operator: Operator,
     input: { caseId?: Maybe<number>; format?: Maybe<string> },
@@ -360,25 +362,39 @@ export class CaseService {
     const caseRow = await this.requireActiveCase(input.caseId);
     await this.requireManageableWorkspace(operator.userId, caseRow.spaceCode);
     const now = Date.now();
-    const outboxId = await this.deps.db.transaction().execute(async (trx) => {
-      await this.deps.cases
-        .withDb(trx)
-        .updateExt(
-          caseRow.id,
-          { lastExport: { status: CaseExportStatus.EXPORTING, format, triggerTime: now } },
-          operator.username,
-          now,
-        );
-      return this.deps.outbox.enqueueTx(trx, {
-        queue: QUEUE_NAMES.caseExport,
-        jobName: 'export',
-        payload: {
-          caseId: caseRow.id,
-          format: format as ExportFormat,
-          operator: operator.username,
-        },
-      });
-    });
+    // R3（2026-09-25）：并发触发会起两个导出 job，后完成者覆盖 lastExport、先完成者的对象成孤儿。
+    // 照 updateCaseStatus 模式加锁，锁内重读，EXPORTING 中拒绝重复触发。
+    const outboxId = await this.deps.lock.withLock(
+      `case:export:${caseRow.id}`,
+      CaseErrorCode.OPERATION_CONFLICT,
+      async () => {
+        const fresh = await this.requireActiveCase(caseRow.id);
+        const lastExport = readCaseExt(fresh.ext).lastExport;
+        if (lastExport?.status === CaseExportStatus.EXPORTING) {
+          throw ServiceError.of(CaseErrorCode.OPERATION_CONFLICT, '该 Case 正在导出中，请稍后再试');
+        }
+        return this.deps.db.transaction().execute(async (trx) => {
+          await this.deps.cases
+            .withDb(trx)
+            .updateExt(
+              fresh.id,
+              { lastExport: { status: CaseExportStatus.EXPORTING, format, triggerTime: now } },
+              operator.username,
+              now,
+            );
+          return this.deps.outbox.enqueueTx(trx, {
+            queue: QUEUE_NAMES.caseExport,
+            jobName: 'export',
+            payload: {
+              caseId: fresh.id,
+              format: format as ExportFormat,
+              operator: operator.username,
+            },
+          });
+        });
+      },
+      EXPORT_LOCK,
+    );
     await this.deps.outbox.deliver([outboxId]);
   }
 

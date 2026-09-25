@@ -5,6 +5,7 @@ import type { Logger } from '../../infra/logger.js';
 import { ServiceError } from '../../infra/errors.js';
 import type { WebVitalsRow } from '../../db/schema.js';
 import { PermissionService } from '../common/permission.js';
+import { dayKey } from '../common/datetime.js';
 import { MonitoringErrorCode } from './error-codes.js';
 
 export const VITAL_NAMES = ['LCP', 'INP', 'CLS', 'FCP', 'TTFB'] as const;
@@ -83,16 +84,6 @@ export function p75(values: number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.floor(0.75 * (sorted.length - 1))] ?? null;
-}
-
-function dayKey(ms: number, timeZone: string): string {
-  // en-CA 的日期格式即 YYYY-MM-DD。
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(ms));
 }
 
 export function summarize(

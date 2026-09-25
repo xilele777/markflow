@@ -3,6 +3,7 @@
 import { createApp } from './app/create-app.js';
 import { createContext, destroyContext } from './app/context.js';
 import { startWorkers } from './app/workers.js';
+import { createTaskModule } from './modules/task/module.js';
 import { migrateToLatest } from './db/migrator.js';
 import { BootstrapError, runBootstrap } from './infra/bootstrap.js';
 import { ConfigError, loadConfig } from './infra/config.js';
@@ -26,11 +27,14 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const app = createApp(ctx);
+  // HTTP 与 worker 共用同一个任务域服务图（R8，2026-09-25）：
+  // 同进程两套实例会在未来引入缓存 / 计数器类状态时造成行为分裂。
+  const taskModule = createTaskModule(ctx);
+  const app = createApp(ctx, { taskModule });
   const server = app.listen(config.server.port, config.server.host, () => {
     logger.info({ port: config.server.port }, 'markflow-server listening');
   });
-  const workers = startWorkers(ctx);
+  const workers = startWorkers(ctx, taskModule);
 
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals) => {

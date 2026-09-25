@@ -239,11 +239,39 @@ describe('AI 预标 / 预审 与 导出（消费者在进程内）', () => {
     const ai2 = await taskOf(caseId, TaskType.AI_REVIEW, sid);
     expect(ai2).toMatchObject({ status: TaskStatus.DONE, round: 2 });
     expect(reviewCalls).toBe(2);
-    // 人工驳回 AI 预审 task（上一阶段为 AI，aiCode active）→ AI 任务 REWORK 并重新触发 → AI 再次通过 → review 重开
+    // 人工驳回 review task（R1，2026-09-25：跳过 aiPreReview）→ label task REWORK（AI 预审不再被直接打回）
+    // → 标注员重做 → AI 预审重开重审 → 通过 → review 重开 round 2。
+    // 旧实现打回紧邻的 aiPreReview，AI 重审未变化的输入 → 结论相同 → review 重开 → 无限乒乓。
     reviewCalls = 0;
     expect((await review(h.app, f3.reviewer.token, r.id, 0, 'human says no')).body.success).toBe(
       true,
     );
+    // 此前 label 已被 AI 预审驳回过一次（round 2），人工驳回再递增为 round 3。
+    const rework2 = await waitForTask(
+      h.ctx,
+      caseId,
+      TaskType.LABEL,
+      sid,
+      (t) => t.status === TaskStatus.REWORK && t.round === 3,
+      'label rework after human reject',
+    );
+    // AI 预审未被重开：重做的标注提交前它保持 DONE（round 2）。
+    expect(await taskOf(caseId, TaskType.AI_REVIEW, sid)).toMatchObject({
+      status: TaskStatus.DONE,
+      round: 2,
+    });
+    // 标注员重做 → AI 预审重开（round 3）重审 → 通过 → review 重开 round 2
+    // （重做标签仍用 'good'：FakeLlm 以 label === 'good' 判通过。）
+    await labelAndSubmit(h.app, f3.labeler1.token, rework2.id, { label: 'good' });
+    const ai3 = await waitForTask(
+      h.ctx,
+      caseId,
+      TaskType.AI_REVIEW,
+      sid,
+      (t) => t.status === TaskStatus.DONE && t.round === 3,
+      'ai review reopened round 3',
+    );
+    expect(ai3).toBeDefined();
     const r2 = await waitForTask(
       h.ctx,
       caseId,
@@ -253,8 +281,6 @@ describe('AI 预标 / 预审 与 导出（消费者在进程内）', () => {
       'review round 2',
     );
     expect(r2.annotator).toBe(f3.reviewer.username);
-    const ai3 = await taskOf(caseId, TaskType.AI_REVIEW, sid);
-    expect(ai3).toMatchObject({ status: TaskStatus.DONE, round: 3 });
     expect(reviewCalls).toBe(1);
   });
 

@@ -15,6 +15,8 @@
 | 前端规范、第三方工具接入 | [前端文档索引](web/INDEX.md) |
 | Chrome 浏览器验收 | [前端测试指南](web/testing.md) |
 | 本地样例位置与用途 | [前端样例说明](web/examples.md) |
+| 第二轮审阅 Bug 清单（R1–R10） | [审阅记录](reviews/2026-09-25-project-review-round2-bugs.md) |
+| R1–R10 修复与回归证据 | [第二轮修复验收](reviews/2026-09-25-project-review-round2-fixes.md) |
 
 ## 资料层级
 
