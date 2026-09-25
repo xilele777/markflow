@@ -395,16 +395,27 @@ export class DispatchEngine {
   }
 }
 
-/** 最大余数法；同余数按配置顺序分配，active 成员配额之和始终等于总量。 */
+/**
+ * 最大余数法；同余数按配置顺序分配，active 成员配额之和始终等于总量。
+ * 同一 username 出现多条时按用户合并 ratio（创建校验已拒绝重复，这里兼容历史配置），
+ * 否则 `new Map` 收敛会同名覆盖、丢失配额并让落库总数对不上。
+ */
 export function allocateFixedQuotas(
   total: number,
   members: readonly MemberConfig[],
 ): Map<string, number> {
   const active = members.filter((member) => isMemberActive(member) && member.username !== null);
-  const shares = active.map((member, index) => {
-    const exact = (total * (member.ratio ?? 0)) / 100;
+  const ratios = new Map<string, number>();
+  const order: string[] = [];
+  for (const member of active) {
+    const username = member.username!.toLowerCase();
+    if (!ratios.has(username)) order.push(username);
+    ratios.set(username, (ratios.get(username) ?? 0) + (member.ratio ?? 0));
+  }
+  const shares = order.map((username, index) => {
+    const exact = (total * (ratios.get(username) ?? 0)) / 100;
     return {
-      username: member.username!.toLowerCase(),
+      username,
       index,
       quota: Math.floor(exact),
       remainder: exact % 1,

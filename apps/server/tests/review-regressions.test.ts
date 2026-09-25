@@ -324,4 +324,28 @@ describe('2026-09-24 审查回归', () => {
     }
     expect([...allocateFixedQuotas(7, members).values()]).toEqual([2, 2, 3, 0]);
   });
+
+  it('N1：同一 username 多条时按用户合并，配额仍守恒且不丢失', () => {
+    const dup = [
+      { username: 'a', ratio: 50, active: true },
+      { username: 'a', ratio: 30, active: true },
+      { username: 'b', ratio: 20, active: true },
+    ];
+    const quotas = allocateFixedQuotas(10, dup);
+    // 旧实现 new Map 收敛后 a 只剩 3，总量仅 5。
+    expect([...quotas.entries()]).toEqual([
+      ['a', 8],
+      ['b', 2],
+    ]);
+    expect([...quotas.values()].reduce((sum, n) => sum + n, 0)).toBe(10);
+    // 同用户中 inactive 的条目不合并（inactive 的 ratio 不参与分配）。
+    const mixed = [
+      { username: 'a', ratio: 40, active: true },
+      { username: 'a', ratio: 60, active: false },
+      { username: 'b', ratio: 60, active: true },
+    ];
+    const mixedQuotas = allocateFixedQuotas(10, mixed);
+    expect([...mixedQuotas.values()].reduce((sum, n) => sum + n, 0)).toBe(10);
+    expect(mixedQuotas.get('a')).toBe(4);
+  });
 });

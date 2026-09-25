@@ -23,6 +23,7 @@ export const CaseErrorCode = defineErrorCodes({
   AI_CONFIG_LABEL_TOOL_MISMATCH: 'AI 配置绑定的标注工具与 case 不一致',
   MEMBER_NOT_IN_WORKSPACE: '成员不在该空间',
   MEMBER_ROLE_MISMATCH: '成员在该空间的角色不匹配',
+  MEMBER_DUPLICATE: '成员不可重复配置',
   CASE_NOT_FOUND: '标注任务不存在',
   CASE_NOT_RUNNING: '标注任务非运行中',
   CASE_STATUS_INVALID: '目标状态不合法（仅支持 2 运行中 / 3 已暂停 / 4 已结束）',

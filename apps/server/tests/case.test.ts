@@ -167,6 +167,23 @@ describe('/api/case', () => {
       ).toBe('STAGE_MEMBERS_REQUIRED');
     });
 
+    it('人工阶段：同一用户重复配置 → MEMBER_DUPLICATE（比例之和可通过校验但配额会丢失）', async () => {
+      const t = f.labelAdmin.token;
+      const dup = f.labeler1.username;
+      // FIXED_RATIO：两条同用户各 50（和=100），旧实现按 username 收敛后配额翻倍丢失。
+      expect(await codeOf(t, caseBody(f, { strategy: 2, labelers: [dup, dup] }))).toBe(
+        'MEMBER_DUPLICATE',
+      );
+      // FCFS 同样拒绝重复。
+      expect(await codeOf(t, caseBody(f, { strategy: 1, labelers: [dup, dup] }))).toBe(
+        'MEMBER_DUPLICATE',
+      );
+      // 大小写不同视为同一用户（annotator 列为 citext）。
+      expect(
+        await codeOf(t, caseBody(f, { strategy: 2, labelers: [dup, dup.toUpperCase()] })),
+      ).toBe('MEMBER_DUPLICATE');
+    });
+
     it('同名（大小写不敏感）→ CASE_NAME_EXISTS', async () => {
       const name = `Dup ${uniq('n')}`;
       await createCaseOk(h.app, f.labelAdmin.token, caseBody(f, { name }));

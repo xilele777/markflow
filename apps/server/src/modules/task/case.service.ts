@@ -805,12 +805,18 @@ function validateHumanStage(
   const requiredRole = stage.requiredRole as number;
   let activeRatioSum = 0;
   let hasActive = false;
+  const seen = new Set<string>();
   for (const member of members) {
     const username = member.username;
     if (isBlank(username)) {
       throw ServiceError.of(CaseErrorCode.MEMBER_NOT_IN_WORKSPACE, '成员 username 不能为空');
     }
-    const roles = memberRoles.get((username as string).toLowerCase());
+    // 同一用户只允许配置一条：重复条目会让配额在按 username 收敛时丢失，破坏固定分配的守恒。
+    const key = (username as string).toLowerCase();
+    if (seen.has(key))
+      throw ServiceError.of(CaseErrorCode.MEMBER_DUPLICATE, `${username} 重复配置`);
+    seen.add(key);
+    const roles = memberRoles.get(key);
     if (!roles)
       throw ServiceError.of(CaseErrorCode.MEMBER_NOT_IN_WORKSPACE, `${username} 不在该空间`);
     if (!roles.has(requiredRole)) {
